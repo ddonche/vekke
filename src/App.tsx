@@ -19,15 +19,7 @@ function App() {
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null)
   const [human, setHuman] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
   const ai: Player = human === "W" ? "B" : "W"
-  const AI_DELAY_MS = 650 // tweak: 400–900 feels good
-  const [ghost, setGhost] = useState<null | {
-    by: Player
-    from: Coord
-    tokenId: string
-    born: number
-  }>(null)
-
-  const GHOST_MS = 1200
+  const AI_DELAY_MS = 1200
 
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
@@ -105,7 +97,6 @@ function App() {
     remainingRoutes.length > 0 &&
     (() => {
       const friendly = g.tokens.filter((t) => t.in === "BOARD" && t.owner === g.player)
-      // If ANY remaining route is usable by ANY friendly token, not forced
       for (const r of remainingRoutes) {
         for (const t of friendly) {
           if (canTokenUseRoute_UI(g.player, t, r)) return false
@@ -115,22 +106,6 @@ function App() {
     })()
 
   useEffect(() => {
-    if (!g.lastMove) return
-
-    // spawn a ghost at the FROM square
-    setGhost({
-      by: g.lastMove.by,
-      from: g.lastMove.from,
-      tokenId: g.lastMove.tokenId,
-      born: Date.now(),
-    })
-
-    const t = window.setTimeout(() => setGhost(null), GHOST_MS)
-    return () => window.clearTimeout(t)
-  }, [g.lastMove])
-
-  useEffect(() => {
-    // If selected token is missing or not owned by current player, auto-pick one.
     const sel = selectedTokenId
       ? g.tokens.find(t => t.in === "BOARD" && t.id === selectedTokenId)
       : null
@@ -155,7 +130,7 @@ function App() {
   }, [
     g.player,
     g.phase,
-    g.usedRoutes.length,            // only length matters for pacing
+    g.usedRoutes.length,
     g.pendingSwap.handRouteId,
     g.pendingSwap.queueIndex,
     g.reinforcementsToPlace,
@@ -164,8 +139,6 @@ function App() {
     g.gameOver,
     ai,
   ])
-
-  const currentPlayer: Player = g.player
 
   const selected =
     selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
@@ -239,7 +212,6 @@ function App() {
               userSelect: "none",
             }}
           >
-            {/* Draw ranks 6→1 so A1 is bottom-left */}
             {Array.from({ length: SIZE }, (_, ry) => {
               const y = SIZE - 1 - ry
               return Array.from({ length: SIZE }, (_, x) => {
@@ -248,15 +220,7 @@ function App() {
                 const t = boardMap.get(key)
                 const isSelected = t && t.id === selectedTokenId
 
-                const ghostHere = ghost && ghost.from.x === x && ghost.from.y === y ? ghost : null
-                const ghostAlpha = ghostHere ? Math.max(0, 1 - (Date.now() - ghostHere.born) / GHOST_MS) : 0
-
-                const lm = g.lastMove
-                const isFrom = lm && lm.from.x === x && lm.from.y === y
-                const isTo = lm && lm.to.x === x && lm.to.y === y
-
                 return (
-
                   <div
                     key={key}
                     onClick={() => onSquareClick(x, y)}
@@ -271,30 +235,6 @@ function App() {
                     <div style={{ position: "absolute", top: 4, left: 6, fontSize: 11, opacity: 0.55 }}>
                       {sq}
                     </div>
-
-                    {ghost && ghost.from.x === x && ghost.from.y === y && (
-                      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}>
-                        <div
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 999,
-                            display: "grid",
-                            placeItems: "center",
-                            border: "2px solid #333",
-                            background: ghost.by === "W" ? "#f5f5f5" : "#2b55ff",
-                            color: ghost.by === "W" ? "#111" : "white",
-                            fontWeight: 900,
-                            opacity: 0.35 * ghostAlpha,
-                            filter: "blur(0.2px)",
-                            transform: "scale(0.98)",
-                          }}
-                          title={`Ghost: ${ghost.tokenId}`}
-                        >
-                          {ghost.by}
-                        </div>
-                      </div>
-                    )}
 
                     {t && (
                       <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
@@ -416,7 +356,6 @@ function App() {
                             if (g.gameOver) return
 
                             if (g.phase === "ACTION") {
-                              
                               if (!selectedTokenId) {
                                 update((s) => (s.warning = "NO-NO: select a token first." as any))
                                 return
