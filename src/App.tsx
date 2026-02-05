@@ -27,7 +27,7 @@ function App() {
     born: number
   }>(null)
 
-  const GHOST_MS = 650
+  const GHOST_MS = 1200
 
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
@@ -265,8 +265,6 @@ function App() {
                       border: "1px solid #444",
                       background: (x + y) % 2 === 0 ? "white" : "rgba(0,0,0,0.04)",
                       cursor: g.phase === "OPENING" || t ? "pointer" : "default",
-                      outline: isTo ? "4px solid #111" : isFrom ? "3px dashed #111" : "none",
-                      outlineOffset: -3,
                     }}
                     title={sq}
                   >

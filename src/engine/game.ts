@@ -70,6 +70,9 @@ function finishActionIfDone(state: GameState) {
     return
   }
 
+  // Clear lastMove before transitioning to next phase
+  state.lastMove = null  // <-- ADD THIS LINE
+
   if (state.turnInvades[p] >= 3 && state.voidCount > 0) {
     state.voidCount -= 1
     state.reserves[p] += 1
@@ -179,6 +182,7 @@ export function finishOpeningAndDeal(state: GameState) {
   state.usedRoutes = []
   state.warning = null
   state.pendingSwap = { handRouteId: null, queueIndex: null }
+  state.lastMove = null
 
   state.reinforcementsToPlace = 0
   state.gameOver = null
