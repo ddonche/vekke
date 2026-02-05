@@ -70,9 +70,6 @@ function finishActionIfDone(state: GameState) {
     return
   }
 
-  // Clear lastMove before transitioning to next phase
-  state.lastMove = null  // <-- ADD THIS LINE
-
   if (state.turnInvades[p] >= 3 && state.voidCount > 0) {
     state.voidCount -= 1
     state.reserves[p] += 1
@@ -276,7 +273,7 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   }
 
   // Move
-  state.lastMove = { by: p, tokenId: token.id, from, to }
+  state.lastMove = { by: p, tokenId: token.id, from, to, moveNumber: Date.now() }
   token.pos = to
   state.usedRoutes.push(routeId)
 

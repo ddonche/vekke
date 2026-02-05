@@ -16,6 +16,7 @@ export type LastMove = {
   tokenId: string
   from: Coord
   to: Coord
+  moveNumber: number
 }
 
 export type GameOver = { winner: Player }

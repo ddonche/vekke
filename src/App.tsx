@@ -21,6 +21,15 @@ function App() {
   const ai: Player = human === "W" ? "B" : "W"
   const AI_DELAY_MS = 1200
 
+  const [ghost, setGhost] = useState<null | {
+    by: Player
+    from: Coord
+    tokenId: string
+    born: number
+  }>(null)
+
+  const GHOST_MS = 1200
+
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
     for (const t of g.tokens) {
@@ -104,6 +113,27 @@ function App() {
       }
       return true
     })()
+
+  useEffect(() => {
+    if (!g.lastMove) return
+    
+    const elapsed = Date.now() - g.lastMove.moveNumber
+    if (elapsed > GHOST_MS) return
+    
+    // Force re-renders every 50ms while ghost is fading
+    const interval = setInterval(() => {
+      // Trigger a re-render by updating a dummy state
+      setGhost(prev => ({ ...prev }))
+    }, 50)
+    
+    // Clear interval after ghost should be done
+    const timeout = setTimeout(() => clearInterval(interval), GHOST_MS - elapsed)
+    
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [g.lastMove?.moveNumber])
 
   useEffect(() => {
     const sel = selectedTokenId
@@ -235,6 +265,43 @@ function App() {
                     <div style={{ position: "absolute", top: 4, left: 6, fontSize: 11, opacity: 0.55 }}>
                       {sq}
                     </div>
+
+                    {/* Ghost token - shows at FROM position after moves */}
+                    {g.lastMove && (() => {
+                      const lm = g.lastMove
+                      const elapsed = Date.now() - lm.moveNumber
+                      
+                      // Only show ghost during fade window
+                      if (elapsed > GHOST_MS) return null
+                      
+                      // Only show at the FROM position
+                      if (lm.from.x !== x || lm.from.y !== y) return null
+                      
+                      const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
+                      
+                      return (
+                        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}>
+                          <div
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 999,
+                              display: "grid",
+                              placeItems: "center",
+                              border: "2px solid #333",
+                              background: lm.by === "W" ? "#f5f5f5" : "#2b55ff",
+                              color: lm.by === "W" ? "#111" : "white",
+                              fontWeight: 900,
+                              opacity: 0.35 * alpha,
+                              filter: "blur(0.2px)",
+                              transform: "scale(0.98)",
+                            }}
+                          >
+                            {lm.by}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {t && (
                       <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
