@@ -28,7 +28,7 @@ function App() {
     born: number
   }>(null)
 
-  const GHOST_MS = 1200
+  const GHOST_MS = 1000
 
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
@@ -316,6 +316,23 @@ function App() {
                             background: t.owner === "W" ? "#f5f5f5" : "#2b55ff",
                             color: t.owner === "W" ? "#111" : "white",
                             fontWeight: 900,
+                            // Highlight effect for moved token
+                            ...(() => {
+                              if (!g.lastMove) return {}
+                              if (g.lastMove.tokenId !== t.id) return {}
+                              if (g.lastMove.to.x !== x || g.lastMove.to.y !== y) return {}
+                              
+                              const elapsed = Date.now() - g.lastMove.moveNumber
+                              const FLASH_MS = 800
+                              if (elapsed > FLASH_MS) return {}
+                              
+                              const alpha = Math.max(0, 1 - elapsed / FLASH_MS)
+                              return {
+                                boxShadow: `0 0 ${20 * alpha}px rgba(255, 107, 53, ${0.9 * alpha})`,
+                                transform: `scale(${1 + 0.2 * alpha})`,
+                              }
+                            })(),
+                            transition: "box-shadow 0.1s ease-out, transform 0.1s ease-out",
                           }}
                         >
                           {t.owner}
