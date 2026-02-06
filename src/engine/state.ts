@@ -63,11 +63,27 @@ export function shuffleInPlace<T>(arr: T[]): T[] {
 
 function makeDeck(): Route[] {
   const deck: Route[] = []
+
+  // Existing routes: all directions, distance 1–3
   for (let dir = 1; dir <= 8; dir++) {
     for (let dist = 1; dist <= 3; dist++) {
-      deck.push({ id: `${dir}/${dist}`, dir: dir as any, dist: dist as any } as Route)
+      deck.push({
+        id: `${dir}/${dist}`,
+        dir: dir as any,
+        dist: dist as any,
+      })
     }
   }
+
+  // NEW: orthogonal-only distance 4
+  for (let dir = 1; dir <= 8; dir += 2) {
+    deck.push({
+      id: `${dir}/4`,
+      dir: dir as any,
+      dist: 4 as any,
+    })
+  }
+
   return deck
 }
 

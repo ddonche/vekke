@@ -454,16 +454,21 @@ export function confirmSwapAndEndTurn(state: GameState) {
   state.turn += 1
   const next = other(p)
 
-  // Tournament: uncapped escalation after each ROUND (after Blue finishes)
+  // Tournament: escalation after each ROUND (after Blue finishes), capped at 5 routes
   if (p === "B") {
     state.round += 1
-    const wNew = drawTop(state)
-    const bNew = drawTop(state)
-    state.routes.W.push(wNew)
-    state.routes.B.push(bNew)
-    state.log.unshift(
-      `== Round ${state.round}: escalation +1 route each (${wNew.id} to W, ${bNew.id} to B) ==`
-    )
+
+    if (state.routes.W.length < 4) {
+      const wNew = drawTop(state)
+      state.routes.W.push(wNew)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to W (${wNew.id}) ==`)
+    }
+
+    if (state.routes.B.length < 4) {
+      const bNew = drawTop(state)
+      state.routes.B.push(bNew)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to B (${bNew.id}) ==`)
+    }
   }
 
   state.player = next
