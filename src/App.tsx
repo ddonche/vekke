@@ -1496,10 +1496,794 @@ function App() {
           </>
         ) : (
           /* ===== WEB LAYOUT ===== */
-          <div style={{ padding: "20px", color: "#9ca3af", textAlign: "center" }}>
-            Desktop layout (use your existing desktop code here)
-          </div>
-        )}
+          <>
+            {/* Menu Bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 20px",
+                backgroundColor: "#374151",
+                borderBottom: "1px solid #4b5563",
+                height: "60px",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    backgroundColor: "#5de8f7",
+                    border: "2px solid #26c6da",
+                  }}
+                />
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#e5e7eb" }}>
+                  VEKKE
+                </div>
+              </div>
+              <button
+                style={{
+                  fontSize: 24,
+                  background: "none",
+                  border: "none",
+                  color: "#e5e7eb",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                ☰
+              </button>
+            </div>
+
+            {/* Phase Banner */}
+            <div
+              style={{
+                padding: "12px 20px",
+                backgroundColor: "#1f2937",
+                borderBottom: "1px solid #4b5563",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 900,
+                  marginBottom: 6,
+                  color: "#5de8f7",
+                }}
+              >
+                {g.phase}: {g.player}{" "}
+                {g.phase === "ACTION"
+                  ? "make your moves"
+                  : g.phase === "REINFORCE"
+                    ? "place reinforcements"
+                    : g.phase === "SWAP"
+                      ? "make a route swap"
+                      : "place opening tokens"}
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  color: "#d1d5db",
+                }}
+              >
+                <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+                  <span>
+                    Placed: B {g.openingPlaced.B}/3, W {g.openingPlaced.W}/3
+                  </span>
+                  <span>Round: {g.round}</span>
+                </div>
+                <button
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#ee484c",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    padding: 0,
+                    fontWeight: 900,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#ee484c"
+                    strokeWidth="2"
+                  >
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                    <path d="M12 8v4" />
+                    <path d="M12 16h.01" />
+                  </svg>
+                  <span>Resign</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div
+              style={{
+                display: "flex",
+                flexGrow: 1,
+                padding: 20,
+                overflow: "hidden",
+                alignItems: "flex-start",
+                gap: 12,
+                justifyContent: "center",
+              }}
+            >
+              {/* Left Column */}
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
+                {/* White Player Section */}
+                <div
+                  style={{
+                    padding: 12,
+                    backgroundColor: "#374151",
+                    borderRadius: 8,
+                    border: "1px solid #4b5563",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        backgroundColor: "#9ca3af",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {whitePlayer.avatar}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
+                          {whitePlayer.username}
+                        </span>
+                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({whitePlayer.elo})</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
+                        <div className="token-white" style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
+                        <span>White</span>
+                        <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                          <rect width="16" height="12" fill="#B22234" />
+                          <rect y="1.5" width="16" height="1.5" fill="#fff" />
+                          <rect y="4.5" width="16" height="1.5" fill="#fff" />
+                          <rect y="7.5" width="16" height="1.5" fill="#fff" />
+                          <rect y="10.5" width="16" height="1.5" fill="#fff" />
+                          <rect width="6.4" height="6" fill="#3C3B6E" />
+                        </svg>
+                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>US</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => g.player === "W" && canEarlySwap && actions.armEarlySwap()}
+                      disabled={!(g.player === "W" && canEarlySwap)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        backgroundColor: "#1f2937",
+                        border: "1px solid #6b7280",
+                        cursor: g.player === "W" && canEarlySwap ? "pointer" : "default",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: g.player === "W" && canEarlySwap ? 1 : 0.5,
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                        <path d="M16 16h5v5" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={() => g.player === "W" && canBuyExtraReinforcement && actions.buyExtraReinforcement()}
+                      disabled={!(g.player === "W" && canBuyExtraReinforcement)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        backgroundColor: "#1f2937",
+                        border: "1px solid #6b7280",
+                        cursor: g.player === "W" && canBuyExtraReinforcement ? "pointer" : "default",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: g.player === "W" && canBuyExtraReinforcement ? 1 : 0.5,
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
+                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                        <path d="M9 12h6" />
+                        <path d="M12 9v6" />
+                      </svg>
+                    </button>
+
+                    <button
+                      style={{
+                        background: "none",
+                        border: "1px solid #6b7280",
+                        borderRadius: "50%",
+                        color: "#9ca3af",
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: 2,
+                        lineHeight: "1",
+                        width: 32,
+                        height: 32,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ?
+                    </button>
+                  </div>
+
+                  {/* Reserves and Captives */}
+                  <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {Array.from({ length: g.reserves.W }).map((_, i) => (
+                          <div key={i} className="token-white" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {Array.from({ length: g.captives.W }).map((_, i) => (
+                          <div key={i} className="token-teal" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Route Cards */}
+                  <div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {g.routes.W.slice(0, 4).map((r) => {
+                        const isActive = g.player === "W"
+                        const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        return (
+                          <div
+                            key={r.id}
+                            onClick={() => isActive && !used && actions.playRoute("W", r.id)}
+                            style={{
+                              width: 50,
+                              height: 80,
+                              backgroundColor: used ? "#1f2937" : "#6b7280",
+                              borderRadius: 6,
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              cursor: isActive && !used ? "pointer" : "default",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              opacity: used ? 0.3 : 1,
+                            }}
+                          >
+                            <RouteIcon route={r} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat Section */}
+                <div
+                  style={{
+                    backgroundColor: "#374151",
+                    borderRadius: 8,
+                    border: "1px solid #4b5563",
+                    flexGrow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    minHeight: 260,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      backgroundColor: "#1f2937",
+                      borderBottom: "1px solid #4b5563",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 13, color: "#e5e7eb" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" strokeWidth="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span>Chat</span>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: 12,
+                      fontSize: 12,
+                      color: "#d1d5db",
+                      overflowY: "auto",
+                      flexGrow: 1,
+                      lineHeight: 1.6,
+                    }}
+                    className="hide-scrollbar"
+                  >
+                    {/* Placeholder chat */}
+                    <div style={{ marginBottom: 8 }}>
+                      <span style={{ fontWeight: 900, color: "#5de8f7" }}>{bluePlayer.username}:</span> Good luck!
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <span style={{ fontWeight: 900, color: "#e5e7eb" }}>{whitePlayer.username}:</span> Thanks, you too!
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Queue */}
+              <div
+                style={{
+                  backgroundColor: "#4b5563",
+                  color: "#e5e7eb",
+                  padding: 12,
+                  borderRadius: 12,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  alignItems: "center",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                  flexShrink: 0,
+                  width: 74, // 50px card + 12px padding*2
+                }}
+              >
+                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Queue</div>
+                {g.queue.map((r, idx) => (
+                  <div
+                    key={`${r.id}-${idx}`}
+                    onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
+                    style={{
+                      width: 50,
+                      height: 80,
+                      backgroundColor: "#6b7280",
+                      borderRadius: 6,
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: canPickQueueForSwap ? "pointer" : "default",
+                      border: canPickQueueForSwap && g.pendingSwap.queueIndex === idx ? "2px solid #5de8f7" : "2px solid transparent",
+                    }}
+                  >
+                    <RouteIcon route={r} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Center: Timers + Board */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 20,
+                    alignItems: "center",
+                    padding: "12px 24px",
+                    backgroundColor: "#374151",
+                    borderRadius: 12,
+                    boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
+                      <circle cx="12" cy="13" r="8" />
+                      <path d="M12 9v4l2 2" />
+                      <path d="M5 3 2 6" />
+                      <path d="m22 6-3-3" />
+                      <path d="M6.38 18.7 4 21" />
+                      <path d="M17.64 18.67 20 21" />
+                    </svg>
+                    <span style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb" }}>W: 5:23</span>
+                  </div>
+                  <div style={{ fontSize: 18, color: "#9ca3af" }}>|</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18, color: "#d1d5db" }}>B: 4:15</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(6, 90px)",
+                    gridTemplateRows: "repeat(6, 90px)",
+                    gap: 5,
+                    padding: 16,
+                    backgroundColor: "#4b5563",
+                    borderRadius: 20,
+                    boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {Array.from({ length: SIZE }, (_, ry) => {
+                    const y = SIZE - 1 - ry
+                    return Array.from({ length: SIZE }, (_, x) => {
+                      const key = `${x},${y}`
+                      const t = boardMap.get(key)
+                      const isSelected = t && t.id === selectedTokenId
+                      const col = String.fromCharCode(65 + x)
+                      const row = y + 1
+                      const notation = `${col}${row}`
+
+                      return (
+                        <div
+                          key={key}
+                          onClick={() => started && actions.onSquareClick(x, y)}
+                          style={{
+                            width: 90,
+                            height: 90,
+                            backgroundColor: "#6b7280",
+                            borderRadius: 14,
+                            boxShadow: isSelected ? "0 0 0 3px #5de8f7" : "0 2px 4px rgba(0,0,0,0.2)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
+                            cursor: started ? "pointer" : "default",
+                          }}
+                        >
+                          <div style={{ position: "absolute", top: 4, left: 6, fontSize: 10, fontWeight: 900, color: "#9ca3af", opacity: 0.75 }}>
+                            {notation}
+                          </div>
+                          {t && (
+                            <div
+                              className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                              style={{ width: 70, height: 70, borderRadius: "50%", position: "relative" }}
+                            />
+                          )}
+                        </div>
+                      )
+                    })
+                  })}
+                </div>
+
+                {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
+                {(g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
+                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
+                    {g.phase === "SWAP" ? (
+                      <button
+                        onClick={() => actions.confirmSwapAndEndTurn()}
+                        style={{
+                          flex: 1,
+                          padding: 12,
+                          borderRadius: 10,
+                          border: "2px solid #3296ab",
+                          background: "#374151",
+                          fontWeight: 900,
+                          fontSize: 13,
+                          cursor: "pointer",
+                          color: "#f9fafb",
+                        }}
+                      >
+                        Confirm Swap & End Turn
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => actions.confirmEarlySwap()}
+                          style={{
+                            flex: 1,
+                            padding: 12,
+                            borderRadius: 10,
+                            border: "2px solid #3296ab",
+                            background: "#374151",
+                            fontWeight: 900,
+                            fontSize: 13,
+                            cursor: "pointer",
+                            color: "#f9fafb",
+                          }}
+                        >
+                          Confirm Early Swap
+                        </button>
+                        <button
+                          onClick={() => actions.cancelEarlySwap()}
+                          style={{
+                            padding: "12px 14px",
+                            borderRadius: 10,
+                            border: "1px solid #4b5563",
+                            background: "transparent",
+                            fontWeight: 900,
+                            fontSize: 13,
+                            cursor: "pointer",
+                            color: "#f9fafb",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {forcedYieldAvailable && (
+                  <button
+                    onClick={() => actions.yieldForced()}
+                    style={{
+                      width: "100%",
+                      maxWidth: 597,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "2px solid #6b7280",
+                      backgroundColor: "#374151",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                      cursor: "pointer",
+                    }}
+                  >
+                    No usable routes — Yield {remainingRoutes.length} to Void
+                  </button>
+                )}
+              </div>
+
+              {/* Void */}
+              <div
+                style={{
+                  backgroundColor: "#4b5563",
+                  color: "#e5e7eb",
+                  padding: 12,
+                  borderRadius: 12,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                  alignItems: "center",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                  flexShrink: 0,
+                  width: 74, // match Queue
+                }}
+              >
+                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Void</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {Array.from({ length: Math.min(g.void.W, 8) }).map((_, i) => (
+                      <div key={`vw${i}`} className="token-white" style={{ width: 18, height: 18, borderRadius: "50%", position: "relative" }} />
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {Array.from({ length: Math.min(g.void.B, 8) }).map((_, i) => (
+                      <div key={`vb${i}`} className="token-teal" style={{ width: 18, height: 18, borderRadius: "50%", position: "relative" }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
+                {/* Blue Player Section */}
+                <div
+                  style={{
+                    padding: 12,
+                    backgroundColor: "#374151",
+                    borderRadius: 8,
+                    border: "1px solid #4b5563",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        backgroundColor: "#9ca3af",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {bluePlayer.avatar}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
+                          {bluePlayer.username}
+                        </span>
+                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({bluePlayer.elo})</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
+                        <div className="token-teal" style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
+                        <span>Blue</span>
+                        <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                          <rect width="16" height="12" fill="#fff" />
+                          <circle cx="8" cy="6" r="3.6" fill="#BC002D" />
+                        </svg>
+                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>JP</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
+                    <button
+                      disabled
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        backgroundColor: "#1f2937",
+                        border: "1px solid #6b7280",
+                        cursor: "default",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: 0.5,
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
+                        <path d="M9 10h.01" />
+                        <path d="M15 10h.01" />
+                        <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                      </svg>
+                    </button>
+                    <button
+                      style={{
+                        background: "none",
+                        border: "1px solid #6b7280",
+                        borderRadius: "50%",
+                        color: "#9ca3af",
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: 2,
+                        lineHeight: "1",
+                        width: 32,
+                        height: 32,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ?
+                    </button>
+                  </div>
+
+                  {/* Reserves and Captives */}
+                  <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {Array.from({ length: g.reserves.B }).map((_, i) => (
+                          <div key={i} className="token-teal" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {Array.from({ length: g.captives.B }).map((_, i) => (
+                          <div key={i} className="token-white" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Route Cards */}
+                  <div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {g.routes.B.slice(0, 4).map((r) => {
+                        const isActive = g.player === "B"
+                        const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        return (
+                          <div
+                            key={r.id}
+                            onClick={() => isActive && !used && actions.playRoute("B", r.id)}
+                            style={{
+                              width: 50,
+                              height: 80,
+                              backgroundColor: used ? "#1f2937" : "#6b7280",
+                              borderRadius: 6,
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              cursor: isActive && !used ? "pointer" : "default",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              opacity: used ? 0.3 : 1,
+                            }}
+                          >
+                            <RouteIcon route={r} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Game Log */}
+                <div
+                  style={{
+                    backgroundColor: "#374151",
+                    borderRadius: 8,
+                    border: "1px solid #4b5563",
+                    flexGrow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    minHeight: 260,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      backgroundColor: "#1f2937",
+                      borderBottom: "1px solid #4b5563",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span>Log</span>
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>{showLogExpanded ? "Expanded" : ""}</span>
+                  </div>
+                  <div
+                    style={{
+                      padding: 12,
+                      fontSize: 11,
+                      color: "#d1d5db",
+                      fontFamily: "monospace",
+                      overflowY: "auto",
+                      flexGrow: 1,
+                      lineHeight: 1.5,
+                    }}
+                    className="hide-scrollbar"
+                  >
+                    {g.log.length === 0 ? (
+                      <div style={{ opacity: 0.7 }}>No log entries yet.</div>
+                    ) : (
+                      g.log.map((l, i) => (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          {l}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+
+                )}
 
         {/* Game Over Modal */}
         {g.gameOver && (
