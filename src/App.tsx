@@ -115,6 +115,191 @@ function App() {
       </div>
     )
   }
+
+  function TokenDot({ owner, size = 12 }: { owner: Player; size?: number }) {
+    return (
+      <span
+        className={`token-mini ${owner === "B" ? "token-mini-blue" : "token-mini-white"}`}
+        style={{ ["--sz" as any]: `${size}px` }}
+      />
+    )
+  }
+
+  function TokenRow({ owner, count, size = 12, max = 16 }: { owner: Player; count: number; size?: number; max?: number }) {
+    const n = Math.min(count, max)
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+          {Array.from({ length: n }).map((_, i) => (
+            <TokenDot key={i} owner={owner} size={size} />
+          ))}
+        </span>
+        {count > max && <span style={{ fontSize: 12, opacity: 0.8 }}>+{count - max}</span>}
+      </span>
+    )
+  }
+
+  function PhaseBanner() {
+    const turnOwner = g.player
+    const phase = g.phase
+
+    let title = phase
+    let desc: React.ReactNode = null
+
+    if (phase === "OPENING") {
+      desc = (
+        <>
+          Place opening tokens —{" "}
+          <b style={{ color: "#f9fafb" }}>{turnOwner}</b>{" "}
+          (B {g.openingPlaced.B}/3, W {g.openingPlaced.W}/3)
+        </>
+      )
+    } else if (phase === "REINFORCE") {
+      desc = (
+        <>
+          Place your reinforcements:&nbsp;
+          <TokenRow owner={turnOwner} count={g.reinforcementsToPlace} size={isMobile ? 14 : 16} max={isMobile ? 12 : 18} />
+        </>
+      )
+    } else if (phase === "SWAP") {
+      desc = (
+        <>
+          Swap 1 route from your hand with 1 from the queue — then confirm to end turn.
+        </>
+      )
+    } else {
+      // ACTION
+      desc = (
+        <>
+          Make your moves. Select a token, then play routes.{" "}
+          {forcedYieldAvailable && (
+            <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, border: "1px solid #ef4444", color: "#fecaca", fontWeight: 900 }}>
+              No usable routes — Yield available
+            </span>
+          )}
+        </>
+      )
+    }
+
+    return (
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "100%",
+          alignSelf: "stretch",
+          padding: isMobile ? "6px 12px" : "8px 16px",
+          fontSize: isMobile ? 10 : 13,
+          textAlign: "left",
+          background: "#374151",
+          borderRadius: isMobile ? 0 : 8,
+          marginBottom: isMobile ? 0 : 16,
+          color: "#d1d5db",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <TokenDot owner={turnOwner} size={isMobile ? 18 : 20} />
+
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 900, color: "#f9fafb" }}>
+                {phase}:
+              </span>
+
+              <span style={{ color: "#d1d5db" }}>
+                <b style={{ color: "#f9fafb" }}>{turnOwner}</b>{" "}
+                {phase === "ACTION"
+                  ? "make your moves"
+                  : phase === "REINFORCE"
+                  ? "place reinforcements"
+                  : phase === "SWAP"
+                  ? "make a route swap"
+                  : "place opening tokens"}
+              </span>
+            </div>
+
+            <div style={{ marginTop: 2, color: "#9ca3af", lineHeight: 1.25 }}>
+              {phase === "OPENING" ? (
+                <>
+                  Placed: B {g.openingPlaced.B}/3, W {g.openingPlaced.W}/3
+                </>
+              ) : phase === "REINFORCE" ? (
+                <>
+                  Reinforcements:{" "}
+                  <TokenRow owner={turnOwner} count={g.reinforcementsToPlace} size={isMobile ? 12 : 14} max={isMobile ? 10 : 16} />
+                </>
+              ) : phase === "SWAP" ? (
+                <>Pick 1 from your hand and 1 from the queue, then confirm to end turn.</>
+              ) : (
+                <>
+                  Select a token, then play routes.{" "}
+                  {forcedYieldAvailable && (
+                    <span style={{ fontWeight: 900, color: "#f9fafb" }}>
+                      (No usable routes — Yield available)
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            {g.warning && (
+              <div
+                style={{
+                  marginTop: 4,
+                  color: "#ef4444",        // real red (Tailwind red-500)
+                  fontWeight: 900,
+                  lineHeight: 1.25,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontWeight: 900 }}>⚠</span>
+                <span>{g.warning}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span>
+            <b>Round:</b> {g.round}
+          </span>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <b>Void:</b>
+
+            {g.void.W > 0 && (
+              <TokenRow
+                owner="W"
+                count={g.void.W}
+                size={isMobile ? 10 : 12}
+                max={isMobile ? 6 : 10}
+              />
+            )}
+
+            {g.void.B > 0 && (
+              <TokenRow
+                owner="B"
+                count={g.void.B}
+                size={isMobile ? 10 : 12}
+                max={isMobile ? 6 : 10}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   useEffect(() => {
     const checkMobile = () => {
@@ -207,6 +392,7 @@ function App() {
 
   function onSquareClick(x: number, y: number) {
     if (!started) return
+    if (g.warning) update((s) => (s.warning = "" as any))
 
     const coord: Coord = { x, y }
 
@@ -815,21 +1001,8 @@ function App() {
         <div style={{ fontWeight: 900, fontSize: isMobile ? 16 : 20, color: "#f9fafb" }}>Vekke</div>
       </div>
 
-      {/* GAME INFO BAR */}
-      <div style={{
-        width: "100%",
-        maxWidth: isMobile ? "100%" : 1200,
-        padding: isMobile ? "6px 12px" : "8px 16px",
-        fontSize: isMobile ? 10 : 13,
-        textAlign: "center",
-        background: "#374151",
-        borderRadius: isMobile ? 0 : 8,
-        marginBottom: isMobile ? 0 : 16,
-        color: "#d1d5db",
-        alignSelf: "center"
-      }}>
-        <b>Phase:</b> {g.phase} | <b>Round:</b> {g.round} | <b>Void:</b> {g.void.W + g.void.B}
-      </div>
+      {/* PHASE BANNER */}
+      <PhaseBanner />
 
       {/* CONDITIONAL RENDERING BASED ON SCREEN SIZE */}
       {isMobile ? (
@@ -1258,29 +1431,35 @@ function App() {
           {/* MIDDLE - Board */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* White player */}
-            <div style={{
-              padding: "10px 12px",
-              background: "#374151",
-              borderRadius: 10,
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              fontSize: 13,
-              color: "#d1d5db",
-              boxShadow: g.player === "W" ? "0 0 0 3px #3296ab" : "none"
-            }}>
-              <div style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            <div
+              style={{
+                padding: "10px 12px",
+                background: "#374151",
+                borderRadius: 10,
                 display: "flex",
+                gap: 12,
                 alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 900,
-                color: "white",
-                fontSize: 18
-              }}>{whitePlayer.avatar}</div>
+                fontSize: 13,
+                color: "#d1d5db",
+                boxShadow: g.player === "W" ? "0 0 0 3px #3296ab" : "none",
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 900,
+                  color: "white",
+                  fontSize: 18,
+                }}
+              >
+                {whitePlayer.avatar}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 900, fontSize: 14, color: "#f9fafb" }}>{whitePlayer.username}</div>
                 <div style={{ fontSize: 12, color: "#9ca3af" }}>⭐ {whitePlayer.elo} ELO</div>
@@ -1303,22 +1482,6 @@ function App() {
 
             {/* Board */}
             <div>
-              {g.warning && (
-                <div
-                  style={{
-                    marginBottom: 10,
-                    padding: 10,
-                    borderRadius: 10,
-                    border: "2px solid #ef4444",
-                    background: "#fee2e2",
-                    fontWeight: 900,
-                    color: "#991b1b",
-                  }}
-                >
-                  {g.warning}
-                </div>
-              )}
-
               <BoardComponent mobile={false} />
 
               <div style={{ marginTop: 10, fontSize: 13, color: "#d1d5db" }}>
@@ -1340,29 +1503,35 @@ function App() {
             </div>
 
             {/* Blue player */}
-            <div style={{
-              padding: "10px 12px",
-              background: "#374151",
-              borderRadius: 10,
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              fontSize: 13,
-              color: "#d1d5db",
-              boxShadow: g.player === "B" ? "0 0 0 3px #3296ab" : "none"
-            }}>
-              <div style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #4bb3d4 0%, #247a91 100%)",
+            <div
+              style={{
+                padding: "10px 12px",
+                background: "#374151",
+                borderRadius: 10,
                 display: "flex",
+                gap: 12,
                 alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 900,
-                color: "white",
-                fontSize: 18
-              }}>{bluePlayer.avatar}</div>
+                fontSize: 13,
+                color: "#d1d5db",
+                boxShadow: g.player === "B" ? "0 0 0 3px #3296ab" : "none",
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #4bb3d4 0%, #247a91 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 900,
+                  color: "white",
+                  fontSize: 18,
+                }}
+              >
+                {bluePlayer.avatar}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 900, fontSize: 14, color: "#4bb3d4" }}>{bluePlayer.username}</div>
                 <div style={{ fontSize: 12, color: "#9ca3af" }}>⭐ {bluePlayer.elo} ELO</div>
