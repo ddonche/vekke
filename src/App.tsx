@@ -101,7 +101,7 @@ function App() {
 
         <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 64, justifyContent: "flex-end" }}>
-            <span className="token-mini" />
+            <span className="token-mini token-mini-white" />
             <span style={{ fontWeight: 900, color: "#f9fafb" }}>{props.w}</span>
           </div>
 
@@ -633,17 +633,70 @@ function App() {
           opacity: 0.3;
         }
 
+        /* Mini tokens that match the big token style (scaled) */
         .token-mini {
-          width: 12px;
-          height: 12px;
+          /* size can be overridden per-usage */
+          --sz: 12px;
+
+          width: var(--sz);
+          height: var(--sz);
           border-radius: 50%;
-          background: radial-gradient(circle at 30% 30%, #ffffff, #f0f0f0 45%, #d8d8d8);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+          position: relative;
           display: inline-block;
+
+          transform: translateZ(0);
+          filter: drop-shadow(0 1px 0 rgba(0,0,0,0.22));
         }
 
-        .token-mini-blue {
-          background: radial-gradient(circle at 30% 30%, #4bb3d4, #3296ab 45%, #247a91);
+        /* Mini White = same “white token” shader, scaled */
+        .token-mini-white{
+          background: radial-gradient(circle at 30% 30%, #ffffff, #f5f5f5 15%, #c8c8c8 40%, #8e8e8e 65%, #5a5a5a);
+          box-shadow:
+            inset calc(var(--sz) * -0.10) calc(var(--sz) * -0.10) calc(var(--sz) * 0.35) rgba(0, 0, 0, 0.45),
+            inset calc(var(--sz) * 0.10)  calc(var(--sz) * 0.10)  calc(var(--sz) * 0.35) rgba(255, 255, 255, 1),
+            inset 0 0 calc(var(--sz) * 0.75) rgba(0, 0, 0, 0.15),
+            0 calc(var(--sz) * 0.20) calc(var(--sz) * 0.55) rgba(0, 0, 0, 0.6),
+            0 calc(var(--sz) * 0.10) calc(var(--sz) * 0.25) rgba(0, 0, 0, 0.4);
+        }
+
+        /* Mini Blue = same “blue token” shader, scaled */
+        .token-mini-blue{
+          background: radial-gradient(circle at 30% 30%, #5de8f7, #4bb3d4 20%, #3296ab 40%, #247a91 65%, #1a5a6d);
+          box-shadow:
+            inset calc(var(--sz) * -0.08) calc(var(--sz) * -0.08) calc(var(--sz) * 0.30) rgba(0, 0, 0, 0.5),
+            inset calc(var(--sz) * 0.08)  calc(var(--sz) * 0.08)  calc(var(--sz) * 0.30) rgba(255, 255, 255, 0.6),
+            inset 0 0 calc(var(--sz) * 0.75) rgba(50, 150, 171, 0.2),
+            0 calc(var(--sz) * 0.20) calc(var(--sz) * 0.55) rgba(0, 0, 0, 0.6),
+            0 calc(var(--sz) * 0.10) calc(var(--sz) * 0.25) rgba(0, 0, 0, 0.4);
+        }
+
+        /* Same “rim + gloss” effect as big tokens, scaled */
+        .token-mini::before{
+          content: '';
+          position: absolute;
+          inset: calc(var(--sz) * 0.12);
+          border-radius: 50%;
+          box-shadow:
+            inset 0 calc(var(--sz) * 0.08) calc(var(--sz) * 0.16) rgba(255,255,255,0.35),
+            inset 0 calc(var(--sz) * -0.25) calc(var(--sz) * 0.33) rgba(0,0,0,0.45);
+          pointer-events: none;
+        }
+
+        .token-mini::after{
+          content: '';
+          position: absolute;
+          top: 14%;
+          left: 18%;
+          width: 46%;
+          height: 38%;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 35%,
+            rgba(255,255,255,0.75) 0%,
+            rgba(255,255,255,0.28) 28%,
+            rgba(255,255,255,0.00) 70%
+          );
+          filter: blur(1.5px);
+          pointer-events: none;
         }
 
         .modal-backdrop{
@@ -815,7 +868,7 @@ function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <span style={{ fontSize: 9, color: "#9ca3af", marginRight: 3, fontWeight: 600 }}>Res</span>
                 {Array.from({ length: g.reserves.W }).map((_, i) => (
-                  <span key={i} className="token-mini" />
+                  <span key={i} className="token-mini token-mini-white" />
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -994,7 +1047,7 @@ function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <span style={{ fontSize: 9, color: "#9ca3af", marginRight: 3, fontWeight: 600 }}>Cap</span>
                 {Array.from({ length: g.captives.B }).map((_, i) => (
-                  <span key={i} className="token-mini" />
+                  <span key={i} className="token-mini token-mini-white" />
                 ))}
               </div>
             </div>
@@ -1236,7 +1289,7 @@ function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <span style={{ fontSize: 10, color: "#9ca3af", marginRight: 3, fontWeight: 600 }}>Res</span>
                   {Array.from({ length: g.reserves.W }).map((_, i) => (
-                    <span key={i} className="token-mini" />
+                    <span key={i} className="token-mini token-mini-white" />
                   ))}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -1324,7 +1377,7 @@ function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <span style={{ fontSize: 10, color: "#9ca3af", marginRight: 3, fontWeight: 600 }}>Cap</span>
                   {Array.from({ length: g.captives.B }).map((_, i) => (
-                    <span key={i} className="token-mini" />
+                    <span key={i} className="token-mini token-mini-white" />
                   ))}
                 </div>
               </div>
@@ -1826,7 +1879,7 @@ function App() {
                 fontSize: 12,
               }}
             >
-              <span className={g.gameOver.winner === "W" ? "token-mini" : "token-mini token-mini-blue"} />
+              <span className={g.gameOver.winner === "W" ? "token-mini token-mini-white" : "token-mini token-mini-blue"} />
               <span style={{ color: g.gameOver.winner === "W" ? "#f9fafb" : "#4bb3d4" }}>
                 {g.gameOver.winner === "B" ? "BLUE" : "WHITE"} WINS
               </span>
@@ -1883,10 +1936,19 @@ function App() {
           {/* Actions */}
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>
             <button
-              onClick={() => {
-                setG(newGame())
+              onClick={async () => {
+                // make sure audio is awake (important on mobile)
+                await unlockAudio()
+
+                const ng = newGame()
+                setG(ng)
                 setSelectedTokenId(null)
-                prevRef.current = null
+
+                // IMPORTANT: seed prevRef so first placement triggers sound
+                prevRef.current = ng
+
+                // safety: reset one-shot flags
+                playedGameOverSound.current = false
               }}
               style={{
                 padding: "10px 14px",
