@@ -31,4 +31,10 @@ export const sounds = {
   volume: 0.25,
   onloaderror: (id, error) => console.error("Click sound load error:", error),
   }),
+
+  gameOver: new Howl({
+    src: ["/assets/sounds/gameover.mp3"],
+    volume: 0.7,
+    onloaderror: (id, error) => console.error("GameOver sound load error:", error),
+  }),
 }

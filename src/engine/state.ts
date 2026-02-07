@@ -19,6 +19,13 @@ export type LastMove = {
   moveNumber: number
 }
 
+export type GameStats = {
+  sieges: { W: number; B: number }
+  drafts: { W: number; B: number }
+  captures: { W: number; B: number }
+  invades: { W: number; B: number }
+}
+
 export type GameOver = { winner: Player }
 
 export type GameState = {
@@ -28,13 +35,17 @@ export type GameState = {
   player: Player
   turn: number
   round: number
+  stats: GameStats
 
   tokens: Token[]
   tokenSerial: { W: number; B: number }
   reserves: { W: number; B: number }
   captives: { W: number; B: number }
+  void: { W: number; B: number }
 
-  voidCount: number
+  earlySwapArmed: boolean      // player clicked "Early Swap" and is now selecting hand+queue
+  earlySwapUsedThisTurn: boolean // prevents 2 swaps, and skips end-of-turn SWAP phase
+  extraReinforcementBoughtThisTurn: boolean
   turnInvades: { W: number; B: number }
 
   deck: Route[]
@@ -98,13 +109,22 @@ export function newGame(): GameState {
     player: "B",
     turn: 1,
     round: 0,
+    stats: {
+      sieges: { W: 0, B: 0 },
+      drafts: { W: 0, B: 0 },
+      captures: { W: 0, B: 0 },
+      invades: { W: 0, B: 0 },
+    },
 
     tokens: [],
     tokenSerial: { W: 0, B: 0 },
     reserves: { W: 18, B: 18 },
     captives: { W: 0, B: 0 },
 
-    voidCount: 0,
+    void: { W: 0, B: 0 },
+    earlySwapArmed: false,
+    earlySwapUsedThisTurn: false,
+    extraReinforcementBoughtThisTurn: false,
     turnInvades: { W: 0, B: 0 },
 
     deck,

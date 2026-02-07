@@ -10,7 +10,19 @@ import {
   chooseSwapHandRoute,
   chooseSwapQueueIndex,
   placeOpeningToken,
+  yieldForcedIfNoUsableRoutes,
+  buyExtraReinforcement,
+  armEarlySwap,
+  confirmEarlySwap,
+  cancelEarlySwap,
 } from "./game"
+
+export type AiLevel = "beginner" | "intermediate"
+
+export function aiStep(state: GameState, aiPlayer: Player, level: AiLevel) {
+  if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
+  return aiStepBeginner(state, aiPlayer)
+}
 
 // ------------------------------------------------------------
 // Helpers
@@ -65,11 +77,76 @@ function allEmptySquares(state: GameState): Coord[] {
   return out
 }
 
+function canEnemyInvadeSquareNextTurn(state: GameState, enemy: Player, target: Coord): boolean {
+  // If enemy isn't in ACTION next, they can't invade via routes anyway.
+  // But this is "next turn" assumption; we only care about route moves.
+  const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === enemy)
+
+  // Enemy will have all routes unused at start of their turn.
+  const enemyRoutes = state.routes[enemy]
+
+  for (const r of enemyRoutes) {
+    for (const t of enemyTokens) {
+      // If token can use route, compute destination and see if it matches target.
+      if (!canTokenUseRoute(state, enemy, t, r.id)) continue
+
+      const steps = traceByRoute(t.pos, r)
+      if (steps.length === 0) continue
+      const to = steps[steps.length - 1]
+
+      if (to.x === target.x && to.y === target.y) return true
+    }
+  }
+
+  return false
+}
+
+function safestReinforcementSquare(state: GameState, me: Player): Coord | null {
+  const empties = allEmptySquares(state)
+  if (empties.length === 0) return null
+
+  const enemy = other(me)
+
+  // Prefer squares the enemy cannot invade at all.
+  const safe = empties.filter((c) => !canEnemyInvadeSquareNextTurn(state, enemy, c))
+  if (safe.length > 0) {
+    // If many safe squares, just pick one randomly so it doesn't look robotic
+    return safe[randomInt(safe.length)]
+  }
+
+  // If nowhere is safe, pick a square that minimizes the number of enemy invades onto it.
+  // (Simple scoring: count how many (token,route) land there.)
+  let best = empties[0]
+  let bestThreat = Infinity
+
+  const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === enemy)
+  const enemyRoutes = state.routes[enemy]
+
+  for (const c of empties) {
+    let threat = 0
+    for (const r of enemyRoutes) {
+      for (const t of enemyTokens) {
+        if (!canTokenUseRoute(state, enemy, t, r.id)) continue
+        const steps = traceByRoute(t.pos, r)
+        if (steps.length === 0) continue
+        const to = steps[steps.length - 1]
+        if (to.x === c.x && to.y === c.y) threat += 1
+      }
+    }
+    if (threat < bestThreat) {
+      bestThreat = threat
+      best = c
+    }
+  }
+
+  return best
+}
+
 // ------------------------------------------------------------
 // Public API
 // ------------------------------------------------------------
 // Performs ONE atomic AI action for the current player (assumes it's AI's turn).
-export function aiStep(state: GameState, aiPlayer: Player) {
+export function aiStepBeginner(state: GameState, aiPlayer: Player) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
 
@@ -131,3 +208,373 @@ export function aiStep(state: GameState, aiPlayer: Player) {
     return
   }
 }
+
+// ------------------------------------------------------------
+// Intermediate AI (1-ply greedy + tactical heuristics)
+// ------------------------------------------------------------
+const ADJ8: Array<{ dx: number; dy: number }> = [
+  { dx: 0, dy: 1 },
+  { dx: 1, dy: 1 },
+  { dx: 1, dy: 0 },
+  { dx: 1, dy: -1 },
+  { dx: 0, dy: -1 },
+  { dx: -1, dy: -1 },
+  { dx: -1, dy: 0 },
+  { dx: -1, dy: 1 },
+]
+
+function inBounds(x: number, y: number): boolean {
+  return x >= 0 && x < SIZE && y >= 0 && y < SIZE
+}
+
+function siegeSidesFor(state: GameState, ownerOfSiegers: Player, x: number, y: number): number {
+  let sides = 0
+  for (const d of ADJ8) {
+    const nx = x + d.dx
+    const ny = y + d.dy
+    if (!inBounds(nx, ny)) continue
+    const t = tokenAt(state, nx, ny)
+    if (t && t.owner === ownerOfSiegers) sides += 1
+  }
+  return sides
+}
+
+function countUsableMoves(state: GameState, p: Player): number {
+  if (state.phase !== "ACTION") return 0
+  const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+  let n = 0
+  for (const r of remaining) {
+    for (const t of tokens) {
+      if (canTokenUseRoute(state, p, t, r.id)) n += 1
+    }
+  }
+  return n
+}
+
+function evalState(state: GameState, me: Player): number {
+  const them = other(me)
+
+  const myOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me).length
+  const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+
+  const myRes = state.reserves[me]
+  const theirRes = state.reserves[them]
+
+  const myCap = state.captives[me]
+  const theirCap = state.captives[them]
+
+  const myVoid = (state as any).void?.[me] ?? 0
+  const theirVoid = (state as any).void?.[them] ?? 0
+
+  // Terminal
+  if (state.gameOver) {
+    return state.gameOver.winner === me ? 1_000_000 : -1_000_000
+  }
+
+  let score = 0
+
+  // Material / presence
+  score += 10 * myOnBoard
+  score -= 10 * theirOnBoard
+
+  score += 2 * myRes
+  score -= 2 * theirRes
+
+  score += 1.5 * myCap
+  score -= 1.5 * theirCap
+
+  score += 0.5 * myVoid
+  score -= 0.5 * theirVoid
+
+  // Draft incentive: if I can cash in 3 invades and I have void to recover from, push for it
+  const myInv = state.turnInvades?.[me] ?? 0
+  if (myInv >= 3 && myVoid > 0) score += 25
+
+  // Siege pressure / danger
+  const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
+  const myTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
+
+  for (const e of enemyTokens) {
+    const sides = siegeSidesFor(state, me, e.pos.x, e.pos.y)
+    if (sides === 3) score += 6         // one away from siege
+    else if (sides >= 4) score += 20    // currently sieged (should already be captured by rules soon)
+  }
+
+  for (const m of myTokens) {
+    const sides = siegeSidesFor(state, them, m.pos.x, m.pos.y)
+    if (sides === 3) score -= 7
+    else if (sides >= 4) score -= 22
+  }
+
+  // Mobility / tempo (action phase only)
+  if (state.phase === "ACTION") {
+    score += 0.25 * countUsableMoves(state, me)
+    score -= 0.25 * countUsableMoves(state, them)
+  }
+
+  return score
+}
+
+function simulateAndScore<T>(state: GameState, me: Player, mut: (s: GameState) => void): number {
+  const c: GameState = structuredClone(state)
+  mut(c)
+  return evalState(c, me)
+}
+
+function bestOpeningSquare(state: GameState): Coord | null {
+  const empties = allEmptySquares(state)
+  if (empties.length === 0) return null
+
+  // Prefer center-ish squares to maximize adjacency options
+  const cx = (SIZE - 1) / 2
+  const cy = (SIZE - 1) / 2
+  let best = empties[0]
+  let bestD = Infinity
+  for (const e of empties) {
+    const d = Math.abs(e.x - cx) + Math.abs(e.y - cy)
+    if (d < bestD) {
+      bestD = d
+      best = e
+    }
+  }
+  return best
+}
+
+function shouldBuyExtraReinforcement(state: GameState, me: Player): boolean {
+  if (state.phase !== "ACTION") return false
+  if (state.gameOver) return false
+  if ((state as any).extraReinforcementBoughtThisTurn) return false
+
+  // Must exist in your GameState as reserves; cost is enforced by engine anyway.
+  // Heuristic: don’t bankrupt; buy when it likely creates immediate Segura capture pressure.
+  const cost = (state as any).EXTRA_REINFORCEMENT_COST ?? 4 // UI imports cost anyway; engine enforces.
+  if (state.reserves[me] < 4) return false
+  if (state.reserves[me] - 4 < 6) return false // keep at least 6 in reserve after purchase
+
+  // If there exists a reinforcement placement that would create a 4th siege side on an enemy => huge.
+  const them = other(me)
+  const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
+  const empties = allEmptySquares(state)
+
+  for (const e of enemyTokens) {
+    const sidesNow = siegeSidesFor(state, me, e.pos.x, e.pos.y)
+    if (sidesNow !== 3) continue
+
+    // Is there an empty adjacent square I could place into to make it 4?
+    for (const d of ADJ8) {
+      const nx = e.pos.x + d.dx
+      const ny = e.pos.y + d.dy
+      if (!inBounds(nx, ny)) continue
+      if (tokenAt(state, nx, ny)) continue
+      // Yes — buying extra reinf could be immediate capture during reinforcement phase.
+      return true
+    }
+  }
+
+  // Otherwise: only buy if behind on board presence.
+  const myOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me).length
+  const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === other(me)).length
+  if (myOnBoard + 1 < theirOnBoard) return true
+
+  return false
+}
+
+function bestActionMove(state: GameState, me: Player): { tokenId: string; routeId: string; score: number } | null {
+  const unused = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
+
+  let best: { tokenId: string; routeId: string; score: number } | null = null
+
+  for (const r of unused) {
+    for (const t of tokens) {
+      if (!canTokenUseRoute(state, me, t, r.id)) continue
+
+      const sc = simulateAndScore(state, me, (s) => applyRouteMove(s, t.id, r.id))
+
+      if (!best || sc > best.score) best = { tokenId: t.id, routeId: r.id, score: sc }
+    }
+  }
+
+  return best
+}
+
+function bestReinforcementPlacement(state: GameState, me: Player): Coord | null {
+  const empties = allEmptySquares(state)
+  if (empties.length === 0) return null
+
+  let best = empties[0]
+  let bestScore = -Infinity
+
+  for (const c of empties) {
+    const sc = simulateAndScore(state, me, (s) => placeReinforcement(s, c))
+    if (sc > bestScore) {
+      bestScore = sc
+      best = c
+    }
+  }
+
+  return best
+}
+
+function bestSwapChoice(state: GameState, me: Player): { handId: string; qIdx: number } | null {
+  const hand = state.routes[me]
+  if (hand.length === 0) return null
+  if (state.queue.length === 0) return null
+
+  let best: { handId: string; qIdx: number } | null = null
+  let bestScore = -Infinity
+
+  for (const h of hand) {
+    for (let qIdx = 0; qIdx < state.queue.length; qIdx++) {
+      const sc = simulateAndScore(state, me, (s) => {
+        chooseSwapHandRoute(s, h.id)
+        chooseSwapQueueIndex(s, qIdx)
+        confirmSwapAndEndTurn(s)
+      })
+      if (sc > bestScore) {
+        bestScore = sc
+        best = { handId: h.id, qIdx }
+      }
+    }
+  }
+
+  return best
+}
+
+function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx: number } | null {
+  // Only consider early swap when it’s legal to arm and we still have unused routes.
+  if (state.phase !== "ACTION") return null
+  if (state.gameOver) return null
+  if (state.earlySwapUsedThisTurn) return null
+
+  const remainingMoves = countUsableMoves(state, me)
+  // If we have plenty of options, early swap is less urgent.
+  const urgency = remainingMoves <= 1
+
+  if (!urgency && state.captives[me] < 4) return null // if not urgent, don’t burn captives
+
+  // Evaluate candidate early swaps by simulating: arm -> set pending -> confirm
+  const unusedHand = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
+  if (unusedHand.length === 0) return null
+
+  let best: { handId: string; qIdx: number } | null = null
+  let bestScore = -Infinity
+
+  for (const h of unusedHand) {
+    for (let qIdx = 0; qIdx < state.queue.length; qIdx++) {
+      const sc = simulateAndScore(state, me, (s) => {
+        armEarlySwap(s)
+        // if arming failed, score will just reflect unchanged state
+        chooseSwapHandRoute(s, h.id)
+        chooseSwapQueueIndex(s, qIdx)
+        confirmEarlySwap(s)
+        // Note: confirmEarlySwap does NOT end turn, so it’s pure tempo.
+      })
+      if (sc > bestScore) {
+        bestScore = sc
+        best = { handId: h.id, qIdx }
+      }
+    }
+  }
+
+  // Require a meaningful improvement vs no-swap baseline
+  const baseline = evalState(state, me)
+  if (best && bestScore >= baseline + 8) return best
+
+  return null
+}
+
+// Performs ONE atomic AI action for the current player (intermediate).
+export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
+  if (state.gameOver) return
+  if (state.player !== aiPlayer) return
+
+  // OPENING: random (same as beginner)
+  if (state.phase === "OPENING") {
+    const empties = allEmptySquares(state)
+    if (empties.length === 0) return
+    placeOpeningToken(state, empties[randomInt(empties.length)])
+    return
+  }
+
+  // REINFORCE: place where opponent cannot (or least likely to) invade next turn
+  if (state.phase === "REINFORCE") {
+    const c = safestReinforcementSquare(state, aiPlayer)
+    if (!c) {
+      state.warning = "AI: no empty squares to reinforce."
+      return
+    }
+    placeReinforcement(state, c)
+    return
+  }
+
+  // SWAP: choose best swap (simulate full confirm)
+  if (state.phase === "SWAP") {
+    const plan = bestSwapChoice(state, aiPlayer)
+    if (!plan) return
+
+    // Keep “atomic” behavior like your current AI: pick hand, then queue, then confirm.
+    if (!state.pendingSwap.handRouteId) {
+      chooseSwapHandRoute(state, plan.handId)
+      return
+    }
+    if (state.pendingSwap.queueIndex === null) {
+      chooseSwapQueueIndex(state, plan.qIdx)
+      return
+    }
+    confirmSwapAndEndTurn(state)
+    return
+  }
+
+  // ACTION:
+  if (state.phase === "ACTION") {
+    // 1) If early swap is already armed, finish it in staged steps.
+    if (state.earlySwapArmed) {
+      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+
+      // If no plan found, disarm (don’t sit forever)
+      if (!plan) {
+        cancelEarlySwap(state)
+        return
+      }
+
+      if (!state.pendingSwap.handRouteId) {
+        chooseSwapHandRoute(state, plan.handId)
+        return
+      }
+      if (state.pendingSwap.queueIndex === null) {
+        chooseSwapQueueIndex(state, plan.qIdx)
+        return
+      }
+      confirmEarlySwap(state)
+      return
+    }
+
+    // 2) Decide whether to arm early swap (tempo rescue / upgrade)
+    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    if (earlyPlan) {
+      armEarlySwap(state)
+      // Next aiStep tick will pick hand/queue then confirm.
+      return
+    }
+
+    // 3) Decide whether to buy extra reinforcement (resource spend)
+    if (shouldBuyExtraReinforcement(state, aiPlayer)) {
+      buyExtraReinforcement(state)
+      return
+    }
+
+    // 4) Choose best route move by simulation
+    const mv = bestActionMove(state, aiPlayer)
+    if (mv) {
+      applyRouteMove(state, mv.tokenId, mv.routeId)
+      return
+    }
+
+    // 5) If nothing is usable, do the forced yield action (your engine has it)
+    yieldForcedIfNoUsableRoutes(state)
+    return
+  }
+}
+

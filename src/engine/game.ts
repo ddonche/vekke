@@ -24,11 +24,6 @@ function tokenAt(state: GameState, x: number, y: number): Token | null {
   return state.tokens.find((t) => t.in === "BOARD" && t.pos.x === x && t.pos.y === y) ?? null
 }
 
-function isFriendlyOccupied(state: GameState, owner: Player, x: number, y: number): boolean {
-  const t = tokenAt(state, x, y)
-  return !!t && t.owner === owner
-}
-
 function samePos(a: Coord, b: Coord): boolean {
   return a.x === b.x && a.y === b.y
 }
@@ -53,55 +48,71 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, route: Rout
   return true
 }
 
-function finishActionIfDone(state: GameState) {
+function checkWinner(state: GameState) {
+  const wOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "W")
+  const bOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "B")
+  if (!wOnBoard) state.gameOver = { winner: "B" }
+  if (!bOnBoard) state.gameOver = { winner: "W" }
+}
+
+// ------------------------------------------------------------
+// End turn bookkeeping (shared)
+// ------------------------------------------------------------
+function endTurnCommon(state: GameState, reasonLog: string) {
   const p = state.player
 
-  if (state.usedRoutes.length !== state.routes[p].length) return
+  state.log.unshift(reasonLog)
 
-  // Resolve sieges created during ACTION (award bonus)
-  const { captured, bonus } = resolveSieges(state, p, true)
-  if (captured > 0) {
-    state.log.unshift(`${p} captured ${captured} sieged token(s) before reinforcements (+${bonus} bonus).`)
+  // end turn bookkeeping
+  state.turn += 1
+  const next = other(p)
+
+  // Tournament: escalation after each ROUND (after Blue finishes), capped at 5 routes
+  if (p === "B") {
+    state.round += 1
+
+    if (state.routes.W.length < 4) {
+      const wNew = drawTop(state)
+      state.routes.W.push(wNew)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to W (${wNew.id}) ==`)
+    }
+
+    if (state.routes.B.length < 4) {
+      const bNew = drawTop(state)
+      state.routes.B.push(bNew)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to B (${bNew.id}) ==`)
+    }
   }
 
-  checkWinner(state)
-  if (state.gameOver) {
-    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
-    return
-  }
+  state.player = next
+  state.phase = "ACTION"
+  state.usedRoutes = []
+  state.turnInvades[next] = 0
+  state.pendingSwap = { handRouteId: null, queueIndex: null }
 
-  if (state.turnInvades[p] >= 3 && state.voidCount > 0) {
-    state.voidCount -= 1
-    state.reserves[p] += 1
-    state.log.unshift(`${p} Draft: invaded 3+ this turn, returned 1 token from Void to reserves.`)
-  }
+  // IMPORTANT: reset early-swap and reinforcement flags for the new turn
+  state.earlySwapArmed = false
+  state.earlySwapUsedThisTurn = false
+  state.extraReinforcementBoughtThisTurn = false
+}
 
-  // Reinforcements: 1 automatic + bonus, limited by reserves
-  const totalToPlace = 1 + bonus
-  state.reinforcementsToPlace = Math.min(totalToPlace, state.reserves[p])
-
-  if (state.reinforcementsToPlace > 0) {
-    state.phase = "REINFORCE"
-    state.log.unshift(`== ${p} place ${state.reinforcementsToPlace} reinforcement(s) ==`)
-  } else {
-    state.phase = "SWAP"
-    state.pendingSwap = { handRouteId: null, queueIndex: null }
-    state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
-  }
+function endTurnNoSwap(state: GameState) {
+  const p = state.player
+  endTurnCommon(state, `== ${p} ends turn (end-of-turn swap skipped: early swap used) ==`)
 }
 
 // ------------------------------------------------------------
 // Siege (orthogonal sides)
 // ------------------------------------------------------------
 const ADJ8_DIRS: Array<{ dx: number; dy: number }> = [
-  { dx: 0, dy: 1 },   // N
-  { dx: 1, dy: 1 },   // NE
-  { dx: 1, dy: 0 },   // E
-  { dx: 1, dy: -1 },  // SE
-  { dx: 0, dy: -1 },  // S
+  { dx: 0, dy: 1 }, // N
+  { dx: 1, dy: 1 }, // NE
+  { dx: 1, dy: 0 }, // E
+  { dx: 1, dy: -1 }, // SE
+  { dx: 0, dy: -1 }, // S
   { dx: -1, dy: -1 }, // SW
-  { dx: -1, dy: 0 },  // W
-  { dx: -1, dy: 1 },  // NW
+  { dx: -1, dy: 0 }, // W
+  { dx: -1, dy: 1 }, // NW
 ]
 
 // Count adjacent friendly tokens around a target token (max 8)
@@ -126,13 +137,6 @@ function bonusForSides(sides: number): number {
   return 5 // 8-sided
 }
 
-function checkWinner(state: GameState) {
-  const wOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "W")
-  const bOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "B")
-  if (!wOnBoard) state.gameOver = { winner: "B" }
-  if (!bOnBoard) state.gameOver = { winner: "W" }
-}
-
 // Captures enemy tokens that are under siege by `siegers`.
 // If `awardBonus` is true, computes bonus reinforcements from siege strength.
 function resolveSieges(state: GameState, siegers: Player, awardBonus: boolean): { captured: number; bonus: number } {
@@ -151,9 +155,58 @@ function resolveSieges(state: GameState, siegers: Player, awardBonus: boolean): 
   for (const s of sieged) {
     s.t.in = "CAPTIVE"
     state.captives[siegers] += 1
+    state.stats.captures[siegers] += 1
+    state.stats.sieges[siegers] += 1
   }
 
   return { captured: sieged.length, bonus }
+}
+
+// ------------------------------------------------------------
+// ACTION completion -> REINFORCE or SWAP or END (skip swap)
+// ------------------------------------------------------------
+function finishActionIfDone(state: GameState) {
+  const p = state.player
+
+  if (state.usedRoutes.length !== state.routes[p].length) return
+
+  // Resolve sieges created during ACTION (award bonus)
+  const { captured, bonus } = resolveSieges(state, p, true)
+  if (captured > 0) {
+    state.log.unshift(`${p} captured ${captured} sieged token(s) before reinforcements (+${bonus} bonus).`)
+  }
+
+  checkWinner(state)
+  if (state.gameOver) {
+    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    return
+  }
+
+  if (state.turnInvades[p] >= 3 && state.void[p] > 0) {
+    state.void[p] -= 1
+    state.reserves[p] += 1
+    state.stats.drafts[p] += 1
+    state.log.unshift(`${p} Draft: invaded 3+ this turn, returned 1 ${p} token from Void to reserves.`)
+  }
+
+  // Reinforcements: 1 automatic + bonus + (optional purchased), limited by reserves
+  const extra = state.extraReinforcementBoughtThisTurn ? 1 : 0
+  const totalToPlace = 1 + bonus + extra
+  state.reinforcementsToPlace = Math.min(totalToPlace, state.reserves[p])
+
+  if (state.reinforcementsToPlace > 0) {
+    state.phase = "REINFORCE"
+    state.log.unshift(`== ${p} place ${state.reinforcementsToPlace} reinforcement(s) ==`)
+  } else {
+    // If an early swap was purchased/confirmed this turn, the end-of-turn swap is skipped.
+    if (state.earlySwapUsedThisTurn) {
+      endTurnNoSwap(state)
+    } else {
+      state.phase = "SWAP"
+      state.pendingSwap = { handRouteId: null, queueIndex: null }
+      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    }
+  }
 }
 
 // ------------------------------------------------------------
@@ -165,7 +218,7 @@ export function finishOpeningAndDeal(state: GameState) {
     console.warn("finishOpeningAndDeal called but phase is already", state.phase)
     return
   }
-    
+
   // Deal 2 routes to each
   state.routes.B = [drawTop(state), drawTop(state)]
   state.routes.W = [drawTop(state), drawTop(state)]
@@ -286,6 +339,8 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
     occ.in = "CAPTIVE"
     state.captives[p] += 1
     state.turnInvades[p] += 1
+    state.stats.captures[p] += 1
+    state.stats.invades[p] += 1
     state.log.unshift(`${p} invaded and captured ${occ.id} at ${toSq(to)}`)
   }
 
@@ -317,9 +372,7 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   // Only allowed if NONE of the remaining routes are usable by ANY friendly token
   const friendly = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
 
-  const anyRemainingRouteUsable = remaining.some((r) =>
-    friendly.some((t) => canTokenUseRoute(state, p, t, r))
-  )
+  const anyRemainingRouteUsable = remaining.some((r) => friendly.some((t) => canTokenUseRoute(state, p, t, r)))
 
   if (anyRemainingRouteUsable) {
     state.warning = "NO-NO: you still have usable routes."
@@ -331,14 +384,12 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   const pay = Math.min(need, state.reserves[p])
 
   state.reserves[p] -= pay
-  state.voidCount += pay
+  state.void[p] += pay
 
   // Burn all remaining routes
   for (const r of remaining) state.usedRoutes.push(r.id)
 
-  state.log.unshift(
-    `${p} has no usable routes; yielded ${pay}/${need} reserve token(s) to the Void and burned ${need} route(s).`
-  )
+  state.log.unshift(`${p} has no usable routes; yielded ${pay}/${need} reserve token(s) to the Void and burned ${need} route(s).`)
 
   // This advances to REINFORCE or SWAP as normal
   finishActionIfDone(state)
@@ -354,11 +405,15 @@ export function placeReinforcement(state: GameState, coord: Coord) {
   const p = state.player
   state.warning = null
 
+  // If reinforcement phase is already done, advance correctly.
   if (state.reinforcementsToPlace <= 0) {
-    // Nothing to place, go to swap
-    state.phase = "SWAP"
-    state.pendingSwap = { handRouteId: null, queueIndex: null }
-    state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    if (state.earlySwapUsedThisTurn) {
+      endTurnNoSwap(state)
+    } else {
+      state.phase = "SWAP"
+      state.pendingSwap = { handRouteId: null, queueIndex: null }
+      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    }
     return
   }
 
@@ -391,26 +446,171 @@ export function placeReinforcement(state: GameState, coord: Coord) {
     return
   }
 
-  // If done placing all reinforcements, proceed to swap
+  // If done placing all reinforcements, advance correctly
   if (state.reinforcementsToPlace <= 0) {
-    state.phase = "SWAP"
-    state.pendingSwap = { handRouteId: null, queueIndex: null }
-    state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    if (state.earlySwapUsedThisTurn) {
+      endTurnNoSwap(state)
+    } else {
+      state.phase = "SWAP"
+      state.pendingSwap = { handRouteId: null, queueIndex: null }
+      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    }
   }
 }
 
 // ------------------------------------------------------------
-// Swap phase (mandatory)
+// Extra Reinforcement Buy
 // ------------------------------------------------------------
+export const EXTRA_REINFORCEMENT_COST = 4
+
+export function buyExtraReinforcement(state: GameState) {
+  if (state.phase !== "ACTION") return
+  if (state.gameOver) return
+
+  const p = state.player
+  state.warning = null
+
+  if (state.extraReinforcementBoughtThisTurn) {
+    state.warning = "NO-NO: you already bought an extra reinforcement this turn."
+    return
+  }
+
+  if (state.reserves[p] < EXTRA_REINFORCEMENT_COST) {
+    state.warning = `NO-NO: need ${EXTRA_REINFORCEMENT_COST} reserve token(s) to buy an extra reinforcement.`
+    return
+  }
+
+  // Pay: move reserve tokens into your own Void
+  state.reserves[p] -= EXTRA_REINFORCEMENT_COST
+  state.void[p] += EXTRA_REINFORCEMENT_COST
+
+  state.extraReinforcementBoughtThisTurn = true
+
+  state.log.unshift(`${p} burned ${EXTRA_REINFORCEMENT_COST} reserve token(s) to Void to buy +1 reinforcement this turn.`)
+}
+
+// ------------------------------------------------------------
+// Swap phase (mandatory) + Early swap (ACTION)
+// ------------------------------------------------------------
+export const EARLY_SWAP_COST = 4 // adjust if needed
+
+export function armEarlySwap(state: GameState) {
+  if (state.phase !== "ACTION") return
+  if (state.gameOver) return
+
+  const p = state.player
+  state.warning = null
+
+  // Must still have unused routes to make this meaningful
+  const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
+  if (remaining.length === 0) {
+    state.warning = "NO-NO: early swap disabled (no remaining routes)."
+    return
+  }
+
+  if (state.earlySwapUsedThisTurn) {
+    state.warning = "NO-NO: you already swapped early this turn."
+    return
+  }
+
+  if (state.captives[p] < EARLY_SWAP_COST) {
+    state.warning = `NO-NO: need ${EARLY_SWAP_COST} captured token(s) to early swap.`
+    return
+  }
+
+  state.earlySwapArmed = true
+  state.pendingSwap = { handRouteId: null, queueIndex: null }
+  state.log.unshift(`== ${p} Early Swap armed (cost: ${EARLY_SWAP_COST} captive) ==`)
+}
+
+export function cancelEarlySwap(state: GameState) {
+  if (state.phase !== "ACTION") return
+  if (!state.earlySwapArmed) return
+  state.earlySwapArmed = false
+  state.pendingSwap = { handRouteId: null, queueIndex: null }
+  state.warning = null
+}
+
+export function confirmEarlySwap(state: GameState) {
+  if (state.phase !== "ACTION") return
+  if (state.gameOver) return
+  if (!state.earlySwapArmed) return
+
+  const p = state.player
+  const handId = state.pendingSwap.handRouteId
+  const qIdx = state.pendingSwap.queueIndex
+  state.warning = null
+
+  if (state.earlySwapUsedThisTurn) {
+    state.warning = "NO-NO: you already swapped early this turn."
+    return
+  }
+
+  // Must still have unused routes (don’t waste material)
+  const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
+  if (remaining.length === 0) {
+    state.warning = "NO-NO: early swap disabled (no remaining routes)."
+    return
+  }
+
+  if (state.captives[p] < EARLY_SWAP_COST) {
+    state.warning = `NO-NO: need ${EARLY_SWAP_COST} captured token(s).`
+    return
+  }
+
+  if (!handId || qIdx === null) {
+    state.warning = "NO-NO: pick 1 route from hand and 1 from the queue."
+    return
+  }
+
+  const handIndex = state.routes[p].findIndex((r) => r.id === handId)
+  if (handIndex === -1) {
+    state.warning = "NO-NO: that hand route isn’t in your set."
+    return
+  }
+
+  // IMPORTANT: early swap must swap out an UNUSED hand route
+  if (state.usedRoutes.includes(handId)) {
+    state.warning = "NO-NO: you can only early-swap an unused route."
+    return
+  }
+
+  if (qIdx < 0 || qIdx >= state.queue.length) return
+
+  // Pay cost: spend CAPTURED ENEMY token → goes to VOID of enemy color
+  const enemy = other(p)
+  state.captives[p] -= EARLY_SWAP_COST
+  state.void[enemy] += EARLY_SWAP_COST
+
+  // Perform swap (same as end swap but WITHOUT ending the turn)
+  const taken = state.queue[qIdx]
+  const discarded = state.routes[p][handIndex]
+
+  state.routes[p][handIndex] = taken
+  putBottom(state, discarded)
+
+  state.queue.splice(qIdx, 1)
+  state.queue.push(drawTop(state))
+
+  // Mark early swap as used; disarm; clear pending selection
+  state.earlySwapUsedThisTurn = true
+  state.earlySwapArmed = false
+  state.pendingSwap = { handRouteId: null, queueIndex: null }
+
+  state.log.unshift(`${p} EARLY swapped out ${discarded.id} and took ${taken.id} (paid ${EARLY_SWAP_COST} captive → ${enemy} Void).`)
+}
+
 export function chooseSwapHandRoute(state: GameState, routeId: string) {
-  if (state.phase !== "SWAP") return
+  const ok = state.phase === "SWAP" || (state.phase === "ACTION" && state.earlySwapArmed)
+  if (!ok) return
   if (state.gameOver) return
   state.pendingSwap.handRouteId = routeId
   state.warning = null
 }
 
 export function chooseSwapQueueIndex(state: GameState, idx: number) {
-  if (state.phase !== "SWAP") return
+  const ok = state.phase === "SWAP" || (state.phase === "ACTION" && state.earlySwapArmed)
+  if (!ok) return
   if (state.gameOver) return
   if (idx < 0 || idx >= state.queue.length) return
   state.pendingSwap.queueIndex = idx
@@ -450,30 +650,6 @@ export function confirmSwapAndEndTurn(state: GameState) {
 
   state.log.unshift(`${p} swapped out ${discarded.id} and took ${taken.id} from queue.`)
 
-  // end turn bookkeeping
-  state.turn += 1
-  const next = other(p)
-
-  // Tournament: escalation after each ROUND (after Blue finishes), capped at 5 routes
-  if (p === "B") {
-    state.round += 1
-
-    if (state.routes.W.length < 4) {
-      const wNew = drawTop(state)
-      state.routes.W.push(wNew)
-      state.log.unshift(`== Round ${state.round}: escalation +1 route to W (${wNew.id}) ==`)
-    }
-
-    if (state.routes.B.length < 4) {
-      const bNew = drawTop(state)
-      state.routes.B.push(bNew)
-      state.log.unshift(`== Round ${state.round}: escalation +1 route to B (${bNew.id}) ==`)
-    }
-  }
-
-  state.player = next
-  state.phase = "ACTION"
-  state.usedRoutes = []
-  state.turnInvades[state.player] = 0
-  state.pendingSwap = { handRouteId: null, queueIndex: null }
+  // End turn (common bookkeeping + resets)
+  endTurnCommon(state, `== ${p} ends turn ==`)
 }
