@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
-import { traceByRoute, type Route } from "./move"
 import { aiStepBeginner, aiStepIntermediate } from "./ai"
 import {
   applyRouteMove,
@@ -40,15 +39,19 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [human] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
   const ai: Player = human === "W" ? "B" : "W"
 
-  const [aiDifficulty, setAiDifficulty] = useState<"beginner" | "intermediate">(
-    "beginner"
-  )
+  const [aiDifficulty, setAiDifficulty] = useState<"beginner" | "intermediate">("beginner")
 
   const [started, setStarted] = useState(false)
   const [audioReady, setAudioReady] = useState(false)
 
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
+
+  // Always bump this when we want an INVALID sound + warning.
+  const warnSeqRef = useRef(0)
+
+  // Tracks the last warning sequence we played a sound for
+  const lastWarnSeqPlayedRef = useRef<number>(0)
 
   const playSound = useCallback((h: SoundHandle) => {
     try {
@@ -98,49 +101,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     return m
   }, [g.tokens])
 
-  const samePos = useCallback((a: Coord, b: Coord) => a.x === b.x && a.y === b.y, [])
-  const tokenAtXY = useCallback(
-    (x: number, y: number): Token | null => boardMap.get(`${x},${y}`) ?? null,
-    [boardMap]
-  )
-
-  const canTokenUseRoute = useCallback(
-    (p: Player, token: Token, route: Route): boolean => {
-      if (token.in !== "BOARD") return false
-      if (token.owner !== p) return false
-
-      const from = token.pos
-      const steps = traceByRoute(from, route)
-      if (steps.length === 0) return false
-
-      const leftOrigin = steps.some((c) => !samePos(c, from))
-      if (!leftOrigin) return false
-
-      const to = steps[steps.length - 1]
-      const occ = tokenAtXY(to.x, to.y)
-      if (occ && occ.owner === p && occ.id !== token.id) return false
-
-      return true
-    },
-    [samePos, tokenAtXY]
-  )
-
   const remainingRoutes =
     g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
-
-  const forcedYieldAvailable =
-    g.phase === "ACTION" &&
-    !g.gameOver &&
-    remainingRoutes.length > 0 &&
-    (() => {
-      const friendly = g.tokens.filter((t) => t.in === "BOARD" && t.owner === g.player)
-      for (const r of remainingRoutes) {
-        for (const t of friendly) {
-          if (canTokenUseRoute(g.player, t, r)) return false
-        }
-      }
-      return true
-    })()
 
   const earlySwapArmed = Boolean((g as any).earlySwapArmed)
   const earlySwapUsedThisTurn = Boolean((g as any).earlySwapUsedThisTurn)
@@ -166,22 +128,54 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const update = useCallback((mut: (s: GameState) => void) => {
     setG((prev) => {
       const next: GameState = structuredClone(prev)
+
+      const prevWarning = (prev as any).warning ?? ""
       mut(next)
+      const nextWarning = (next as any).warning ?? ""
+
+      // If ANY mutation sets a warning, bump warnSeq (even if text is identical).
+      if (nextWarning) {
+        warnSeqRef.current += 1
+        ;(next as any).warningSeq = warnSeqRef.current as any
+      }
+
+      // Also: if warning was cleared, keep seq as-is.
+      if (!nextWarning && prevWarning) {
+        // no-op
+      }
+
       return next
     })
   }, [])
 
+  // Central warning helper: ALWAYS sets warning and ALWAYS bumps seq.
   const warn = useCallback(
     (msg: string) => {
-      update((s) => (s.warning = msg as any))
+      update((s) => {
+        ;(s as any).warning = msg as any
+        // seq is bumped in update() post-mutation hook above (guarantees engine + controller both covered)
+      })
     },
     [update]
   )
 
+  // INVALID sound plays whenever warningSeq changes.
+  // This is the single source of truth for invalid audio.
+  useEffect(() => {
+    if (!started) return
+    if (!audioReady) return
+
+    const seq = Number((g as any).warningSeq ?? 0)
+    if (seq > 0 && seq !== lastWarnSeqPlayedRef.current) {
+      playSound(sounds.invalid)
+      lastWarnSeqPlayedRef.current = seq
+    }
+  }, [started, audioReady, (g as any).warningSeq, playSound, sounds.invalid])
+
   const onSquareClick = useCallback(
     (x: number, y: number) => {
       if (!started) return
-      if (g.warning) update((s) => (s.warning = "" as any))
+      if ((g as any).warning) update((s) => ((s as any).warning = "" as any))
 
       const coord: Coord = { x, y }
 
@@ -207,11 +201,13 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn]
   )
 
   useEffect(() => {
-    const sel = selectedTokenId ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId) : null
+    const sel = selectedTokenId
+      ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId)
+      : null
 
     if (g.phase === "ACTION" || g.phase === "SWAP") {
       if (!sel || sel.owner !== g.player) {
@@ -272,18 +268,13 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     }
   }, [g.gameOver, sounds.gameOver])
 
+  // Sound diffs: move/capture/place/swap/click (NOT warning — warning uses warningSeq)
   useEffect(() => {
     if (!started) return
 
     const prev = prevRef.current
     prevRef.current = g
     if (!prev) return
-
-    // 🔴 INVALID / WARNING SOUND
-    if (g.warning && g.warning !== prev.warning) {
-      playSound(sounds.invalid)
-      return
-    }
 
     const didPickSwap =
       g.phase === "SWAP" &&
@@ -302,8 +293,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     const prevReinf = prev.reinforcementsToPlace
     const nextReinf = g.reinforcementsToPlace
 
-    const movedKey = (lm: any) =>
-      `${lm.by}|${lm.tokenId}|${lm.from.x},${lm.from.y}|${lm.to.x},${lm.to.y}`
+    const movedKey = (lm: any) => `${lm.by}|${lm.tokenId}|${lm.from.x},${lm.from.y}|${lm.to.x},${lm.to.y}`
 
     const prevMoveKey = prev.lastMove ? movedKey(prev.lastMove) : null
     const nextMoveKey = g.lastMove ? movedKey(g.lastMove) : null
@@ -358,6 +348,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setSelectedTokenId(null)
         prevRef.current = ng
         playedGameOverSound.current = false
+        lastWarnSeqPlayedRef.current = 0
+        warnSeqRef.current = 0
       },
 
       onSquareClick,
@@ -366,13 +358,11 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         if (!started) return
         if (g.gameOver) return
 
-        // Clicking opponent hand routes
         if (g.player !== owner) {
           warn("INVALID: It's not your turn.")
           return
         }
 
-        // Only meaningful in ACTION or SWAP (and ACTION+earlySwapArmed)
         if (g.phase !== "ACTION" && g.phase !== "SWAP") {
           warn("INVALID: You can't use routes in this phase.")
           return
@@ -380,7 +370,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
         if (g.phase === "ACTION") {
           if (earlySwapArmed) {
-            // During armed early swap, route clicks are selecting the hand route for the swap
             update((s) => chooseSwapHandRoute(s, routeId))
             return
           }
@@ -394,7 +383,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           return
         }
 
-        // SWAP phase
         update((s) => chooseSwapHandRoute(s, routeId))
       },
 
@@ -409,6 +397,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
         update((s) => chooseSwapQueueIndex(s, idx))
       },
+
       confirmSwapAndEndTurn: () => {
         if (!started) return
         if (g.gameOver) return
@@ -457,6 +446,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
         update((s) => armEarlySwap(s))
       },
+
       confirmEarlySwap: () => update((s) => confirmEarlySwap(s)),
       cancelEarlySwap: () => update((s) => cancelEarlySwap(s)),
 
@@ -483,6 +473,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
         update((s) => buyExtraReinforcement(s))
       },
+
       yieldForced: () => update((s) => yieldForcedIfNoUsableRoutes(s)),
 
       setSelectedTokenId,
@@ -515,7 +506,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     aiDifficulty,
     boardMap,
     remainingRoutes,
-    forcedYieldAvailable,
     earlySwapArmed,
     canPickQueueForSwap,
     canEarlySwap,

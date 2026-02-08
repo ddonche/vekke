@@ -909,29 +909,22 @@ function App() {
                       const isActive = g.player === "W"
                       const used =
                         isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                      const isSelected = g.pendingSwap.handRouteId === r.id
 
                       return (
-                        <div
+                        <RouteIcon
                           key={r.id}
+                          route={r}
                           onClick={() => isActive && !used && actions.playRoute("W", r.id)}
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
-                            backgroundColor: used ? "#1f2937" : "#6b7280",
-                            borderRadius: "0.25rem",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                             cursor: isActive && !used ? "pointer" : "default",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.875rem",
-                            fontWeight: "bold",
-                            color: "#e5e7eb",
                             opacity: used ? 0.3 : 1,
+                            border: isSelected ? "2px solid #5de8f7" : "none",
+                            borderRadius: "0.25rem",
                           }}
-                        >
-                          <RouteIcon route={r} />
-                        </div>
+                        />
                       )
                     })}
                   </div>
@@ -970,29 +963,22 @@ function App() {
                 >
                   <div style={{ fontWeight: "bold", fontSize: "0.625rem" }}>Q</div>
                   {g.queue.map((r, idx) => (
-                    <div
+                    <RouteIcon
                       key={`${r.id}-${idx}`}
+                      route={r}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       style={{
                         width: "2.1875rem",
                         aspectRatio: "7/13",
-                        backgroundColor: "#6b7280",
-                        borderRadius: "0.25rem",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "0.875rem",
-                        fontWeight: "bold",
                         cursor: canPickQueueForSwap ? "pointer" : "default",
                         border:
                           canPickQueueForSwap && g.pendingSwap.queueIndex === idx
                             ? "2px solid #5de8f7"
                             : "none",
+                        borderRadius: "0.25rem",
+                        verticalAlign: "top",
                       }}
-                    >
-                      <RouteIcon route={r} />
-                    </div>
+                    />
                   ))}
                 </div>
 
@@ -1419,29 +1405,22 @@ function App() {
                       const isActive = g.player === "B"
                       const used =
                         isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                      const isSelected = g.pendingSwap.handRouteId === r.id
 
                       return (
-                        <div
+                        <RouteIcon
                           key={r.id}
+                          route={r}
                           onClick={() => isActive && !used && actions.playRoute("B", r.id)}
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
-                            backgroundColor: used ? "#1f2937" : "#6b7280",
-                            borderRadius: "0.25rem",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                             cursor: isActive && !used ? "pointer" : "default",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.875rem",
-                            fontWeight: "bold",
-                            color: "#e5e7eb",
                             opacity: used ? 0.3 : 1,
+                            border: isSelected ? "2px solid #5de8f7" : "none",
+                            borderRadius: "0.25rem",
                           }}
-                        >
-                          <RouteIcon route={r} />
-                        </div>
+                        />
                       )
                     })}
                   </div>
@@ -1896,25 +1875,21 @@ function App() {
                       {g.routes.W.slice(0, 4).map((r) => {
                         const isActive = g.player === "W"
                         const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        const isSelected = g.pendingSwap.handRouteId === r.id
                         return (
-                          <div
+                          <RouteIcon
                             key={r.id}
+                            route={r}
                             onClick={() => isActive && !used && actions.playRoute("W", r.id)}
                             style={{
                               width: 50,
-                              height: 80,
-                              backgroundColor: used ? "#1f2937" : "#6b7280",
-                              borderRadius: 6,
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
                               opacity: used ? 0.3 : 1,
+                              border: isSelected ? "2px solid #5de8f7" : "none",
+                              borderRadius: 6,
                             }}
-                          >
-                            <RouteIcon route={r} />
-                          </div>
+                          />
                         )
                       })}
                     </div>
@@ -1986,29 +1961,23 @@ function App() {
                   alignItems: "center",
                   boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                   flexShrink: 0,
-                  width: 74, // 50px card + 12px padding*2
+                  minWidth: 74,
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Queue</div>
                 {g.queue.map((r, idx) => (
-                  <div
+                  <RouteIcon
                     key={`${r.id}-${idx}`}
+                    route={r}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     style={{
                       width: 50,
-                      height: 80,
-                      backgroundColor: "#6b7280",
-                      borderRadius: 6,
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      aspectRatio: "7/13",
                       cursor: canPickQueueForSwap ? "pointer" : "default",
-                      border: canPickQueueForSwap && g.pendingSwap.queueIndex === idx ? "2px solid #5de8f7" : "2px solid transparent",
+                      border: canPickQueueForSwap && g.pendingSwap.queueIndex === idx ? "2px solid #5de8f7" : "none",
+                      borderRadius: 6,
                     }}
-                  >
-                    <RouteIcon route={r} />
-                  </div>
+                  />
                 ))}
               </div>
 
@@ -2357,25 +2326,21 @@ function App() {
                       {g.routes.B.slice(0, 4).map((r) => {
                         const isActive = g.player === "B"
                         const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        const isSelected = g.pendingSwap.handRouteId === r.id
                         return (
-                          <div
+                          <RouteIcon
                             key={r.id}
+                            route={r}
                             onClick={() => isActive && !used && actions.playRoute("B", r.id)}
                             style={{
                               width: 50,
-                              height: 80,
-                              backgroundColor: used ? "#1f2937" : "#6b7280",
-                              borderRadius: 6,
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
                               opacity: used ? 0.3 : 1,
+                              border: isSelected ? "2px solid #5de8f7" : "none",
+                              borderRadius: 6,
                             }}
-                          >
-                            <RouteIcon route={r} />
-                          </div>
+                          />
                         )
                       })}
                     </div>
