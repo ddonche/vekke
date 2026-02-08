@@ -405,6 +405,7 @@ function App() {
                 padding: "0.5rem",
                 backgroundColor: "#1f2937",
                 borderBottom: "1px solid #4b5563",
+                position: "relative",
               }}
             >
               <div
@@ -413,6 +414,7 @@ function App() {
                   fontWeight: "bold",
                   marginBottom: "0.25rem",
                   color: "#5de8f7",
+                  textAlign: "center",
                 }}
               >
                 {g.phase}: {g.player}{" "}
@@ -442,7 +444,7 @@ function App() {
                 style={{
                   fontSize: "0.6875rem",
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "center",
                   alignItems: "center",
                   color: "#d1d5db",
                 }}
@@ -488,6 +490,8 @@ function App() {
                     display: "flex",
                     alignItems: "center",
                     gap: "0.25rem",
+                    position: "absolute",  
+                    right: "0.5rem",
                   }}
                 >
                   <svg
@@ -907,8 +911,8 @@ function App() {
                   <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
                     {g.routes.W.slice(0, 4).map((r) => {
                       const isActive = g.player === "W"
-                      const used =
-                        isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                      const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
+                        const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                       const isSelected = g.pendingSwap.handRouteId === r.id
 
                       return (
@@ -945,7 +949,7 @@ function App() {
                 {/* Left: Route Queue */}
                 <div
                   style={{
-                    backgroundColor: "#4b5563",
+                    backgroundColor: "#374151",
                     color: "#e5e7eb",
                     padding: "0.375rem",
                     borderRadius: "0.5rem",
@@ -1096,7 +1100,7 @@ function App() {
                 {/* Right: Void */}
                 <div
                   style={{
-                    backgroundColor: "#4b5563",
+                    backgroundColor: "#374151",
                     color: "#e5e7eb",
                     padding: "0.375rem",
                     borderRadius: "0.5rem",
@@ -1403,8 +1407,8 @@ function App() {
                   <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
                     {g.routes.B.slice(0, 4).map((r) => {
                       const isActive = g.player === "B"
-                      const used =
-                        isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                      const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
+                        const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                       const isSelected = g.pendingSwap.handRouteId === r.id
 
                       return (
@@ -1634,6 +1638,7 @@ function App() {
                 backgroundColor: "#1f2937",
                 borderBottom: "1px solid #4b5563",
                 flexShrink: 0,
+                position: "relative",
               }}
             >
               <div
@@ -1642,6 +1647,7 @@ function App() {
                   fontWeight: 900,
                   marginBottom: 6,
                   color: "#5de8f7",
+                  textAlign: "center",
                 }}
               >
                 {g.phase}: {g.player}{" "}
@@ -1670,7 +1676,7 @@ function App() {
                 style={{
                   fontSize: 13,
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "center",
                   alignItems: "center",
                   color: "#d1d5db",
                 }}
@@ -1693,6 +1699,8 @@ function App() {
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
+                    position: "absolute",  
+                    right: "0.5rem",
                   }}
                 >
                   <svg
@@ -1874,7 +1882,8 @@ function App() {
                     <div style={{ display: "flex", gap: 6 }}>
                       {g.routes.W.slice(0, 4).map((r) => {
                         const isActive = g.player === "W"
-                        const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
+                          const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                         const isSelected = g.pendingSwap.handRouteId === r.id
                         return (
                           <RouteIcon
@@ -1951,7 +1960,7 @@ function App() {
               {/* Queue */}
               <div
                 style={{
-                  backgroundColor: "#4b5563",
+                  backgroundColor: "#374151",
                   color: "#e5e7eb",
                   padding: 12,
                   borderRadius: 12,
@@ -2179,7 +2188,7 @@ function App() {
               {/* Void */}
               <div
                 style={{
-                  backgroundColor: "#4b5563",
+                  backgroundColor: "#374151",
                   color: "#e5e7eb",
                   padding: 12,
                   borderRadius: 12,
@@ -2325,7 +2334,8 @@ function App() {
                     <div style={{ display: "flex", gap: 6 }}>
                       {g.routes.B.slice(0, 4).map((r) => {
                         const isActive = g.player === "B"
-                        const used = isActive && g.phase === "ACTION" && g.usedRoutes.includes(r.id)
+                        const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
+                          const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                         const isSelected = g.pendingSwap.handRouteId === r.id
                         return (
                           <RouteIcon
