@@ -249,13 +249,13 @@ export function placeOpeningToken(state: GameState, coord: Coord) {
   state.warning = null
 
   if (tokenAt(state, coord.x, coord.y)) {
-    state.warning = `NO-NO: ${toSq(coord)} is occupied.`
+    state.warning = `INVALID: ${toSq(coord)} is occupied.`
     return
   }
 
   const p = state.player
   if (state.openingPlaced[p] >= 3) {
-    state.warning = `NO-NO: ${p} already placed 3 opening tokens.`
+    state.warning = `INVALID: ${p} already placed 3 opening tokens.`
     return
   }
 
@@ -288,31 +288,31 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
 
   const route = state.routes[p].find((r) => r.id === routeId)
   if (!route) {
-    state.warning = `NO-NO: Route ${routeId} not found.`
+    state.warning = `INVALID: Route ${routeId} not found.`
     return
   }
   if (state.usedRoutes.includes(routeId)) {
-    state.warning = `NO-NO: Route ${routeId} already used this turn.`
+    state.warning = `INVALID: Route ${routeId} already used this turn.`
     return
   }
 
   const token = state.tokens.find((t) => t.in === "BOARD" && t.id === tokenId)
   if (!token || token.owner !== p) {
-    state.warning = `NO-NO: Select a friendly token.`
+    state.warning = `INVALID: Select a friendly token.`
     return
   }
 
   const from = token.pos
   const steps = traceByRoute(from, route) // list of visited spaces (each step)
   if (steps.length === 0) {
-    state.warning = `NO-NO: that route has no movement.`
+    state.warning = `INVALID: that route has no movement.`
     return
   }
 
   // Must actually leave origin at least once (even if you return to origin later)
   const leftOrigin = steps.some((c) => !samePos(c, from))
   if (!leftOrigin) {
-    state.warning = `NO-NO: token must move out of its originating space.`
+    state.warning = `INVALID: token must move out of its originating space.`
     return
   }
 
@@ -321,7 +321,7 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   // Friendly occupancy illegal ONLY if occupied by another friendly token
   const occ = tokenAt(state, to.x, to.y)
   if (occ && occ.owner === p && occ.id !== token.id) {
-    state.warning = `NO-NO: ${toSq(to)} is occupied by your own token.`
+    state.warning = `INVALID: ${toSq(to)} is occupied by your own token.`
     return
   }
 
@@ -365,7 +365,7 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   // Remaining (unused) routes this turn
   const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
   if (remaining.length === 0) {
-    state.warning = "NO-NO: no remaining routes."
+    state.warning = "INVALID: no remaining routes."
     return
   }
 
@@ -375,7 +375,7 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   const anyRemainingRouteUsable = remaining.some((r) => friendly.some((t) => canTokenUseRoute(state, p, t, r)))
 
   if (anyRemainingRouteUsable) {
-    state.warning = "NO-NO: you still have usable routes."
+    state.warning = "INVALID: you still have usable routes."
     return
   }
 
@@ -418,12 +418,12 @@ export function placeReinforcement(state: GameState, coord: Coord) {
   }
 
   if (tokenAt(state, coord.x, coord.y)) {
-    state.warning = `NO-NO: ${toSq(coord)} is occupied (reinforcements cannot invade).`
+    state.warning = `INVALID: ${toSq(coord)} is occupied (reinforcements cannot invade).`
     return
   }
 
   if (state.reserves[p] <= 0) {
-    state.warning = `NO-NO: no reserves.`
+    state.warning = `INVALID: no reserves.`
     state.reinforcementsToPlace = 0
   } else {
     state.tokenSerial[p] += 1
@@ -471,12 +471,12 @@ export function buyExtraReinforcement(state: GameState) {
   state.warning = null
 
   if (state.extraReinforcementBoughtThisTurn) {
-    state.warning = "NO-NO: you already bought an extra reinforcement this turn."
+    state.warning = "INVALID: you already bought an extra reinforcement this turn."
     return
   }
 
   if (state.reserves[p] < EXTRA_REINFORCEMENT_COST) {
-    state.warning = `NO-NO: need ${EXTRA_REINFORCEMENT_COST} reserve token(s) to buy an extra reinforcement.`
+    state.warning = `INVALID: need ${EXTRA_REINFORCEMENT_COST} reserve token(s) to buy an extra reinforcement.`
     return
   }
 
@@ -504,17 +504,17 @@ export function armEarlySwap(state: GameState) {
   // Must still have unused routes to make this meaningful
   const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
   if (remaining.length === 0) {
-    state.warning = "NO-NO: early swap disabled (no remaining routes)."
+    state.warning = "INVALID: early swap disabled (no remaining routes)."
     return
   }
 
   if (state.earlySwapUsedThisTurn) {
-    state.warning = "NO-NO: you already swapped early this turn."
+    state.warning = "INVALID: you already swapped early this turn."
     return
   }
 
   if (state.captives[p] < EARLY_SWAP_COST) {
-    state.warning = `NO-NO: need ${EARLY_SWAP_COST} captured token(s) to early swap.`
+    state.warning = `INVALID: need ${EARLY_SWAP_COST} captured token(s) to early swap.`
     return
   }
 
@@ -542,36 +542,36 @@ export function confirmEarlySwap(state: GameState) {
   state.warning = null
 
   if (state.earlySwapUsedThisTurn) {
-    state.warning = "NO-NO: you already swapped early this turn."
+    state.warning = "INVALID: you already swapped early this turn."
     return
   }
 
   // Must still have unused routes (don’t waste material)
   const remaining = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
   if (remaining.length === 0) {
-    state.warning = "NO-NO: early swap disabled (no remaining routes)."
+    state.warning = "INVALID: early swap disabled (no remaining routes)."
     return
   }
 
   if (state.captives[p] < EARLY_SWAP_COST) {
-    state.warning = `NO-NO: need ${EARLY_SWAP_COST} captured token(s).`
+    state.warning = `INVALID: need ${EARLY_SWAP_COST} captured token(s).`
     return
   }
 
   if (!handId || qIdx === null) {
-    state.warning = "NO-NO: pick 1 route from hand and 1 from the queue."
+    state.warning = "INVALID: pick 1 route from hand and 1 from the queue."
     return
   }
 
   const handIndex = state.routes[p].findIndex((r) => r.id === handId)
   if (handIndex === -1) {
-    state.warning = "NO-NO: that hand route isn’t in your set."
+    state.warning = "INVALID: that hand route isn’t in your set."
     return
   }
 
   // IMPORTANT: early swap must swap out an UNUSED hand route
   if (state.usedRoutes.includes(handId)) {
-    state.warning = "NO-NO: you can only early-swap an unused route."
+    state.warning = "INVALID: you can only early-swap an unused route."
     return
   }
 
@@ -627,13 +627,13 @@ export function confirmSwapAndEndTurn(state: GameState) {
   const qIdx = state.pendingSwap.queueIndex
 
   if (!handId || qIdx === null) {
-    state.warning = "NO-NO: pick 1 route from hand and 1 from the queue."
+    state.warning = "INVALID: pick 1 route from hand and 1 from the queue."
     return
   }
 
   const handIndex = state.routes[p].findIndex((r) => r.id === handId)
   if (handIndex === -1) {
-    state.warning = "NO-NO: that hand route isn’t in your set."
+    state.warning = "INVALID: that hand route isn’t in your set."
     return
   }
 

@@ -69,6 +69,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       sounds.place.load?.()
       sounds.swap.load?.()
       sounds.click.load?.()
+      sounds.invalid.load?.()
       sounds.gameOver.load?.()
       setAudioReady(true)
     } catch (e) {
@@ -191,7 +192,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       const t = boardMap.get(`${x},${y}`)
       if (t) {
         if (t.owner !== g.player && (g.phase === "ACTION" || g.phase === "SWAP")) {
-          update((s) => (s.warning = "NO-NO: you can only select your own tokens." as any))
+          update((s) => (s.warning = "INVALID: You can only select your own tokens." as any))
+          playSound(sounds.invalid)
           return
         }
         if (selectedTokenId !== t.id) playSound(sounds.click)
@@ -269,6 +271,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     const prev = prevRef.current
     prevRef.current = g
     if (!prev) return
+
+    // 🔴 INVALID / WARNING SOUND
+    if (g.warning && g.warning !== prev.warning) {
+      playSound(sounds.invalid)
+      return
+    }
 
     const didPickSwap =
       g.phase === "SWAP" &&
@@ -357,7 +365,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
             return
           }
           if (!selectedTokenId) {
-            update((s) => (s.warning = "NO-NO: select a token first." as any))
+            update((s) => (s.warning = "INVALID: You must select a token first." as any))
+            playSound(sounds.invalid)
             return
           }
           update((s) => applyRouteMove(s, selectedTokenId, routeId))

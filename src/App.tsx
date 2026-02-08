@@ -66,8 +66,60 @@ function App() {
     actions,
   } = useVekkeController({ sounds, aiDelayMs: 1200 })
 
+  const [ghost, setGhost] = useState<null | {
+    by: Player
+    from: Coord
+    tokenId: string
+    born: number
+  }>(null)
+
+  const GHOST_MS = 1000
+
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
+
+  // Ghost token animation (show the "from" square briefly after a move)
+  useEffect(() => {
+    if (!started) {
+      setGhost(null)
+      return
+    }
+
+    if (!g.lastMove) {
+      setGhost(null)
+      return
+    }
+
+    const lm = g.lastMove
+    const elapsed = Date.now() - lm.moveNumber
+    if (elapsed > GHOST_MS) {
+      setGhost(null)
+      return
+    }
+
+    // Anchor ghost data to the authoritative lastMove from the controller.
+    setGhost({
+      by: lm.by,
+      from: lm.from,
+      tokenId: lm.tokenId,
+      born: lm.moveNumber,
+    })
+
+    const interval = window.setInterval(() => {
+      // Force re-render so alpha can decay over time.
+      setGhost((prev) => (prev ? { ...prev } : prev))
+    }, 50)
+
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval)
+      setGhost(null)
+    }, Math.max(0, GHOST_MS - elapsed))
+
+    return () => {
+      window.clearInterval(interval)
+      window.clearTimeout(timeout)
+    }
+  }, [started, g.lastMove?.moveNumber])
 
   // ===== TWO MODES ONLY: WEB vs MOBILE =====
   // Wider breakpoint so shrinking the browser reliably flips to mobile.
@@ -95,8 +147,6 @@ function App() {
     avatar: "B",
     country: "JP",
   }
-
-  const GHOST_MS = 1000
 
   return (
     <ErrBoundary>
@@ -181,6 +231,8 @@ function App() {
             scrollbar-width: none;
             -ms-overflow-style: none;
           }
+
+          .token-ghost { opacity: 0.3; }
         `}</style>
 
         {!started && (
@@ -359,7 +411,21 @@ function App() {
                     : g.phase === "SWAP"
                       ? "make a route swap"
                       : "place opening tokens"}
+                {g.warning && (
+                    <div
+                      style={{
+                        marginBottom: "0.25rem",
+                        color: "#ef4444",
+                        fontWeight: 900,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {g.warning}
+                    </div>
+                  )}
               </div>
+
               <div
                 style={{
                   fontSize: "0.6875rem",
@@ -980,7 +1046,39 @@ function App() {
                             {notation}
                           </div>
 
-                          {t && (
+
+                          {ghost &&
+                            (() => {
+                              const elapsed = Date.now() - ghost.born
+                              if (elapsed > GHOST_MS) return null
+                              if (ghost.from.x !== x || ghost.from.y !== y) return null
+                              const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
+
+                              return (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    display: "grid",
+                                    placeItems: "center",
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  <div
+                                    className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                                    style={{
+                                      width: "75%",
+                                      height: "75%",
+                                      borderRadius: "50%",
+                                      position: "relative",
+                                      opacity: 0.4 * alpha,
+                                    }}
+                                  />
+                                </div>
+                              )
+                            })()}
+
+                                                    {t && (
                             <div
                               className={`token-${t.owner === "B" ? "teal" : "white"}`}
                               style={{
@@ -1563,6 +1661,19 @@ function App() {
                     : g.phase === "SWAP"
                       ? "make a route swap"
                       : "place opening tokens"}
+                {g.warning && (
+                    <div
+                      style={{
+                        marginBottom: 6,
+                        color: "#ef4444",
+                        fontWeight: 900,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {g.warning}
+                    </div>
+                  )}
               </div>
               <div
                 style={{
@@ -1961,7 +2072,39 @@ function App() {
                           <div style={{ position: "absolute", top: 4, left: 6, fontSize: 10, fontWeight: 900, color: "#9ca3af", opacity: 0.75 }}>
                             {notation}
                           </div>
-                          {t && (
+
+                          {ghost &&
+                            (() => {
+                              const elapsed = Date.now() - ghost.born
+                              if (elapsed > GHOST_MS) return null
+                              if (ghost.from.x !== x || ghost.from.y !== y) return null
+                              const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
+
+                              return (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    display: "grid",
+                                    placeItems: "center",
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  <div
+                                    className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                                    style={{
+                                      width: 70,
+                                      height: 70,
+                                      borderRadius: "50%",
+                                      position: "relative",
+                                      opacity: 0.4 * alpha,
+                                    }}
+                                  />
+                                </div>
+                              )
+                            })()}
+
+                                                    {t && (
                             <div
                               className={`token-${t.owner === "B" ? "teal" : "white"}`}
                               style={{ width: 70, height: 70, borderRadius: "50%", position: "relative" }}
