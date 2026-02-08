@@ -4,6 +4,8 @@ import type { GameState, Player, Token } from "./engine/state"
 import { sounds } from "./sounds"
 import { RouteIcon } from "./RouteIcon"
 import { useVekkeController } from "./engine/ui_controller"
+import { GridBoard } from "./GridBoard"
+import { IntersectionBoard } from "./IntersectionBoard"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -79,6 +81,7 @@ function App() {
 
   const GHOST_MS = 1000
 
+  const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
 
@@ -144,6 +147,17 @@ function App() {
     apply()
     mq.addEventListener("change", apply)
     return () => mq.removeEventListener("change", apply)
+  }, [])
+
+  // Board style toggle with 'B' key
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'b' || e.key === 'B') {
+        setBoardStyle(prev => prev === "grid" ? "intersection" : "grid")
+      }
+    }
+    window.addEventListener("keydown", handleKeyPress)
+    return () => window.removeEventListener("keydown", handleKeyPress)
   }, [])
 
   const whitePlayer = {
@@ -385,6 +399,70 @@ function App() {
                 >
                   Intermediate AI
                 </button>
+              </div>
+
+              {/* Board Style Selection */}
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Board Style
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+                <button
+                  onClick={() => setBoardStyle("grid")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: boardStyle === "grid" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: boardStyle === "grid" ? "#1f2937" : "#374151",
+                    color: boardStyle === "grid" ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Grid Squares
+                </button>
+                <button
+                  onClick={() => setBoardStyle("intersection")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: boardStyle === "intersection" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: boardStyle === "intersection" ? "#1f2937" : "#374151",
+                    color: boardStyle === "intersection" ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Intersections
+                </button>
+              </div>
+
+              <div
+                style={{
+                  fontSize: "0.6875rem",
+                  opacity: 0.7,
+                  marginBottom: "14px",
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                  color: "#9ca3af",
+                }}
+              >
+                {boardStyle === "grid" 
+                  ? "Grid squares for learning and casual play"
+                  : "Go-style intersections for tournament play"}
               </div>
 
               <button
@@ -1112,115 +1190,29 @@ function App() {
                 </div>
 
                 {/* Center: Board */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(6, 1fr)",
-                    gridTemplateRows: "repeat(6, 1fr)",
-                    gap: "0.125rem",
-                    padding: "0.375rem",
-                    backgroundColor: "#4b5563",
-                    borderRadius: "12px",
-                    boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
-                    flex: 1,
-                    aspectRatio: "1/1",
-                  }}
-                >
-                  {Array.from({ length: SIZE }, (_, ry) => {
-                    const y = SIZE - 1 - ry
-                    return Array.from({ length: SIZE }, (_, x) => {
-                      const key = `${x},${y}`
-                      const sq = toSq({ x, y })
-                      const t = boardMap.get(key)
-                      const isSelected = t && t.id === selectedTokenId
-
-                      const col = String.fromCharCode(65 + x)
-                      const row = y + 1
-                      const notation = `${col}${row}`
-
-                      return (
-                        <div
-                          key={key}
-                          onClick={() => started && actions.onSquareClick(x, y)}
-                          style={{
-                            backgroundColor: isSelected ? "#1f2937" : "#6b7280",
-                            borderRadius: "0.5rem",
-                            boxShadow: isSelected
-                              ? "0 0 0 2px #5de8f7"
-                              : "0 2px 4px rgba(0,0,0,0.2)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            position: "relative",
-                            aspectRatio: "1/1",
-                            cursor:
-                              started && (g.phase === "OPENING" || Boolean(t))
-                                ? "pointer"
-                                : "default",
-                          }}
-                        >
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "2px",
-                              left: "3px",
-                              fontSize: "7px",
-                              fontWeight: "bold",
-                              color: "#9ca3af",
-                              opacity: 0.55,
-                            }}
-                          >
-                            {notation}
-                          </div>
-
-
-                          {ghost &&
-                            (() => {
-                              const elapsed = Date.now() - ghost.born
-                              if (elapsed > GHOST_MS) return null
-                              if (ghost.from.x !== x || ghost.from.y !== y) return null
-                              const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
-
-                              return (
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    inset: 0,
-                                    display: "grid",
-                                    placeItems: "center",
-                                    pointerEvents: "none",
-                                  }}
-                                >
-                                  <div
-                                    className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
-                                    style={{
-                                      width: "75%",
-                                      height: "75%",
-                                      borderRadius: "50%",
-                                      position: "relative",
-                                      opacity: 0.4 * alpha,
-                                    }}
-                                  />
-                                </div>
-                              )
-                            })()}
-
-                                                    {t && (
-                            <div
-                              className={`token-${t.owner === "B" ? "teal" : "white"}`}
-                              style={{
-                                width: "75%",
-                                height: "75%",
-                                borderRadius: "50%",
-                                position: "relative",
-                              }}
-                            />
-                          )}
-                        </div>
-                      )
-                    })
-                  })}
-                </div>
+                {boardStyle === "grid" ? (
+                  <GridBoard
+                    boardMap={boardMap}
+                    selectedTokenId={selectedTokenId}
+                    ghost={ghost}
+                    started={started}
+                    phase={g.phase}
+                    onSquareClick={actions.onSquareClick}
+                    GHOST_MS={GHOST_MS}
+                    mobile={true}
+                  />
+                ) : (
+                  <IntersectionBoard
+                    boardMap={boardMap}
+                    selectedTokenId={selectedTokenId}
+                    ghost={ghost}
+                    started={started}
+                    phase={g.phase}
+                    onSquareClick={actions.onSquareClick}
+                    GHOST_MS={GHOST_MS}
+                    mobile={true}
+                  />
+                )}
 
                 {/* Right: Void */}
                 <div
@@ -1281,6 +1273,11 @@ function App() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Board style instruction */}
+              <div style={{ fontSize: 10, color: "#9ca3af", opacity: 0.6, textAlign: "center", padding: "4px 0" }}>
+                Press <span style={{ fontWeight: 900, color: "#d1d5db" }}>B</span> to switch board style
               </div>
 
               {/* Blue Player */}
@@ -1834,107 +1831,6 @@ function App() {
               </button>
             </div>
 
-            {/* Phase Banner */}
-            <div
-              style={{
-                padding: "12px 20px",
-                backgroundColor: "#1f2937",
-                borderBottom: "1px solid #4b5563",
-                flexShrink: 0,
-                position: "relative",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 900,
-                  marginBottom: 6,
-                  color: "#5de8f7",
-                  textAlign: "center",
-                }}
-              >
-                {g.phase}: {g.player}{" "}
-                {g.phase === "ACTION"
-                  ? "make your moves"
-                  : g.phase === "REINFORCE"
-                    ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                          place {g.reinforcementsToPlace} reinforcements
-                          {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                            <div 
-                              key={i} 
-                              className={g.player === "W" ? "token-white" : "token-teal"}
-                              style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
-                            />
-                          ))}
-                        </span>
-                      )
-                    : g.phase === "SWAP"
-                      ? "make a route swap"
-                      : "place opening tokens"}
-                {g.warning && (
-                    <div
-                      style={{
-                        marginBottom: 6,
-                        color: "#ef4444",
-                        fontWeight: 900,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {g.warning}
-                    </div>
-                  )}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  color: "#d1d5db",
-                }}
-              >
-                <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-                  <span>
-                    Placed: B {g.openingPlaced.B}/3, W {g.openingPlaced.W}/3
-                  </span>
-                  <span>Round: {g.round}</span>
-                </div>
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#ee484c",
-                    fontSize: 13,
-                    cursor: "pointer",
-                    padding: 0,
-                    fontWeight: 900,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    position: "absolute",  
-                    right: "0.5rem",
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ee484c"
-                    strokeWidth="2"
-                  >
-                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                    <path d="M12 8v4" />
-                    <path d="M12 16h.01" />
-                  </svg>
-                  <span>Resign</span>
-                </button>
-              </div>
-            </div>
-
             {/* Main Content Area */}
             <div
               style={{
@@ -1955,7 +1851,7 @@ function App() {
                     padding: 12,
                     backgroundColor: "#374151",
                     borderRadius: 8,
-                    border: "1px solid #4b5563",
+                    border: g.player === "W" ? "2px solid #5de8f7" : "1px solid #4b5563",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -2268,90 +2164,127 @@ function App() {
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(6, 90px)",
-                    gridTemplateRows: "repeat(6, 90px)",
-                    gap: 5,
-                    padding: 16,
-                    backgroundColor: "#4b5563",
-                    borderRadius: 20,
-                    boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
-                  }}
-                >
-                  {Array.from({ length: SIZE }, (_, ry) => {
-                    const y = SIZE - 1 - ry
-                    return Array.from({ length: SIZE }, (_, x) => {
-                      const key = `${x},${y}`
-                      const t = boardMap.get(key)
-                      const isSelected = t && t.id === selectedTokenId
-                      const col = String.fromCharCode(65 + x)
-                      const row = y + 1
-                      const notation = `${col}${row}`
-
-                      return (
+                {/* Phase Banner - moved between clock and board */}
+                <div style={{ width: "100%", maxWidth: 597, height: 60, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 8 }}>
+                  {/* Messages Area - phase text and warnings */}
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 900,
+                      color: "#5de8f7",
+                      textAlign: "center",
+                      minHeight: 24,
+                    }}
+                  >
+                    {g.phase}: {g.player}{" "}
+                    {g.phase === "ACTION"
+                      ? "make your moves"
+                      : g.phase === "REINFORCE"
+                        ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                              place {g.reinforcementsToPlace} reinforcements
+                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                <div 
+                                  key={i} 
+                                  className={g.player === "W" ? "token-white" : "token-teal"}
+                                  style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
+                                />
+                              ))}
+                            </span>
+                          )
+                        : g.phase === "SWAP"
+                          ? "make a route swap"
+                          : "place opening tokens"}
+                    {g.warning && (
                         <div
-                          key={key}
-                          onClick={() => started && actions.onSquareClick(x, y)}
                           style={{
-                            width: 90,
-                            height: 90,
-                            backgroundColor: "#6b7280",
-                            borderRadius: 14,
-                            boxShadow: isSelected ? "0 0 0 3px #5de8f7" : "0 2px 4px rgba(0,0,0,0.2)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            position: "relative",
-                            cursor: started ? "pointer" : "default",
+                            marginTop: 4,
+                            color: "#ef4444",
+                            fontWeight: 900,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                            fontSize: 13,
                           }}
                         >
-                          <div style={{ position: "absolute", top: 4, left: 6, fontSize: 10, fontWeight: 900, color: "#9ca3af", opacity: 0.75 }}>
-                            {notation}
-                          </div>
-
-                          {ghost &&
-                            (() => {
-                              const elapsed = Date.now() - ghost.born
-                              if (elapsed > GHOST_MS) return null
-                              if (ghost.from.x !== x || ghost.from.y !== y) return null
-                              const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
-
-                              return (
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    inset: 0,
-                                    display: "grid",
-                                    placeItems: "center",
-                                    pointerEvents: "none",
-                                  }}
-                                >
-                                  <div
-                                    className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
-                                    style={{
-                                      width: 70,
-                                      height: 70,
-                                      borderRadius: "50%",
-                                      position: "relative",
-                                      opacity: 0.4 * alpha,
-                                    }}
-                                  />
-                                </div>
-                              )
-                            })()}
-
-                                                    {t && (
-                            <div
-                              className={`token-${t.owner === "B" ? "teal" : "white"}`}
-                              style={{ width: 70, height: 70, borderRadius: "50%", position: "relative" }}
-                            />
-                          )}
+                          {g.warning}
                         </div>
-                      )
-                    })
-                  })}
+                      )}
+                  </div>
+                  
+                  {/* Info Row - latest log and resign (won't move) */}
+                  <div
+                    style={{
+                      fontSize: 13,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      color: "#d1d5db",
+                      paddingLeft: 8,
+                      paddingRight: 8,
+                    }}
+                  >
+                    <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
+                      {g.log.length > 0 ? g.log[g.log.length - 1] : "No moves yet"}
+                    </div>
+                    <button
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#ee484c",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        padding: 0,
+                        fontWeight: 900,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#ee484c"
+                        strokeWidth="2"
+                      >
+                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                        <path d="M12 8v4" />
+                        <path d="M12 16h.01" />
+                      </svg>
+                      <span>Resign</span>
+                    </button>
+                  </div>
+                </div>
+
+                {boardStyle === "grid" ? (
+                  <GridBoard
+                    boardMap={boardMap}
+                    selectedTokenId={selectedTokenId}
+                    ghost={ghost}
+                    started={started}
+                    phase={g.phase}
+                    onSquareClick={actions.onSquareClick}
+                    GHOST_MS={GHOST_MS}
+                    mobile={false}
+                  />
+                ) : (
+                  <IntersectionBoard
+                    boardMap={boardMap}
+                    selectedTokenId={selectedTokenId}
+                    ghost={ghost}
+                    started={started}
+                    phase={g.phase}
+                    onSquareClick={actions.onSquareClick}
+                    GHOST_MS={GHOST_MS}
+                    mobile={false}
+                  />
+                )}
+
+                {/* Board style instruction */}
+                <div style={{ fontSize: 11, color: "#9ca3af", opacity: 0.6, textAlign: "center" }}>
+                  Press <span style={{ fontWeight: 900, color: "#d1d5db" }}>B</span> to switch board style
                 </div>
 
                 {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
@@ -2472,7 +2405,7 @@ function App() {
                     padding: 12,
                     backgroundColor: "#374151",
                     borderRadius: 8,
-                    border: "1px solid #4b5563",
+                    border: g.player === "B" ? "2px solid #5de8f7" : "1px solid #4b5563",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>

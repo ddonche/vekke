@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
-import { aiStepBeginner, aiStepIntermediate } from "./ai"
+import { aiStepBeginner, aiStepIntermediate, aiThinkDelayMs } from "./ai"
 import {
   applyRouteMove,
   chooseSwapHandRoute,
