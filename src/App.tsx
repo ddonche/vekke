@@ -644,6 +644,8 @@ function App() {
                   </div>
                 </div>
                 <button
+                  onClick={() => actions.resign()}
+                  disabled={!started || !!g.gameOver}
                   style={{
                     background: "none",
                     border: "none",
@@ -657,6 +659,7 @@ function App() {
                     gap: "0.25rem",
                     position: "absolute",  
                     right: "0.5rem",
+                    opacity: (!started || !!g.gameOver) ? 0.5 : 1,
                   }}
                 >
                   <svg
@@ -2227,6 +2230,8 @@ function App() {
                       {g.log.length > 0 ? g.log[g.log.length - 1] : "No moves yet"}
                     </div>
                     <button
+                      onClick={() => actions.resign()}
+                      disabled={!started || !!g.gameOver}
                       style={{
                         background: "none",
                         border: "none",
@@ -2238,6 +2243,7 @@ function App() {
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
+                        opacity: (!started || !!g.gameOver) ? 0.5 : 1,
                       }}
                     >
                       <svg

@@ -152,7 +152,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const warn = useCallback(
     (msg: string) => {
       update((s) => ((s as any).warning = msg as any))
-      // if you want invalid sound here too, do it here — but you said the timer work now
+      playSound(sounds.invalid)
     },
     [update]
   )
@@ -415,6 +415,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setClocks({ W: t.baseMs, B: t.baseMs })
         lastTickAtRef.current = performance.now()
         prevTurnPlayerRef.current = null
+      },
+
+      resign: () => {
+        if (!started) return
+        if (g.gameOver) return
+
+        update((s) => {
+          s.gameOver = { winner: other(s.player) }
+        })
       },
 
       onSquareClick,
