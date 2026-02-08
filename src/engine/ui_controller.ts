@@ -27,6 +27,7 @@ type Sounds = {
   place: SoundHandle
   swap: SoundHandle
   click: SoundHandle
+  invalid: SoundHandle
   gameOver: SoundHandle
 }
 
@@ -170,6 +171,13 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     })
   }, [])
 
+  const warn = useCallback(
+    (msg: string) => {
+      update((s) => (s.warning = msg as any))
+    },
+    [update]
+  )
+
   const onSquareClick = useCallback(
     (x: number, y: number) => {
       if (!started) return
@@ -192,8 +200,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       const t = boardMap.get(`${x},${y}`)
       if (t) {
         if (t.owner !== g.player && (g.phase === "ACTION" || g.phase === "SWAP")) {
-          update((s) => (s.warning = "INVALID: You can only select your own tokens." as any))
-          playSound(sounds.invalid)
+          warn("INVALID: You can only select your own tokens.")
           return
         }
         if (selectedTokenId !== t.id) playSound(sounds.click)
@@ -356,41 +363,146 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       onSquareClick,
 
       playRoute: (owner: Player, routeId: string) => {
-        if (!started || g.gameOver) return
-        if (g.player !== owner) return
+        if (!started) return
+        if (g.gameOver) return
+
+        // Clicking opponent hand routes
+        if (g.player !== owner) {
+          warn("INVALID: It's not your turn.")
+          return
+        }
+
+        // Only meaningful in ACTION or SWAP (and ACTION+earlySwapArmed)
+        if (g.phase !== "ACTION" && g.phase !== "SWAP") {
+          warn("INVALID: You can't use routes in this phase.")
+          return
+        }
 
         if (g.phase === "ACTION") {
           if (earlySwapArmed) {
+            // During armed early swap, route clicks are selecting the hand route for the swap
             update((s) => chooseSwapHandRoute(s, routeId))
             return
           }
+
           if (!selectedTokenId) {
-            update((s) => (s.warning = "INVALID: You must select a token first." as any))
-            playSound(sounds.invalid)
+            warn("INVALID: You must select a token first.")
             return
           }
+
           update((s) => applyRouteMove(s, selectedTokenId, routeId))
           return
         }
 
-        if (g.phase === "SWAP") {
-          update((s) => chooseSwapHandRoute(s, routeId))
-        }
+        // SWAP phase
+        update((s) => chooseSwapHandRoute(s, routeId))
       },
 
-      pickQueueIndex: (idx: number) => update((s) => chooseSwapQueueIndex(s, idx)),
-      confirmSwapAndEndTurn: () => update((s) => confirmSwapAndEndTurn(s)),
+      pickQueueIndex: (idx: number) => {
+        if (!started) return
+        if (g.gameOver) return
 
-      armEarlySwap: () => update((s) => armEarlySwap(s)),
+        if (!canPickQueueForSwap) {
+          warn("INVALID: You can only pick from the queue during a swap.")
+          return
+        }
+
+        update((s) => chooseSwapQueueIndex(s, idx))
+      },
+      confirmSwapAndEndTurn: () => {
+        if (!started) return
+        if (g.gameOver) return
+
+        if (!canPickQueueForSwap) {
+          warn("INVALID: You can only confirm a swap during a swap.")
+          return
+        }
+
+        if (!g.pendingSwap.handRouteId || g.pendingSwap.queueIndex == null) {
+          warn("INVALID: Pick a hand route and a queue slot first.")
+          return
+        }
+
+        update((s) => confirmSwapAndEndTurn(s))
+      },
+
+      armEarlySwap: () => {
+        if (!started) return
+        if (g.gameOver) return
+
+        if (!canEarlySwap) {
+          if (g.phase !== "ACTION") {
+            warn("INVALID: Early swap is only available during ACTION.")
+            return
+          }
+          if (earlySwapArmed) {
+            warn("INVALID: Early swap is already armed.")
+            return
+          }
+          if (earlySwapUsedThisTurn) {
+            warn("INVALID: Early swap already used this turn.")
+            return
+          }
+          if (remainingRoutes.length <= 0) {
+            warn("INVALID: No routes left to swap.")
+            return
+          }
+          if (g.captives[g.player] < EARLY_SWAP_COST) {
+            warn(`INVALID: Need ${EARLY_SWAP_COST} captives to early swap.`)
+            return
+          }
+          warn("INVALID: Early swap not available right now.")
+          return
+        }
+
+        update((s) => armEarlySwap(s))
+      },
       confirmEarlySwap: () => update((s) => confirmEarlySwap(s)),
       cancelEarlySwap: () => update((s) => cancelEarlySwap(s)),
 
-      buyExtraReinforcement: () => update((s) => buyExtraReinforcement(s)),
+      buyExtraReinforcement: () => {
+        if (!started) return
+        if (g.gameOver) return
+
+        if (!canBuyExtraReinforcement) {
+          if (g.phase !== "ACTION") {
+            warn("INVALID: You can only buy reinforcement during ACTION.")
+            return
+          }
+          if (extraReinfBought) {
+            warn("INVALID: Extra reinforcement already bought this turn.")
+            return
+          }
+          if (g.reserves[g.player] < EXTRA_REINFORCEMENT_COST) {
+            warn(`INVALID: Need ${EXTRA_REINFORCEMENT_COST} reserves to buy reinforcement.`)
+            return
+          }
+          warn("INVALID: Can't buy extra reinforcement right now.")
+          return
+        }
+
+        update((s) => buyExtraReinforcement(s))
+      },
       yieldForced: () => update((s) => yieldForcedIfNoUsableRoutes(s)),
 
       setSelectedTokenId,
     }
-  }, [started, g, update, unlockAudio, onSquareClick, earlySwapArmed, selectedTokenId])
+  }, [
+    started,
+    g,
+    update,
+    unlockAudio,
+    onSquareClick,
+    earlySwapArmed,
+    earlySwapUsedThisTurn,
+    remainingRoutes.length,
+    canPickQueueForSwap,
+    canEarlySwap,
+    canBuyExtraReinforcement,
+    extraReinfBought,
+    selectedTokenId,
+    warn,
+  ])
 
   return {
     g,

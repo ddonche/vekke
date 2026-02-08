@@ -240,33 +240,62 @@ function App() {
             style={{
               position: "fixed",
               inset: 0,
-              background: "rgba(0,0,0,0.72)",
-              display: "grid",
-              placeItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               zIndex: 9999,
+              padding: "20px",
             }}
           >
             <div
               style={{
-                width: "90vw",
-                padding: "1.125rem",
-                borderRadius: "0.875rem",
-                background: "white",
-                border: "2px solid #111",
+                backgroundColor: "#374151",
+                border: "1px solid #4b5563",
+                borderRadius: "12px",
+                padding: "16px",
+                maxWidth: "90vw",
+                width: "25rem",
+                color: "#e5e7eb",
               }}
             >
-              <div style={{ display: "flex", gap: 8, marginBottom: "0.75rem" }}>
+              <div
+                style={{
+                  fontWeight: "bold",
+                  fontSize: "1.125rem",
+                  marginBottom: "12px",
+                  textAlign: "center",
+                }}
+              >
+                NEW GAME
+              </div>
+
+              <div
+                style={{
+                  fontSize: "0.8125rem",
+                  opacity: 0.85,
+                  marginBottom: "12px",
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                  color: "#d1d5db",
+                }}
+              >
+                Select your opponent's difficulty level and begin a new game.
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
                 <button
                   onClick={() => actions.setAiDifficulty("beginner")}
                   style={{
                     flex: 1,
-                    padding: "0.625rem 0.75rem",
-                    borderRadius: "0.625rem",
-                    border: "2px solid #111",
-                    background: aiDifficulty === "beginner" ? "#111" : "white",
-                    color: aiDifficulty === "beginner" ? "white" : "#111",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === "beginner" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "beginner" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "beginner" ? "#5de8f7" : "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
+                    fontSize: "0.875rem",
                   }}
                 >
                   Beginner AI
@@ -275,38 +304,18 @@ function App() {
                   onClick={() => actions.setAiDifficulty("intermediate")}
                   style={{
                     flex: 1,
-                    padding: "0.625rem 0.75rem",
-                    borderRadius: "0.625rem",
-                    border: "2px solid #111",
-                    background:
-                      aiDifficulty === "intermediate" ? "#111" : "white",
-                    color: aiDifficulty === "intermediate" ? "white" : "#111",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === "intermediate" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "intermediate" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "intermediate" ? "#5de8f7" : "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
+                    fontSize: "0.875rem",
                   }}
                 >
                   Intermediate AI
                 </button>
-              </div>
-
-              <div
-                style={{
-                  fontWeight: 900,
-                  fontSize: "1.125rem",
-                  marginBottom: "0.625rem",
-                }}
-              >
-                Start Game
-              </div>
-              <div
-                style={{
-                  fontSize: "0.8125rem",
-                  opacity: 0.85,
-                  marginBottom: "0.875rem",
-                  lineHeight: 1.35,
-                }}
-              >
-                Select your opponent's difficulty level and begin a new game.
               </div>
 
               <button
@@ -315,13 +324,14 @@ function App() {
                   actions.setStarted(true)
                 }}
                 style={{
-                  padding: "0.75rem 0.875rem",
-                  borderRadius: "0.75rem",
-                  border: "2px solid #111",
-                  background: "white",
-                  fontWeight: 900,
-                  cursor: "pointer",
                   width: "100%",
+                  padding: "12px",
+                  borderRadius: "0.625rem",
+                  border: "2px solid #111",
+                  backgroundColor: "white",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
                 }}
               >
                 Start Game
@@ -330,9 +340,11 @@ function App() {
               {!audioReady && (
                 <div
                   style={{
-                    marginTop: "0.625rem",
+                    marginTop: "10px",
                     fontSize: "0.75rem",
-                    opacity: 0.75,
+                    opacity: 0.6,
+                    textAlign: "center",
+                    color: "#9ca3af",
                   }}
                 >
                   Tip: click once anywhere if audio is blocked.
