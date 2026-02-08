@@ -30,6 +30,19 @@ type Sounds = {
   gameOver: SoundHandle
 }
 
+export type TimeControlId = "standard" | "rapid" | "blitz"
+export type TimeControl = { id: TimeControlId; label: string; baseMs: number; incMs: number }
+
+const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
+  standard: { id: "standard", label: "Standard (10+5)", baseMs: 10 * 60_000, incMs: 5_000 },
+  rapid: { id: "rapid", label: "Rapid (5+3)", baseMs: 5 * 60_000, incMs: 3_000 },
+  blitz: { id: "blitz", label: "Blitz (3+2)", baseMs: 3 * 60_000, incMs: 2_000 },
+}
+
+type Clocks = { W: number; B: number }
+
+const other = (p: Player): Player => (p === "W" ? "B" : "W")
+
 export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number }) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
@@ -44,14 +57,17 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [started, setStarted] = useState(false)
   const [audioReady, setAudioReady] = useState(false)
 
+  // NEW: time controls + clocks
+  const [timeControlId, setTimeControlId] = useState<TimeControlId>("standard")
+  const timeControl = TIME_CONTROLS[timeControlId]
+  const [clocks, setClocks] = useState<Clocks>(() => ({ W: timeControl.baseMs, B: timeControl.baseMs }))
+
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
 
-  // Always bump this when we want an INVALID sound + warning.
-  const warnSeqRef = useRef(0)
-
-  // Tracks the last warning sequence we played a sound for
-  const lastWarnSeqPlayedRef = useRef<number>(0)
+  // Timer refs
+  const lastTickAtRef = useRef<number>(0)
+  const prevTurnPlayerRef = useRef<Player | null>(null)
 
   const playSound = useCallback((h: SoundHandle) => {
     try {
@@ -128,49 +144,89 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const update = useCallback((mut: (s: GameState) => void) => {
     setG((prev) => {
       const next: GameState = structuredClone(prev)
-
-      const prevWarning = (prev as any).warning ?? ""
       mut(next)
-      const nextWarning = (next as any).warning ?? ""
-
-      // If ANY mutation sets a warning, bump warnSeq (even if text is identical).
-      if (nextWarning) {
-        warnSeqRef.current += 1
-        ;(next as any).warningSeq = warnSeqRef.current as any
-      }
-
-      // Also: if warning was cleared, keep seq as-is.
-      if (!nextWarning && prevWarning) {
-        // no-op
-      }
-
       return next
     })
   }, [])
 
-  // Central warning helper: ALWAYS sets warning and ALWAYS bumps seq.
   const warn = useCallback(
     (msg: string) => {
-      update((s) => {
-        ;(s as any).warning = msg as any
-        // seq is bumped in update() post-mutation hook above (guarantees engine + controller both covered)
-      })
+      update((s) => ((s as any).warning = msg as any))
+      // if you want invalid sound here too, do it here — but you said the timer work now
     },
     [update]
   )
 
-  // INVALID sound plays whenever warningSeq changes.
-  // This is the single source of truth for invalid audio.
+  // ===== TIMER CORE =====
+
+  // Reset clocks whenever time control changes BEFORE game start (or if you allow changing mid-game, remove started guard)
+  useEffect(() => {
+    if (started) return
+    setClocks({ W: timeControl.baseMs, B: timeControl.baseMs })
+  }, [timeControl.baseMs, started])
+
+  // Tick down active player's clock while running
   useEffect(() => {
     if (!started) return
-    if (!audioReady) return
+    if (g.gameOver) return
 
-    const seq = Number((g as any).warningSeq ?? 0)
-    if (seq > 0 && seq !== lastWarnSeqPlayedRef.current) {
-      playSound(sounds.invalid)
-      lastWarnSeqPlayedRef.current = seq
+    // initialize tick origin
+    lastTickAtRef.current = performance.now()
+
+    const id = window.setInterval(() => {
+      const now = performance.now()
+      const dt = now - lastTickAtRef.current
+      lastTickAtRef.current = now
+
+      setClocks((prev) => {
+        const p = g.player
+        const nextVal = Math.max(0, prev[p] - dt)
+        const next = { ...prev, [p]: nextVal } as Clocks
+        return next
+      })
+    }, 100)
+
+    return () => window.clearInterval(id)
+  }, [started, g.player, g.gameOver])
+
+  // Apply increment exactly once per turn change (player changes)
+  useEffect(() => {
+    if (!started) return
+    if (g.gameOver) return
+
+    const prevP = prevTurnPlayerRef.current
+    const nextP = g.player
+
+    if (prevP && prevP !== nextP) {
+      // prevP just finished their turn → give increment
+      setClocks((prev) => {
+        const next = { ...prev } as Clocks
+        next[prevP] = next[prevP] + timeControl.incMs
+        return next
+      })
     }
-  }, [started, audioReady, (g as any).warningSeq, playSound, sounds.invalid])
+
+    prevTurnPlayerRef.current = nextP
+  }, [started, g.player, g.gameOver, timeControl.incMs])
+
+  // Flag timeouts → end game
+  useEffect(() => {
+    if (!started) return
+    if (g.gameOver) return
+
+    if (clocks.W <= 0) {
+      update((s) => ((s as any).gameOver = { winner: "B" } as any))
+      warn("TIME: White ran out of time.")
+      return
+    }
+    if (clocks.B <= 0) {
+      update((s) => ((s as any).gameOver = { winner: "W" } as any))
+      warn("TIME: Blue ran out of time.")
+      return
+    }
+  }, [started, g.gameOver, clocks.W, clocks.B, update, warn])
+
+  // ===== END TIMER CORE =====
 
   const onSquareClick = useCallback(
     (x: number, y: number) => {
@@ -268,7 +324,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     }
   }, [g.gameOver, sounds.gameOver])
 
-  // Sound diffs: move/capture/place/swap/click (NOT warning — warning uses warningSeq)
+  // Sound diffs: move/capture/place/swap/click
   useEffect(() => {
     if (!started) return
 
@@ -341,15 +397,24 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       setAiDifficulty,
       unlockAudio,
 
-      newGame: async () => {
+      // NEW: time control selection (used by modal)
+      setTimeControlId,
+
+      newGame: async (tc: TimeControlId = timeControlId) => {
         await unlockAudio()
+
         const ng = newGame()
         setG(ng)
         setSelectedTokenId(null)
         prevRef.current = ng
         playedGameOverSound.current = false
-        lastWarnSeqPlayedRef.current = 0
-        warnSeqRef.current = 0
+
+        // reset clocks + timer refs
+        const t = TIME_CONTROLS[tc]
+        setTimeControlId(tc)
+        setClocks({ W: t.baseMs, B: t.baseMs })
+        lastTickAtRef.current = performance.now()
+        prevTurnPlayerRef.current = null
       },
 
       onSquareClick,
@@ -493,6 +558,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     extraReinfBought,
     selectedTokenId,
     warn,
+    timeControlId,
   ])
 
   return {
@@ -510,6 +576,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
+
+    // NEW: timer exports
+    timeControlId,
+    timeControl,
+    clocks,
+
     constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST },
     actions,
   }
