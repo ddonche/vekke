@@ -55,6 +55,10 @@ function App() {
     started,
     audioReady,
     aiDifficulty,
+    clocks,
+    timeControl,
+    timeControlId,
+    TIME_CONTROLS,
     boardMap,
     remainingRoutes,
     forcedYieldAvailable,
@@ -77,6 +81,14 @@ function App() {
 
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
+
+  // Format clock time from milliseconds to M:SS
+  const fmtClock = (ms: number) => {
+    const total = Math.ceil(ms / 1000)
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    return `${m}:${String(s).padStart(2, "0")}`
+  }
 
   // Ghost token animation (show the "from" square briefly after a move)
   useEffect(() => {
@@ -283,6 +295,63 @@ function App() {
                 Select your opponent's difficulty level and begin a new game.
               </div>
 
+              {/* Time Control Selection */}
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Time Control
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+                {(["standard", "rapid", "blitz"] as const).map((id) => {
+                  const labels = {
+                    standard: "Standard (10+5)",
+                    rapid: "Rapid (5+3)", 
+                    blitz: "Blitz (3+2)"
+                  }
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => actions.setTimeControlId(id)}
+                      style={{
+                        flex: 1,
+                        padding: "10px 12px",
+                        borderRadius: "8px",
+                        border: timeControlId === id ? "2px solid #5de8f7" : "1px solid #4b5563",
+                        background: timeControlId === id ? "#1f2937" : "#374151",
+                        color: timeControlId === id ? "#5de8f7" : "#e5e7eb",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      {labels[id]}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* AI Difficulty Selection */}
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Opponent
+              </div>
+
               <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
                 <button
                   onClick={() => actions.setAiDifficulty("beginner")}
@@ -321,6 +390,7 @@ function App() {
               <button
                 onClick={async () => {
                   await actions.unlockAudio()
+                  actions.newGame(timeControlId)
                   actions.setStarted(true)
                 }}
                 style={{
@@ -484,9 +554,15 @@ function App() {
                       <path d="M6.38 18.7 4 21" />
                       <path d="M17.64 18.67 20 21" />
                     </svg>
-                    <span style={{ fontWeight: "bold" }}>W: 5:23</span>
-                    <span>|</span>
-                    <span>B: 4:15</span>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      <div style={{ fontWeight: "bold", opacity: g.player === "W" ? 1 : 0.6 }}>
+                        W {fmtClock(clocks.W)}
+                      </div>
+                      <div style={{ fontWeight: "bold", opacity: g.player === "B" ? 1 : 0.6 }}>
+                        B {fmtClock(clocks.B)}
+                      </div>
+                      <div style={{ opacity: 0.75, fontSize: "0.625rem" }}>{timeControl.label}</div>
+                    </div>
                   </div>
                 </div>
                 <button
@@ -2173,20 +2249,22 @@ function App() {
                     boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
-                      <circle cx="12" cy="13" r="8" />
-                      <path d="M12 9v4l2 2" />
-                      <path d="M5 3 2 6" />
-                      <path d="m22 6-3-3" />
-                      <path d="M6.38 18.7 4 21" />
-                      <path d="M17.64 18.67 20 21" />
-                    </svg>
-                    <span style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb" }}>W: 5:23</span>
-                  </div>
-                  <div style={{ fontSize: 18, color: "#9ca3af" }}>|</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 18, color: "#d1d5db" }}>B: 4:15</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2 2" />
+                    <path d="M5 3 2 6" />
+                    <path d="m22 6-3-3" />
+                    <path d="M6.38 18.7 4 21" />
+                    <path d="M17.64 18.67 20 21" />
+                  </svg>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb", opacity: g.player === "W" ? 1 : 0.6 }}>
+                      W {fmtClock(clocks.W)}
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb", opacity: g.player === "B" ? 1 : 0.6 }}>
+                      B {fmtClock(clocks.B)}
+                    </div>
+                    <div style={{ fontSize: 18, color: "#9ca3af", opacity: 0.75 }}>{timeControl.label}</div>
                   </div>
                 </div>
 
