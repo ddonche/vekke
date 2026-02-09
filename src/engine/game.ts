@@ -425,7 +425,7 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   }
 
   // Move
-  state.lastMove = { by: p, tokenId: token.id, from, to, moveNumber: Date.now() }
+  state.lastMove = { by: p, tokenId: token.id, from, to, dir: route.dir, moveNumber: Date.now() }
   token.pos = to
   state.usedRoutes.push(routeId)
 

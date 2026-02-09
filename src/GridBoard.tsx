@@ -1,6 +1,8 @@
 import React from "react"
 import { SIZE } from "./engine/coords"
 import type { Player, Token } from "./engine/state"
+import type { Direction } from "./engine/directions"
+import { DIR } from "./engine/directions"
 
 interface GridBoardProps {
   boardMap: Map<string, Token>
@@ -9,6 +11,7 @@ interface GridBoardProps {
     by: Player
     from: { x: number; y: number }
     tokenId: string
+    dir: Direction
     born: number
   } | null
   started: boolean
@@ -104,6 +107,52 @@ export function GridBoard({
                 {notation}
               </div>
 
+              {/* Trailing ghost token - shows direction of movement */}
+              {ghost && t && t.id === ghost.tokenId && (() => {
+                const elapsed = Date.now() - ghost.born
+                if (elapsed > GHOST_MS) return null
+                const alpha = Math.max(0, 1 - elapsed / GHOST_MS)
+                
+                // Get actual route direction and negate for opposite
+                const dir = DIR[ghost.dir]
+                const oppositeDx = -dir.dx
+                const oppositeDy = -dir.dy
+                
+                // Calculate offset (0.5 cells in opposite direction)
+                const cellSize = mobile ? 58 : 95
+                const startOffsetX = oppositeDx * cellSize * 0.5
+                const startOffsetY = oppositeDy * cellSize * 0.5
+                
+                // Animate from start to center
+                const progress = Math.min(1, elapsed / GHOST_MS)
+                const currentX = startOffsetX * (1 - progress)
+                const currentY = -startOffsetY * (1 - progress) // Negate Y for screen coords
+                
+                return (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "grid",
+                      placeItems: "center",
+                      pointerEvents: "none",
+                      transform: `translate(${currentX}px, ${currentY}px)`,
+                    }}
+                  >
+                    <div
+                      className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                      style={{
+                        width: tokenSize,
+                        height: tokenSize,
+                        borderRadius: "50%",
+                        position: "relative",
+                        opacity: 0.4 * alpha,
+                      }}
+                    />
+                  </div>
+                )
+              })()}
+
               {ghost &&
                 (() => {
                   const elapsed = Date.now() - ghost.born
@@ -163,8 +212,7 @@ export function GridBoard({
                   }
                 }
                 
-                const locked = enemyNeighbors >= 4 && enemyNeighbors < 8
-                const fullSiege = enemyNeighbors === 8
+                const locked = enemyNeighbors >= 4
                 
                 return (
                   <div style={{ position: "relative", width: tokenSize, height: tokenSize }}>
@@ -179,16 +227,14 @@ export function GridBoard({
                       }}
                     />
                     
-                    {/* Siege ring overlay */}
-                    {(locked || fullSiege) && (
+                    {/* Siege ring - dashed for 4+ enemies */}
+                    {locked && (
                       <div
                         style={{
                           position: "absolute",
                           inset: mobile ? "-3px" : "-4px",
                           borderRadius: "50%",
-                          border: fullSiege 
-                            ? `${mobile ? "2px" : "2px"} solid #ee484c` 
-                            : `${mobile ? "2px" : "2px"} dashed #ee484c`,
+                          border: `${mobile ? "2px" : "2px"} dashed #ee484c`,
                           pointerEvents: "none",
                         }}
                       />

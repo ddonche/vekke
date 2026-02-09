@@ -1,5 +1,6 @@
 import type { Coord } from "./coords"
 import type { Route } from "./move"
+import type { Direction } from "./directions"
 
 export type Player = "W" | "B"
 export type Phase = "OPENING" | "ACTION" | "REINFORCE" | "SWAP"
@@ -16,6 +17,7 @@ export type LastMove = {
   tokenId: string
   from: Coord
   to: Coord
+  dir: Direction
   moveNumber: number
 }
 

@@ -33,13 +33,14 @@ type Sounds = {
   siegeBreak: SoundHandle
 }
 
-export type TimeControlId = "standard" | "rapid" | "blitz"
+export type TimeControlId = "standard" | "rapid" | "blitz" | "daily"
 export type TimeControl = { id: TimeControlId; label: string; baseMs: number; incMs: number }
 
 const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
   standard: { id: "standard", label: "Standard (10+5)", baseMs: 10 * 60_000, incMs: 5_000 },
   rapid: { id: "rapid", label: "Rapid (5+3)", baseMs: 5 * 60_000, incMs: 3_000 },
   blitz: { id: "blitz", label: "Blitz (3+2)", baseMs: 3 * 60_000, incMs: 2_000 },
+  daily: { id: "daily", label: "Daily (24h/move)", baseMs: 24 * 60 * 60_000, incMs: 0 },
 }
 
 type Clocks = { W: number; B: number }
@@ -219,6 +220,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
     lastTickAtRef.current = performance.now()
 
+    const intervalMs = timeControlId === "daily" ? 1000 : 100
+
     const id = window.setInterval(() => {
       const now = performance.now()
       const dt = now - lastTickAtRef.current
@@ -229,10 +232,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         const nextVal = Math.max(0, prev[p] - dt)
         return { ...prev, [p]: nextVal }
       })
-    }, 100)
+    }, intervalMs)
 
     return () => window.clearInterval(id)
-  }, [started, g.player, g.gameOver])
+  }, [started, g.player, g.gameOver, timeControlId])
 
   useEffect(() => {
     if (!started) return

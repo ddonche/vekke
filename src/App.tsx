@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { SIZE, toSq, type Coord } from "./engine/coords"
 import type { GameState, Player, Token } from "./engine/state"
+import type { Direction } from "./engine/directions"
 import { sounds } from "./sounds"
 import { RouteIcon } from "./RouteIcon"
 import { useVekkeController } from "./engine/ui_controller"
@@ -76,6 +77,7 @@ function App() {
     by: Player
     from: Coord
     tokenId: string
+    dir: Direction
     born: number
   }>(null)
 
@@ -85,12 +87,22 @@ function App() {
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
 
-  // Format clock time from milliseconds to M:SS
+  // Helper for padding numbers
+  const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+
+  // Format clock time from milliseconds
   const fmtClock = (ms: number) => {
-    const total = Math.ceil(ms / 1000)
-    const m = Math.floor(total / 60)
-    const s = total % 60
-    return `${m}:${String(s).padStart(2, "0")}`
+    const totalSec = Math.max(0, Math.ceil(ms / 1000))
+    const sec = totalSec % 60
+    const totalMin = Math.floor(totalSec / 60)
+    const min = totalMin % 60
+    const hours = Math.floor(totalMin / 60)
+
+    // Daily uses HH:MM:SS, others use M:SS
+    if (timeControlId === "daily") {
+      return `${hours}:${pad2(min)}:${pad2(sec)}`
+    }
+    return `${totalMin}:${pad2(sec)}`
   }
 
   // Ghost token animation (show the "from" square briefly after a move)
@@ -117,6 +129,7 @@ function App() {
       by: lm.by,
       from: lm.from,
       tokenId: lm.tokenId,
+      dir: lm.dir,
       born: lm.moveNumber,
     })
 
@@ -324,12 +337,14 @@ function App() {
               </div>
 
               <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-                {(["standard", "rapid", "blitz"] as const).map((id) => {
+                {(["standard", "rapid", "blitz", "daily"] as const).map((id) => {
                   const labels = {
                     standard: "Standard (10+5)",
-                    rapid: "Rapid (5+3)", 
-                    blitz: "Blitz (3+2)"
-                  }
+                    rapid: "Rapid (5+3)",
+                    blitz: "Blitz (3+2)",
+                    daily: "Daily (24h/move)",
+                  } as const
+
                   return (
                     <button
                       key={id}
