@@ -547,139 +547,6 @@ function App() {
               </button>
             </div>
 
-            {/* Phase Banner */}
-            <div
-              style={{
-                padding: "0.5rem",
-                backgroundColor: "#1f2937",
-                borderBottom: "1px solid #4b5563",
-                position: "relative",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "bold",
-                  marginBottom: "0.25rem",
-                  color: "#5de8f7",
-                  textAlign: "center",
-                }}
-              >
-                {g.phase}: {g.player}{" "}
-                {g.phase === "ACTION"
-                  ? "make your moves"
-                  : g.phase === "REINFORCE"
-                    ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                          place {g.reinforcementsToPlace} reinforcements
-                          {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                            <div 
-                              key={i} 
-                              className={g.player === "W" ? "token-white" : "token-teal"}
-                              style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
-                            />
-                          ))}
-                        </span>
-                      )
-                    : g.phase === "SWAP"
-                      ? "make a route swap"
-                      : "place opening tokens"}
-                {g.warning && (
-                    <div
-                      style={{
-                        marginBottom: "0.25rem",
-                        color: "#ef4444",
-                        fontWeight: 900,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {g.warning}
-                    </div>
-                  )}
-              </div>
-
-              <div
-                style={{
-                  fontSize: "0.6875rem",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  color: "#d1d5db",
-                }}
-              >
-                <div style={{ display: "flex", gap: "0.75rem" }}>
-                  <span>
-                    Placed: B {g.openingPlaced.B}/3, W {g.openingPlaced.W}/3
-                  </span>
-                  <span>Round: {g.round}</span>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#d1d5db"
-                      strokeWidth="2"
-                    >
-                      <circle cx="12" cy="13" r="8" />
-                      <path d="M12 9v4l2 2" />
-                      <path d="M5 3 2 6" />
-                      <path d="m22 6-3-3" />
-                      <path d="M6.38 18.7 4 21" />
-                      <path d="M17.64 18.67 20 21" />
-                    </svg>
-                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                      <div style={{ fontWeight: "bold", opacity: g.player === "W" ? 1 : 0.6 }}>
-                        W {fmtClock(clocks.W)}
-                      </div>
-                      <div style={{ fontWeight: "bold", opacity: g.player === "B" ? 1 : 0.6 }}>
-                        B {fmtClock(clocks.B)}
-                      </div>
-                      <div style={{ opacity: 0.75, fontSize: "0.625rem" }}>{timeControl.label}</div>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => actions.resign()}
-                  disabled={!started || !!g.gameOver}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#ee484c",
-                    fontSize: "0.6875rem",
-                    cursor: "pointer",
-                    padding: 0,
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    position: "absolute",  
-                    right: "0.5rem",
-                    opacity: (!started || !!g.gameOver) ? 0.5 : 1,
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ee484c"
-                    strokeWidth="2"
-                  >
-                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                    <path d="M12 8v4" />
-                    <path d="M12 16h.01" />
-                  </svg>
-                  <span>Resign</span>
-                </button>
-              </div>
-            </div>
-
             {/* Chat Section */}
             <div
               style={{
@@ -1137,6 +1004,144 @@ function App() {
                         />
                       )
                     })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Clock */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "0.5rem",
+                  backgroundColor: "#374151",
+                  gap: "0.375rem",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2" />
+                  <path d="M5 3 2 6" />
+                  <path d="m22 6-3-3" />
+                  <path d="M6.38 18.7 4 21" />
+                  <path d="M17.64 18.67 20 21" />
+                </svg>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", fontSize: "0.875rem", fontWeight: "bold" }}>
+                  <div style={{ opacity: g.player === "W" ? 1 : 0.6 }}>
+                    W {fmtClock(clocks.W)}
+                  </div>
+                  <div style={{ opacity: g.player === "B" ? 1 : 0.6 }}>
+                    B {fmtClock(clocks.B)}
+                  </div>
+                  <div style={{ opacity: 0.75, fontSize: "0.6875rem" }}>{timeControl.label}</div>
+                </div>
+              </div>
+
+              {/* Phase Banner - between clock and board */}
+              <div style={{ padding: "0 0.375rem", backgroundColor: "#374151" }}>
+                <div style={{ height: 50, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 6 }}>
+                  {/* Messages Area - phase text and warnings */}
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 900,
+                      color: "#5de8f7",
+                      textAlign: "center",
+                      minHeight: 20,
+                    }}
+                  >
+                    {g.phase}: {g.player}{" "}
+                    {g.phase === "ACTION"
+                      ? "make your moves"
+                      : g.phase === "REINFORCE"
+                        ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                              place {g.reinforcementsToPlace} reinforcements
+                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                <div 
+                                  key={i} 
+                                  className={g.player === "W" ? "token-white" : "token-teal"}
+                                  style={{ width: "0.625rem", height: "0.625rem", borderRadius: "50%", position: "relative" }}
+                                />
+                              ))}
+                            </span>
+                          )
+                        : g.phase === "SWAP"
+                          ? "make a route swap"
+                          : "place opening tokens"}
+                    {g.warning && (
+                        <div
+                          style={{
+                            marginTop: 3,
+                            color: "#ef4444",
+                            fontWeight: 900,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                            fontSize: 11,
+                          }}
+                        >
+                          {g.warning}
+                        </div>
+                      )}
+                  </div>
+                  
+                  {/* Info Row - latest log and resign (won't move) */}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      color: "#d1d5db",
+                      paddingLeft: 6,
+                      paddingRight: 6,
+                    }}
+                  >
+                    {g.log.length === 0 ? (
+                      <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
+                        No moves yet
+                      </div>
+                    ) : (
+                      <div
+                        key={g.log[0]}
+                        style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}
+                      >
+                        {g.log[0].replace(/==/g, '').trim()}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => actions.resign()}
+                      disabled={!started || !!g.gameOver}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#ee484c",
+                        fontSize: 11,
+                        cursor: "pointer",
+                        padding: 0,
+                        fontWeight: 900,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        opacity: (!started || !!g.gameOver) ? 0.5 : 1,
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#ee484c"
+                        strokeWidth="2"
+                      >
+                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                        <path d="M12 8v4" />
+                        <path d="M12 16h.01" />
+                      </svg>
+                      <span>Resign</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1770,20 +1775,18 @@ function App() {
                     {g.log.length === 0 ? (
                       <div style={{ opacity: 0.7 }}>No log entries yet.</div>
                     ) : (
-                      g.log.map((l, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            padding: "4px 0",
-                            borderBottom:
-                              i < g.log.length - 1
-                                ? "1px solid rgba(75, 85, 99, 0.3)"
-                                : "none",
-                          }}
-                        >
-                          {l}
-                        </div>
-                      ))
+                      <div
+                        key={g.log[0]} // forces refresh even if length doesn't change
+                        style={{
+                          padding: "4px 0",
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          fontSize: 12,
+                          lineHeight: 1.4,
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {g.log[0]}
+                      </div>
                     )}
                   </div>
                 )}
@@ -2226,9 +2229,18 @@ function App() {
                       paddingRight: 8,
                     }}
                   >
-                    <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
-                      {g.log.length > 0 ? g.log[g.log.length - 1] : "No moves yet"}
-                    </div>
+                    {g.log.length === 0 ? (
+                      <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
+                        No moves yet
+                      </div>
+                    ) : (
+                      <div
+                        key={g.log[0]}
+                        style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}
+                      >
+                        {g.log[0].replace(/==/g, '').trim()}
+                      </div>
+                    )}
                     <button
                       onClick={() => actions.resign()}
                       disabled={!started || !!g.gameOver}
@@ -2659,7 +2671,7 @@ function App() {
             </div>
           </>
 
-                )}
+        )}
 
         {/* Game Over Modal */}
         {g.gameOver && (

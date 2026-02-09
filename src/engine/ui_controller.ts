@@ -17,6 +17,7 @@ import {
   EARLY_SWAP_COST,
   buyExtraReinforcement,
   EXTRA_REINFORCEMENT_COST,
+  isTokenLockedBySiege,
 } from "./game"
 
 type SoundHandle = { stop: () => void; play: () => number; load?: () => void }
@@ -28,6 +29,8 @@ type Sounds = {
   click: SoundHandle
   invalid: SoundHandle
   gameOver: SoundHandle
+  siegeLock: SoundHandle
+  siegeBreak: SoundHandle
 }
 
 export type TimeControlId = "standard" | "rapid" | "blitz"
@@ -91,6 +94,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       sounds.click.load?.()
       sounds.invalid.load?.()
       sounds.gameOver.load?.()
+      sounds.siegeLock.load?.()
+      sounds.siegeBreak.load?.()
       setAudioReady(true)
     } catch (e) {
       console.error("Audio unlock failed:", e)
@@ -119,6 +124,18 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
   const remainingRoutes =
     g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
+
+  const forcedYieldAvailable = useMemo(() => {
+      if (!started) return false
+      if (g.phase !== "ACTION") return false
+      if (g.gameOver) return false
+      if (remainingRoutes.length === 0) return false
+
+      const test: GameState = structuredClone(g)
+      const before0 = test.log[0]
+      yieldForcedIfNoUsableRoutes(test)
+      return (test as any).warning == null && test.log[0] !== before0
+    }, [started, g, remainingRoutes.length])
 
   const earlySwapArmed = Boolean((g as any).earlySwapArmed)
   const earlySwapUsedThisTurn = Boolean((g as any).earlySwapUsedThisTurn)
@@ -149,28 +166,57 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     })
   }, [])
 
-  const warn = useCallback(
-    (msg: string) => {
-      update((s) => ((s as any).warning = msg as any))
-      playSound(sounds.invalid)
-    },
-    [update]
-  )
+  const warn = useCallback((msg: string) => {
+    update((s) => {
+      (s as any).warning = msg
+    })
+  }, [update])
+
+  // Play invalid sound on any new INVALID warning (original robust version, fixed deps)
+  const currentWarning = useMemo(() => (g as any).warning ?? null, [g])   // stable ref to string or null
+
+  useEffect(() => {
+    if (!audioReady) return
+
+    const w = currentWarning
+    if (!w || typeof w !== "string" || !w.toUpperCase().startsWith("INVALID")) {
+      lastInvalidRef.current = null
+      return
+    }
+
+    if (lastInvalidRef.current === w) return   // don't repeat same message
+
+    console.log("[INVALID SOUND] Triggered for:", w)   // debug: see if it fires
+    lastInvalidRef.current = w
+    playSound(sounds.invalid)
+  }, [currentWarning, audioReady, playSound, sounds.invalid])
+
+  // Play invalid sound whenever the game (or UI) sets an INVALID warning.
+  const lastInvalidRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!audioReady) return
+    const w: any = (g as any).warning
+    if (!w || typeof w !== "string") {
+      lastInvalidRef.current = null
+      return
+    }
+    if (!w.toUpperCase().startsWith("INVALID")) return
+    if (lastInvalidRef.current === w) return
+    lastInvalidRef.current = w
+    playSound(sounds.invalid)
+  }, [(g as any).warning, audioReady, playSound, sounds.invalid])
 
   // ===== TIMER CORE =====
 
-  // Reset clocks whenever time control changes BEFORE game start (or if you allow changing mid-game, remove started guard)
   useEffect(() => {
     if (started) return
     setClocks({ W: timeControl.baseMs, B: timeControl.baseMs })
   }, [timeControl.baseMs, started])
 
-  // Tick down active player's clock while running
   useEffect(() => {
     if (!started) return
     if (g.gameOver) return
 
-    // initialize tick origin
     lastTickAtRef.current = performance.now()
 
     const id = window.setInterval(() => {
@@ -181,15 +227,13 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       setClocks((prev) => {
         const p = g.player
         const nextVal = Math.max(0, prev[p] - dt)
-        const next = { ...prev, [p]: nextVal } as Clocks
-        return next
+        return { ...prev, [p]: nextVal }
       })
     }, 100)
 
     return () => window.clearInterval(id)
   }, [started, g.player, g.gameOver])
 
-  // Apply increment exactly once per turn change (player changes)
   useEffect(() => {
     if (!started) return
     if (g.gameOver) return
@@ -198,9 +242,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     const nextP = g.player
 
     if (prevP && prevP !== nextP) {
-      // prevP just finished their turn → give increment
       setClocks((prev) => {
-        const next = { ...prev } as Clocks
+        const next = { ...prev }
         next[prevP] = next[prevP] + timeControl.incMs
         return next
       })
@@ -209,7 +252,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     prevTurnPlayerRef.current = nextP
   }, [started, g.player, g.gameOver, timeControl.incMs])
 
-  // Flag timeouts → end game
   useEffect(() => {
     if (!started) return
     if (g.gameOver) return
@@ -324,13 +366,40 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     }
   }, [g.gameOver, sounds.gameOver])
 
-  // Sound diffs: move/capture/place/swap/click
   useEffect(() => {
     if (!started) return
 
     const prev = prevRef.current
     prevRef.current = g
     if (!prev) return
+
+    // Siege SFX: detect lock/unlock transitions (4–7 adjacent enemy tokens = locked; dropping below 4 = unlocked)
+    // We compute from state each render (no cached flags) so UI/AI/engine stay consistent.
+    const buildLockedSet = (state: GameState): Set<string> => {
+      const set = new Set<string>()
+      for (const t of state.tokens) {
+        if (t.in !== "BOARD") continue
+        if (isTokenLockedBySiege(state, t)) set.add(t.id)
+      }
+      return set
+    }
+
+    const prevLocked = buildLockedSet(prev)
+    const nextLocked = buildLockedSet(g)
+
+    let lockedNow = 0
+    let unlockedNow = 0
+    for (const id of nextLocked) if (!prevLocked.has(id)) lockedNow += 1
+    for (const id of prevLocked) if (!nextLocked.has(id)) unlockedNow += 1
+
+    if (audioReady) {
+      if (lockedNow > 0) {
+        try { sounds.siegeLock.play() } catch {}
+      }
+      if (unlockedNow > 0) {
+        try { sounds.siegeBreak.play() } catch {}
+      }
+    }
 
     const didPickSwap =
       g.phase === "SWAP" &&
@@ -386,7 +455,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       playSound(sounds.move)
       return
     }
-  }, [g, started, playSound, sounds])
+  }, [g, started, audioReady, playSound, sounds])
 
   const selected =
     selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
@@ -397,7 +466,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       setAiDifficulty,
       unlockAudio,
 
-      // NEW: time control selection (used by modal)
       setTimeControlId,
 
       newGame: async (tc: TimeControlId = timeControlId) => {
@@ -409,7 +477,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         prevRef.current = ng
         playedGameOverSound.current = false
 
-        // reset clocks + timer refs
         const t = TIME_CONTROLS[tc]
         setTimeControlId(tc)
         setClocks({ W: t.baseMs, B: t.baseMs })
@@ -430,7 +497,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       playRoute: (owner: Player, routeId: string) => {
         if (!started) return
-        if (g.gameOver) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
 
         if (g.player !== owner) {
           warn("INVALID: It's not your turn.")
@@ -462,7 +532,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       pickQueueIndex: (idx: number) => {
         if (!started) return
-        if (g.gameOver) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
 
         if (!canPickQueueForSwap) {
           warn("INVALID: You can only pick from the queue during a swap.")
@@ -474,7 +547,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       confirmSwapAndEndTurn: () => {
         if (!started) return
-        if (g.gameOver) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
 
         if (!canPickQueueForSwap) {
           warn("INVALID: You can only confirm a swap during a swap.")
@@ -491,7 +567,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       armEarlySwap: () => {
         if (!started) return
-        if (g.gameOver) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
 
         if (!canEarlySwap) {
           if (g.phase !== "ACTION") {
@@ -521,12 +600,23 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         update((s) => armEarlySwap(s))
       },
 
-      confirmEarlySwap: () => update((s) => confirmEarlySwap(s)),
+      confirmEarlySwap: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        update((s) => confirmEarlySwap(s))
+      },
+
       cancelEarlySwap: () => update((s) => cancelEarlySwap(s)),
 
       buyExtraReinforcement: () => {
         if (!started) return
-        if (g.gameOver) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
 
         if (!canBuyExtraReinforcement) {
           if (g.phase !== "ACTION") {
@@ -548,7 +638,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         update((s) => buyExtraReinforcement(s))
       },
 
-      yieldForced: () => update((s) => yieldForcedIfNoUsableRoutes(s)),
+      yieldForced: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        update((s) => yieldForcedIfNoUsableRoutes(s))
+      },
 
       setSelectedTokenId,
     }
@@ -581,12 +678,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     aiDifficulty,
     boardMap,
     remainingRoutes,
+    forcedYieldAvailable,
     earlySwapArmed,
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
 
-    // NEW: timer exports
     timeControlId,
     timeControl,
     clocks,

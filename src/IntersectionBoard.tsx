@@ -253,26 +253,74 @@ export function IntersectionBoard({
                 })()}
 
               {/* Actual token */}
-              {t && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: posX - tokenRadius,
-                    top: posY - tokenRadius,
-                    pointerEvents: "none",
-                  }}
-                >
+              {t && (() => {
+                // Calculate siege status
+                const directions = [
+                  [0, 1],   // N
+                  [1, 1],   // NE
+                  [1, 0],   // E
+                  [1, -1],  // SE
+                  [0, -1],  // S
+                  [-1, -1], // SW
+                  [-1, 0],  // W
+                  [-1, 1],  // NW
+                ]
+                
+                let enemyNeighbors = 0
+                const enemy = t.owner === "W" ? "B" : "W"
+                
+                for (const [dx, dy] of directions) {
+                  const nx = col + dx
+                  const ny = row + dy
+                  if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) {
+                    const neighborKey = `${nx},${ny}`
+                    const neighbor = boardMap.get(neighborKey)
+                    if (neighbor && neighbor.owner === enemy) {
+                      enemyNeighbors++
+                    }
+                  }
+                }
+                
+                const locked = enemyNeighbors >= 4 && enemyNeighbors < 8
+                const fullSiege = enemyNeighbors === 8
+                
+                return (
                   <div
-                    className={`token-${t.owner === "B" ? "teal" : "white"}`}
                     style={{
-                      width: tokenRadius * 2,
-                      height: tokenRadius * 2,
-                      borderRadius: "50%",
-                      position: "relative",
+                      position: "absolute",
+                      left: posX - tokenRadius,
+                      top: posY - tokenRadius,
+                      pointerEvents: "none",
                     }}
-                  />
-                </div>
-              )}
+                  >
+                    {/* Token circle */}
+                    <div
+                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                      style={{
+                        width: tokenRadius * 2,
+                        height: tokenRadius * 2,
+                        borderRadius: "50%",
+                        position: "relative",
+                      }}
+                    />
+                    
+                    {/* Siege ring overlay */}
+                    {(locked || fullSiege) && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: mobile ? "-3px" : "-4px",
+                          borderRadius: "50%",
+                          border: fullSiege 
+                            ? `${mobile ? "2px" : "2px"} solid #ee484c` 
+                            : `${mobile ? "2px" : "2px"} dashed #ee484c`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                    )}
+                  </div>
+                )
+              })()}
             </React.Fragment>
           )
         })

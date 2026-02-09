@@ -135,17 +135,67 @@ export function GridBoard({
                   )
                 })()}
 
-              {t && (
-                <div
-                  className={`token-${t.owner === "B" ? "teal" : "white"}`}
-                  style={{
-                    width: tokenSize,
-                    height: tokenSize,
-                    borderRadius: "50%",
-                    position: "relative",
-                  }}
-                />
-              )}
+              {t && (() => {
+                // Calculate siege status
+                const directions = [
+                  [0, 1],   // N
+                  [1, 1],   // NE
+                  [1, 0],   // E
+                  [1, -1],  // SE
+                  [0, -1],  // S
+                  [-1, -1], // SW
+                  [-1, 0],  // W
+                  [-1, 1],  // NW
+                ]
+                
+                let enemyNeighbors = 0
+                const enemy = t.owner === "W" ? "B" : "W"
+                
+                for (const [dx, dy] of directions) {
+                  const nx = x + dx
+                  const ny = y + dy
+                  if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) {
+                    const neighborKey = `${nx},${ny}`
+                    const neighbor = boardMap.get(neighborKey)
+                    if (neighbor && neighbor.owner === enemy) {
+                      enemyNeighbors++
+                    }
+                  }
+                }
+                
+                const locked = enemyNeighbors >= 4 && enemyNeighbors < 8
+                const fullSiege = enemyNeighbors === 8
+                
+                return (
+                  <div style={{ position: "relative", width: tokenSize, height: tokenSize }}>
+                    {/* Token circle */}
+                    <div
+                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                      style={{
+                        width: tokenSize,
+                        height: tokenSize,
+                        borderRadius: "50%",
+                        position: "relative",
+                      }}
+                    />
+                    
+                    {/* Siege ring overlay */}
+                    {(locked || fullSiege) && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: mobile ? "-3px" : "-4px",
+                          borderRadius: "50%",
+                          border: fullSiege 
+                            ? `${mobile ? "2px" : "2px"} solid #ee484c` 
+                            : `${mobile ? "2px" : "2px"} dashed #ee484c`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )
         })

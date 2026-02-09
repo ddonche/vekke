@@ -39,6 +39,18 @@ export const sounds = {
       console.error("Invalid sound load error:", error),
   }),
 
+  siegeLock: new Howl({
+    src: ["/assets/sounds/siege_lock.mp3"],
+    volume: 0.5,
+    onloaderror: (id, error) => console.error("SiegeLock sound load error:", error),
+  }),
+
+  siegeBreak: new Howl({
+    src: ["/assets/sounds/siege_break.mp3"],
+    volume: 0.5,
+    onloaderror: (id, error) => console.error("SiegeBreak sound load error:", error),
+  }),
+
   gameOver: new Howl({
     src: ["/assets/sounds/gameover.mp3"],
     volume: 0.7,

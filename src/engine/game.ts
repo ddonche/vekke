@@ -32,6 +32,9 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, route: Rout
   if (token.in !== "BOARD") return false
   if (token.owner !== p) return false
 
+  // Siege lock: a token adjacent-surrounded on 4–7 sides cannot move.
+  if (isTokenLockedBySiege(state, token)) return false
+
   const from = token.pos
   const steps = traceByRoute(from, route) // assumed: excludes origin, includes each step
   if (steps.length === 0) return false
@@ -102,7 +105,11 @@ function endTurnNoSwap(state: GameState) {
 }
 
 // ------------------------------------------------------------
-// Siege (orthogonal sides)
+// Siege (adjacent-8)
+// New rules:
+// - 4–7 adjacent enemy tokens: token is LOCKED (cannot move), not captured.
+// - 8 adjacent enemy tokens: token is CAPTURED.
+// - No reinforcement bonuses from siege.
 // ------------------------------------------------------------
 const ADJ8_DIRS: Array<{ dx: number; dy: number }> = [
   { dx: 0, dy: 1 }, // N
@@ -115,51 +122,84 @@ const ADJ8_DIRS: Array<{ dx: number; dy: number }> = [
   { dx: -1, dy: 1 }, // NW
 ]
 
-// Count adjacent friendly tokens around a target token (max 8)
-function siegeSides(state: GameState, ownerOfSiegers: Player, x: number, y: number): number {
-  let sides = 0
+// Count adjacent tokens owned by `owner` around a target square (max 8)
+function adj8OwnedBy(state: GameState, owner: Player, x: number, y: number): number {
+  let n = 0
   for (const d of ADJ8_DIRS) {
     const nx = x + d.dx
     const ny = y + d.dy
     const t = tokenAt(state, nx, ny)
-    if (t && t.owner === ownerOfSiegers) sides += 1
+    if (t && t.owner === owner) n += 1
   }
-  return sides
+  return n
 }
 
-function bonusForSides(sides: number): number {
-  // Standard + allow 7/8 for tournament-late game
-  if (sides <= 3) return 0
-  if (sides === 4) return 1
-  if (sides === 5) return 2
-  if (sides === 6) return 3
-  if (sides === 7) return 4
-  return 5 // 8-sided
+// NOTE: exported so UI can show/disable with the same rule the engine uses.
+export function isTokenLockedBySiege(state: GameState, token: Token): boolean {
+  if (token.in !== "BOARD") return false
+  const enemy = other(token.owner)
+  const sides = adj8OwnedBy(state, enemy, token.pos.x, token.pos.y)
+  return sides >= 4 && sides < 8
 }
 
-// Captures enemy tokens that are under siege by `siegers`.
-// If `awardBonus` is true, computes bonus reinforcements from siege strength.
-function resolveSieges(state: GameState, siegers: Player, awardBonus: boolean): { captured: number; bonus: number } {
+function siegeSidesAgainst(state: GameState, token: Token): number {
+  if (token.in !== "BOARD") return 0
+  const enemy = other(token.owner)
+  return adj8OwnedBy(state, enemy, token.pos.x, token.pos.y)
+}
+
+function lockedIdsByOwner(state: GameState, owner: Player): Set<string> {
+  const s = new Set<string>()
+  for (const t of state.tokens) {
+    if (t.in !== "BOARD") continue
+    if (t.owner !== owner) continue
+    const sides = siegeSidesAgainst(state, t)
+    if (sides >= 4 && sides < 8) s.add(t.id)
+  }
+  return s
+}
+
+function logLockTransitions(state: GameState, actor: Player, beforeW: Set<string>, beforeB: Set<string>) {
+  const afterW = lockedIdsByOwner(state, "W")
+  const afterB = lockedIdsByOwner(state, "B")
+
+  const logDiff = (before: Set<string>, after: Set<string>) => {
+    for (const id of after) {
+      if (!before.has(id)) {
+        const tok = state.tokens.find((t) => t.in === "BOARD" && t.id === id)
+        const sides = tok ? siegeSidesAgainst(state, tok) : 0
+        state.log.unshift(`${actor} put ${id} under siege (${sides}-sided): LOCKED (cannot move).`)
+      }
+    }
+    for (const id of before) {
+      if (!after.has(id)) {
+        state.log.unshift(`${actor} broke siege on ${id}: UNLOCKED.`)
+      }
+    }
+  }
+
+  // Actor's move can lock/unlock either side, so we track both.
+  logDiff(beforeW, afterW)
+  logDiff(beforeB, afterB)
+}
+
+// Captures enemy tokens that are FULLY sieged (8-sided) by `siegers`.
+function resolveFullSieges(state: GameState, siegers: Player): number {
   const victim = other(siegers)
 
-  const sieged = state.tokens
+  const fullySieged = state.tokens
     .filter((t) => t.in === "BOARD" && t.owner === victim)
-    .map((t) => ({ t, sides: siegeSides(state, siegers, t.pos.x, t.pos.y) }))
-    .filter((x) => x.sides >= 4)
+    .map((t) => ({ t, sides: adj8OwnedBy(state, siegers, t.pos.x, t.pos.y) }))
+    .filter((x) => x.sides === 8)
 
-  let bonus = 0
-  if (awardBonus) {
-    for (const s of sieged) bonus += bonusForSides(s.sides)
-  }
-
-  for (const s of sieged) {
+  for (const s of fullySieged) {
     s.t.in = "CAPTIVE"
     state.captives[siegers] += 1
     state.stats.captures[siegers] += 1
-    state.stats.sieges[siegers] += 1
+    state.stats.sieges[siegers] += 1 // counts full-siege captures
   }
 
-  return { captured: sieged.length, bonus }
+  return fullySieged.length
 }
 
 // ------------------------------------------------------------
@@ -170,10 +210,34 @@ function finishActionIfDone(state: GameState) {
 
   if (state.usedRoutes.length !== state.routes[p].length) return
 
-  // Resolve sieges created during ACTION (award bonus)
-  const { captured, bonus } = resolveSieges(state, p, true)
-  if (captured > 0) {
-    state.log.unshift(`${p} captured ${captured} sieged token(s) before reinforcements (+${bonus} bonus).`)
+  // Resolve any FULL sieges (8-sided) created during ACTION
+  const capturedByFullSiege = resolveFullSieges(state, p)
+  if (capturedByFullSiege > 0) {
+    state.log.unshift(`${p} captured ${capturedByFullSiege} token(s) by full siege (8-sided).`)
+  }
+
+  function hasAnyLegalMove(state: GameState, p: Player): boolean {
+    if (state.phase !== "ACTION") return true // only matters on your turn
+
+    const tokens = state.tokens.filter(
+      (t) => t.in === "BOARD" && t.owner === p
+    )
+
+    if (tokens.length === 0) return false
+
+    const routes = state.routes[p].filter(
+      (r) => !state.usedRoutes.includes(r.id)
+    )
+
+    for (const t of tokens) {
+      for (const r of routes) {
+        if (canTokenUseRoute(state, p, t, r)) {
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   checkWinner(state)
@@ -183,15 +247,28 @@ function finishActionIfDone(state: GameState) {
   }
 
   if (state.turnInvades[p] >= 3 && state.void[p] > 0) {
-    state.void[p] -= 1
-    state.reserves[p] += 1
+    const refund = Math.min(2, state.void[p])
+    state.void[p] -= refund
+    state.reserves[p] += refund
     state.stats.drafts[p] += 1
-    state.log.unshift(`${p} Draft: invaded 3+ this turn, returned 1 ${p} token from Void to reserves.`)
+    state.log.unshift(
+      `${p} Draft: invaded 3+ this turn, returned ${refund} ${p} token(s) from Void to reserves.`
+    )
   }
 
-  // Reinforcements: 1 automatic + bonus + (optional purchased), limited by reserves
+  // CHECKMATE: opponent has no legal moves
+  const opp = other(p)
+  if (!hasAnyLegalMove(state, opp)) {
+    state.gameOver = { winner: p }
+    state.log.unshift(
+      `== SIEGEMATE: ${p} wins by complete siege (no legal moves) ==`
+    )
+    return
+  }
+
+  // Reinforcements: 1 automatic + (optional purchased), limited by reserves
   const extra = state.extraReinforcementBoughtThisTurn ? 1 : 0
-  const totalToPlace = 1 + bonus + extra
+  const totalToPlace = 1 + extra
   state.reinforcementsToPlace = Math.min(totalToPlace, state.reserves[p])
 
   if (state.reinforcementsToPlace > 0) {
@@ -244,8 +321,14 @@ export function finishOpeningAndDeal(state: GameState) {
 // Opening placement
 // ------------------------------------------------------------
 export function placeOpeningToken(state: GameState, coord: Coord) {
-  if (state.phase !== "OPENING") return
-  if (state.gameOver) return
+  if (state.phase !== "OPENING") {
+    state.warning = "INVALID: Cannot place opening token — game already started."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
   state.warning = null
 
   if (tokenAt(state, coord.x, coord.y)) {
@@ -280,11 +363,21 @@ export function placeOpeningToken(state: GameState, coord: Coord) {
 // Action phase move
 // ------------------------------------------------------------
 export function applyRouteMove(state: GameState, tokenId: string, routeId: string) {
-  if (state.phase !== "ACTION") return
-  if (state.gameOver) return
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Can only move during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
 
   const p = state.player
   state.warning = null
+
+  // Snapshot lock state for logging transitions after this move.
+  const beforeLockedW = lockedIdsByOwner(state, "W")
+  const beforeLockedB = lockedIdsByOwner(state, "B")
 
   const route = state.routes[p].find((r) => r.id === routeId)
   if (!route) {
@@ -298,21 +391,27 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
 
   const token = state.tokens.find((t) => t.in === "BOARD" && t.id === tokenId)
   if (!token || token.owner !== p) {
-    state.warning = `INVALID: Select a friendly token.`
+    state.warning = "INVALID: Select a friendly token."
+    return
+  }
+
+  // Siege lock: a token that is sieged on 4–7 sides cannot move.
+  if (isTokenLockedBySiege(state, token)) {
+    state.warning = `INVALID: ${token.id} is under siege and cannot move.`
     return
   }
 
   const from = token.pos
   const steps = traceByRoute(from, route) // list of visited spaces (each step)
   if (steps.length === 0) {
-    state.warning = `INVALID: that route has no movement.`
+    state.warning = "INVALID: that route has no movement."
     return
   }
 
   // Must actually leave origin at least once (even if you return to origin later)
   const leftOrigin = steps.some((c) => !samePos(c, from))
   if (!leftOrigin) {
-    state.warning = `INVALID: token must move out of its originating space.`
+    state.warning = "INVALID: token must move out of its originating space."
     return
   }
 
@@ -344,6 +443,15 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
     state.log.unshift(`${p} invaded and captured ${occ.id} at ${toSq(to)}`)
   }
 
+  // Full siege capture (8-sided) can happen immediately after any move.
+  const siegeCaptured = resolveFullSieges(state, p)
+  if (siegeCaptured > 0) {
+    state.log.unshift(`${p} captured ${siegeCaptured} token(s) by full siege (8-sided).`)
+  }
+
+  // Log any NEW locks / broken locks caused by this move.
+  logLockTransitions(state, p, beforeLockedW, beforeLockedB)
+
   // Win?
   checkWinner(state)
   if (state.gameOver) {
@@ -356,8 +464,14 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
 }
 
 export function yieldForcedIfNoUsableRoutes(state: GameState) {
-  if (state.phase !== "ACTION") return
-  if (state.gameOver) return
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Can only yield during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
 
   const p = state.player
   state.warning = null
@@ -399,11 +513,21 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
 // Reinforcements
 // ------------------------------------------------------------
 export function placeReinforcement(state: GameState, coord: Coord) {
-  if (state.phase !== "REINFORCE") return
-  if (state.gameOver) return
+  if (state.phase !== "REINFORCE") {
+    state.warning = "INVALID: Can only place reinforcements during REINFORCE phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
 
   const p = state.player
   state.warning = null
+
+  // Snapshot lock state for logging transitions after this placement.
+  const beforeLockedW = lockedIdsByOwner(state, "W")
+  const beforeLockedB = lockedIdsByOwner(state, "B")
 
   // If reinforcement phase is already done, advance correctly.
   if (state.reinforcementsToPlace <= 0) {
@@ -423,22 +547,26 @@ export function placeReinforcement(state: GameState, coord: Coord) {
   }
 
   if (state.reserves[p] <= 0) {
-    state.warning = `INVALID: no reserves.`
+    state.warning = "INVALID: no reserves."
     state.reinforcementsToPlace = 0
-  } else {
-    state.tokenSerial[p] += 1
-    const id = `${p}${state.tokenSerial[p]}`
-    state.tokens.push({ id, owner: p, pos: coord, in: "BOARD" })
-    state.reserves[p] -= 1
-    state.reinforcementsToPlace -= 1
-    state.log.unshift(`${p} reinforced ${id} at ${toSq(coord)}`)
+    return
   }
 
-  // Segura: sieges caused by reinforcement placement are captured, no bonus
-  const segura = resolveSieges(state, p, false)
-  if (segura.captured > 0) {
-    state.log.unshift(`${p} Segura captured ${segura.captured} token(s) (no bonus).`)
+  state.tokenSerial[p] += 1
+  const id = `${p}${state.tokenSerial[p]}`
+  state.tokens.push({ id, owner: p, pos: coord, in: "BOARD" })
+  state.reserves[p] -= 1
+  state.reinforcementsToPlace -= 1
+  state.log.unshift(`${p} reinforced ${id} at ${toSq(coord)}`)
+
+  // Full siege capture (8-sided) can happen after reinforcement placement too.
+  const siegeCaptured = resolveFullSieges(state, p)
+  if (siegeCaptured > 0) {
+    state.log.unshift(`${p} captured ${siegeCaptured} token(s) by full siege (8-sided).`)
   }
+
+  // Log any NEW locks / broken locks caused by this placement.
+  logLockTransitions(state, p, beforeLockedW, beforeLockedB)
 
   checkWinner(state)
   if (state.gameOver) {
@@ -461,11 +589,17 @@ export function placeReinforcement(state: GameState, coord: Coord) {
 // ------------------------------------------------------------
 // Extra Reinforcement Buy
 // ------------------------------------------------------------
-export const EXTRA_REINFORCEMENT_COST = 4
+export const EXTRA_REINFORCEMENT_COST = 3
 
 export function buyExtraReinforcement(state: GameState) {
-  if (state.phase !== "ACTION") return
-  if (state.gameOver) return
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Can only buy extra reinforcement during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
 
   const p = state.player
   state.warning = null
@@ -492,11 +626,17 @@ export function buyExtraReinforcement(state: GameState) {
 // ------------------------------------------------------------
 // Swap phase (mandatory) + Early swap (ACTION)
 // ------------------------------------------------------------
-export const EARLY_SWAP_COST = 4 // adjust if needed
+export const EARLY_SWAP_COST = 3 // adjust if needed
 
 export function armEarlySwap(state: GameState) {
-  if (state.phase !== "ACTION") return
-  if (state.gameOver) return
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Early swap only available during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
 
   const p = state.player
   state.warning = null
@@ -532,9 +672,18 @@ export function cancelEarlySwap(state: GameState) {
 }
 
 export function confirmEarlySwap(state: GameState) {
-  if (state.phase !== "ACTION") return
-  if (state.gameOver) return
-  if (!state.earlySwapArmed) return
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Early swap only available during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+  if (!state.earlySwapArmed) {
+    state.warning = "INVALID: Early swap is not armed."
+    return
+  }
 
   const p = state.player
   const handId = state.pendingSwap.handRouteId
@@ -575,7 +724,10 @@ export function confirmEarlySwap(state: GameState) {
     return
   }
 
-  if (qIdx < 0 || qIdx >= state.queue.length) return
+  if (qIdx < 0 || qIdx >= state.queue.length) {
+    state.warning = "INVALID: invalid queue selection."
+    return
+  }
 
   // Pay cost: spend CAPTURED ENEMY token → goes to VOID of enemy color
   const enemy = other(p)
@@ -602,24 +754,45 @@ export function confirmEarlySwap(state: GameState) {
 
 export function chooseSwapHandRoute(state: GameState, routeId: string) {
   const ok = state.phase === "SWAP" || (state.phase === "ACTION" && state.earlySwapArmed)
-  if (!ok) return
-  if (state.gameOver) return
+  if (!ok) {
+    state.warning = "INVALID: Cannot select swap route in current phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
   state.pendingSwap.handRouteId = routeId
   state.warning = null
 }
 
 export function chooseSwapQueueIndex(state: GameState, idx: number) {
   const ok = state.phase === "SWAP" || (state.phase === "ACTION" && state.earlySwapArmed)
-  if (!ok) return
-  if (state.gameOver) return
-  if (idx < 0 || idx >= state.queue.length) return
+  if (!ok) {
+    state.warning = "INVALID: Cannot select queue slot in current phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+  if (idx < 0 || idx >= state.queue.length) {
+    state.warning = "INVALID: Queue index out of range."
+    return
+  }
   state.pendingSwap.queueIndex = idx
   state.warning = null
 }
 
 export function confirmSwapAndEndTurn(state: GameState) {
-  if (state.phase !== "SWAP") return
-  if (state.gameOver) return
+  if (state.phase !== "SWAP") {
+    state.warning = "INVALID: Can only confirm swap during SWAP phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
   state.warning = null
 
   const p = state.player

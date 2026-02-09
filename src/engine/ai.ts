@@ -43,6 +43,11 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, routeId: st
   if (token.in !== "BOARD") return false
   if (token.owner !== p) return false
 
+  // Siege lock: a token surrounded by 4–7 adjacent enemy tokens cannot move.
+  const enemy = other(p)
+  const lockSides = siegeSidesFor(state, enemy, token.pos.x, token.pos.y)
+  if (lockSides >= 4 && lockSides < 8) return false
+
   const route = state.routes[p].find((r) => r.id === routeId)
   if (!route) return false
 
@@ -291,20 +296,24 @@ function evalState(state: GameState, me: Player): number {
   const myInv = state.turnInvades?.[me] ?? 0
   if (myInv >= 3 && myVoid > 0) score += 25
 
-  // Siege pressure / danger
+  // Siege pressure / danger (new siege rules: 4–7 locks; 8 captures)
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
   const myTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
 
   for (const e of enemyTokens) {
     const sides = siegeSidesFor(state, me, e.pos.x, e.pos.y)
-    if (sides === 3) score += 6         // one away from siege
-    else if (sides >= 4) score += 20    // currently sieged (should already be captured by rules soon)
+    if (sides === 3) score += 6               // one away from locking
+    else if (sides >= 4 && sides <= 6) score += 14 // locked is good, but not a kill
+    else if (sides === 7) score += 24         // one away from full siege capture
+    else if (sides === 8) score += 60         // should be captured immediately by rules
   }
 
   for (const m of myTokens) {
     const sides = siegeSidesFor(state, them, m.pos.x, m.pos.y)
     if (sides === 3) score -= 7
-    else if (sides >= 4) score -= 22
+    else if (sides >= 4 && sides <= 6) score -= 16
+    else if (sides === 7) score -= 28
+    else if (sides === 8) score -= 70
   }
 
   // Mobility / tempo (action phase only)
@@ -352,7 +361,7 @@ function shouldBuyExtraReinforcement(state: GameState, me: Player): boolean {
   if (state.reserves[me] < 4) return false
   if (state.reserves[me] - 4 < 6) return false // keep at least 6 in reserve after purchase
 
-  // If there exists a reinforcement placement that would create a 4th siege side on an enemy => huge.
+  // If there exists a reinforcement placement that would create a 4th siege side on an enemy (locks them) => huge.
   const them = other(me)
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
   const empties = allEmptySquares(state)
@@ -577,4 +586,3 @@ export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
     return
   }
 }
-
