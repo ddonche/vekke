@@ -187,6 +187,12 @@ function App() {
     country: "JP",
   }
 
+  // Display positioning: human always right/bottom, opponent always left/top
+  const topPlayer = human === "W" ? bluePlayer : whitePlayer
+  const bottomPlayer = human === "W" ? whitePlayer : bluePlayer
+  const leftPlayer = human === "W" ? bluePlayer : whitePlayer
+  const rightPlayer = human === "W" ? whitePlayer : bluePlayer
+
   return (
     <ErrBoundary>
       <div
@@ -702,7 +708,7 @@ function App() {
                         color: "#1f2937",
                       }}
                     >
-                      {whitePlayer.avatar}
+                      {topPlayer.avatar}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <div
@@ -719,12 +725,12 @@ function App() {
                             color: "#e5e7eb",
                           }}
                         >
-                          {whitePlayer.username}
+                          {topPlayer.username}
                         </span>
                         <span
                           style={{ fontSize: "0.6875rem", color: "#9ca3af" }}
                         >
-                          ({whitePlayer.elo})
+                          ({topPlayer.elo})
                         </span>
                       </div>
                       <div
@@ -737,7 +743,7 @@ function App() {
                         }}
                       >
                         <div
-                          className="token-white"
+                          className={topPlayer.avatar === "W" ? "token-white" : "token-teal"}
                           style={{
                             width: "0.75rem",
                             height: "0.75rem",
@@ -745,20 +751,31 @@ function App() {
                             position: "relative",
                           }}
                         ></div>
-                        <span>White</span>
-                        <svg
-                          width="16"
-                          height="12"
-                          viewBox="0 0 16 12"
-                          style={{ marginLeft: "6px" }}
-                        >
-                          <rect width="16" height="12" fill="#B22234" />
-                          <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                          <rect width="6.4" height="6" fill="#3C3B6E" />
-                        </svg>
+                        <span>{topPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        {topPlayer.country === "US" ? (
+                          <svg
+                            width="16"
+                            height="12"
+                            viewBox="0 0 16 12"
+                            style={{ marginLeft: "6px" }}
+                          >
+                            <rect width="16" height="12" fill="#B22234" />
+                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
+                            <rect width="6.4" height="6" fill="#3C3B6E" />
+                          </svg>
+                        ) : (
+                          <svg
+                            width="16"
+                            height="12"
+                            viewBox="0 0 16 12"
+                            style={{ marginLeft: "6px" }}
+                          >
+                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
+                          </svg>
+                        )}
                         <span
                           style={{
                             fontSize: "0.625rem",
@@ -766,7 +783,7 @@ function App() {
                             fontWeight: "bold",
                           }}
                         >
-                          US
+                          {topPlayer.country}
                         </span>
                       </div>
                     </div>
@@ -782,8 +799,8 @@ function App() {
                       gap: "0.5rem",
                     }}
                   >
-                    {/* Route Swap - only show when it's White's turn */}
-                    {g.player === "W" && (
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === topPlayer.avatar && (
                       <button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
@@ -818,8 +835,8 @@ function App() {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's White's turn */}
-                    {g.player === "W" && (
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === topPlayer.avatar && (
                       <button
                         onClick={() =>
                           canBuyExtraReinforcement &&
@@ -944,10 +961,10 @@ function App() {
                           maxWidth: "5rem",
                         }}
                       >
-                        {Array.from({ length: g.reserves.W }).map((_, i) => (
+                        {Array.from({ length: g.reserves[topPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div
                             key={i}
-                            className="token-white"
+                            className={topPlayer.avatar === "W" ? "token-white" : "token-teal"}
                             style={{
                               width: "0.75rem",
                               height: "0.75rem",
@@ -997,8 +1014,8 @@ function App() {
 
                   {/* Right 50%: Route cards */}
                   <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
-                    {g.routes.W.slice(0, 4).map((r) => {
-                      const isActive = g.player === "W"
+                    {g.routes[topPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                      const isActive = g.player === topPlayer.avatar
                       const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                         const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                       const isSelected = g.pendingSwap.handRouteId === r.id
@@ -1007,7 +1024,7 @@ function App() {
                         <RouteIcon
                           key={r.id}
                           route={r}
-                          onClick={() => isActive && !used && actions.playRoute("W", r.id)}
+                          onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
@@ -1342,7 +1359,7 @@ function App() {
                         color: "#1f2937",
                       }}
                     >
-                      {bluePlayer.avatar}
+                      {bottomPlayer.avatar}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <div
@@ -1359,12 +1376,12 @@ function App() {
                             color: "#e5e7eb",
                           }}
                         >
-                          {bluePlayer.username}
+                          {bottomPlayer.username}
                         </span>
                         <span
                           style={{ fontSize: "0.6875rem", color: "#9ca3af" }}
                         >
-                          ({bluePlayer.elo})
+                          ({bottomPlayer.elo})
                         </span>
                       </div>
                       <div
@@ -1377,7 +1394,7 @@ function App() {
                         }}
                       >
                         <div
-                          className="token-teal"
+                          className={bottomPlayer.avatar === "W" ? "token-white" : "token-teal"}
                           style={{
                             width: "0.75rem",
                             height: "0.75rem",
@@ -1385,16 +1402,31 @@ function App() {
                             position: "relative",
                           }}
                         ></div>
-                        <span>Blue</span>
-                        <svg
-                          width="16"
-                          height="12"
-                          viewBox="0 0 16 12"
-                          style={{ marginLeft: "6px" }}
-                        >
-                          <rect width="16" height="12" fill="#fff" />
-                          <circle cx="8" cy="6" r="3.6" fill="#BC002D" />
-                        </svg>
+                        <span>{bottomPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        {bottomPlayer.country === "US" ? (
+                          <svg
+                            width="16"
+                            height="12"
+                            viewBox="0 0 16 12"
+                            style={{ marginLeft: "6px" }}
+                          >
+                            <rect width="16" height="12" fill="#B22234" />
+                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
+                            <rect width="6.4" height="6" fill="#3C3B6E" />
+                          </svg>
+                        ) : (
+                          <svg
+                            width="16"
+                            height="12"
+                            viewBox="0 0 16 12"
+                            style={{ marginLeft: "6px" }}
+                          >
+                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
+                          </svg>
+                        )}
                         <span
                           style={{
                             fontSize: "0.625rem",
@@ -1402,7 +1434,7 @@ function App() {
                             fontWeight: "bold",
                           }}
                         >
-                          JP
+                          {bottomPlayer.country}
                         </span>
                       </div>
                     </div>
@@ -1417,8 +1449,8 @@ function App() {
                       gap: "0.5rem",
                     }}
                   >
-                    {/* Route Swap - only show when it's Blue's turn */}
-                    {g.player === "B" && (
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === bottomPlayer.avatar && (
                       <button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
@@ -1453,8 +1485,8 @@ function App() {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's Blue's turn */}
-                    {g.player === "B" && (
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === bottomPlayer.avatar && (
                       <button
                         onClick={() =>
                           canBuyExtraReinforcement &&
@@ -1576,10 +1608,10 @@ function App() {
                           maxWidth: "5rem",
                         }}
                       >
-                        {Array.from({ length: g.reserves.B }).map((_, i) => (
+                        {Array.from({ length: g.reserves[bottomPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div
                             key={i}
-                            className="token-teal"
+                            className={bottomPlayer.avatar === "W" ? "token-white" : "token-teal"}
                             style={{
                               width: "0.75rem",
                               height: "0.75rem",
@@ -1628,8 +1660,8 @@ function App() {
                   </div>
 
                   <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
-                    {g.routes.B.slice(0, 4).map((r) => {
-                      const isActive = g.player === "B"
+                    {g.routes[bottomPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                      const isActive = g.player === bottomPlayer.avatar
                       const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                         const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                       const isSelected = g.pendingSwap.handRouteId === r.id
@@ -1638,7 +1670,7 @@ function App() {
                         <RouteIcon
                           key={r.id}
                           route={r}
-                          onClick={() => isActive && !used && actions.playRoute("B", r.id)}
+                          onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
@@ -1890,35 +1922,41 @@ function App() {
                         color: "#1f2937",
                       }}
                     >
-                      {whitePlayer.avatar}
+                      {leftPlayer.avatar}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                         <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
-                          {whitePlayer.username}
+                          {leftPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({whitePlayer.elo})</span>
+                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({leftPlayer.elo})</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
-                        <div className="token-white" style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>White</span>
-                        <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                          <rect width="16" height="12" fill="#B22234" />
-                          <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                          <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                          <rect width="6.4" height="6" fill="#3C3B6E" />
-                        </svg>
-                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>US</span>
+                        <div className={leftPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
+                        <span>{leftPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        {leftPlayer.country === "US" ? (
+                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                            <rect width="16" height="12" fill="#B22234" />
+                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
+                            <rect width="6.4" height="6" fill="#3C3B6E" />
+                          </svg>
+                        ) : (
+                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
+                          </svg>
+                        )}
+                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{leftPlayer.country}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Special Actions */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
-                    {/* Route Swap - only show when it's White's turn */}
-                    {g.player === "W" && (
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === leftPlayer.avatar && (
                       <button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
@@ -1945,8 +1983,8 @@ function App() {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's White's turn */}
-                    {g.player === "W" && (
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === leftPlayer.avatar && (
                       <button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
@@ -2024,16 +2062,16 @@ function App() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {Array.from({ length: g.reserves.W }).map((_, i) => (
-                          <div key={i} className="token-white" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        {Array.from({ length: g.reserves[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
+                          <div key={i} className={leftPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {Array.from({ length: g.captives.W }).map((_, i) => (
-                          <div key={i} className="token-teal" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        {Array.from({ length: g.captives[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
+                          <div key={i} className={leftPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
@@ -2043,8 +2081,8 @@ function App() {
                   <div>
                     <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      {g.routes.W.slice(0, 4).map((r) => {
-                        const isActive = g.player === "W"
+                      {g.routes[leftPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                        const isActive = g.player === leftPlayer.avatar
                         const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                           const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                         const isSelected = g.pendingSwap.handRouteId === r.id
@@ -2052,7 +2090,7 @@ function App() {
                           <RouteIcon
                             key={r.id}
                             route={r}
-                            onClick={() => isActive && !used && actions.playRoute("W", r.id)}
+                            onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             style={{
                               width: 50,
                               aspectRatio: "7/13",
@@ -2456,31 +2494,41 @@ function App() {
                         color: "#1f2937",
                       }}
                     >
-                      {bluePlayer.avatar}
+                      {rightPlayer.avatar}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                         <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
-                          {bluePlayer.username}
+                          {rightPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({bluePlayer.elo})</span>
+                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({rightPlayer.elo})</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
-                        <div className="token-teal" style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>Blue</span>
-                        <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                          <rect width="16" height="12" fill="#fff" />
-                          <circle cx="8" cy="6" r="3.6" fill="#BC002D" />
-                        </svg>
-                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>JP</span>
+                        <div className={rightPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
+                        <span>{rightPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        {rightPlayer.country === "US" ? (
+                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                            <rect width="16" height="12" fill="#B22234" />
+                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
+                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
+                            <rect width="6.4" height="6" fill="#3C3B6E" />
+                          </svg>
+                        ) : (
+                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
+                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
+                          </svg>
+                        )}
+                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{rightPlayer.country}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Special Actions */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
-                    {/* Route Swap - only show when it's Blue's turn */}
-                    {g.player === "B" && (
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === rightPlayer.avatar && (
                       <button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
@@ -2507,8 +2555,8 @@ function App() {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's Blue's turn */}
-                    {g.player === "B" && (
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === rightPlayer.avatar && (
                       <button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
@@ -2586,16 +2634,16 @@ function App() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {Array.from({ length: g.reserves.B }).map((_, i) => (
-                          <div key={i} className="token-teal" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        {Array.from({ length: g.reserves[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
+                          <div key={i} className={rightPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {Array.from({ length: g.captives.B }).map((_, i) => (
-                          <div key={i} className="token-white" style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                        {Array.from({ length: g.captives[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
+                          <div key={i} className={rightPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
@@ -2605,8 +2653,8 @@ function App() {
                   <div>
                     <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      {g.routes.B.slice(0, 4).map((r) => {
-                        const isActive = g.player === "B"
+                      {g.routes[rightPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                        const isActive = g.player === rightPlayer.avatar
                         const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                           const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
                         const isSelected = g.pendingSwap.handRouteId === r.id
@@ -2614,7 +2662,7 @@ function App() {
                           <RouteIcon
                             key={r.id}
                             route={r}
-                            onClick={() => isActive && !used && actions.playRoute("B", r.id)}
+                            onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             style={{
                               width: 50,
                               aspectRatio: "7/13",
@@ -2807,7 +2855,10 @@ function App() {
               </div>
 
               <button
-                onClick={() => actions.newGame()}
+                onClick={() => {
+                  actions.newGame()
+                  actions.setStarted(false)
+                }}
                 style={{
                   width: "100%",
                   padding: "12px",
