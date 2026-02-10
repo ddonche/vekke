@@ -7,6 +7,10 @@ import { RouteIcon } from "./RouteIcon"
 import { useVekkeController } from "./engine/ui_controller"
 import { GridBoard } from "./GridBoard"
 import { IntersectionBoard } from "./IntersectionBoard"
+import { AuthModal } from "./AuthModal"
+import { OnboardingModal } from "./OnboardingModal"
+import { ProfileModal } from "./ProfileModal"
+import { supabase } from "./supabase"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -86,6 +90,16 @@ function App() {
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [userProfile, setUserProfile] = useState<{
+    username: string
+    country_code: string | null
+    country_name: string | null
+    avatar_url: string | null
+  } | null>(null)
 
   // Helper for padding numbers
   const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -173,18 +187,81 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyPress)
   }, [])
 
+  // Auth state listener - check if user needs onboarding
+  useEffect(() => {
+    const checkOnboarding = async (userId: string) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, country_code, country_name, avatar_url")
+        .eq("id", userId)
+        .single()
+
+      if (!profile) return
+
+      // Store profile
+      setUserProfile(profile)
+
+      // Check if user needs onboarding
+      const needsOnboarding = 
+        profile.username.startsWith("user_") || 
+        !profile.country_code
+
+      if (needsOnboarding) {
+        setShowOnboardingModal(true)
+      }
+    }
+
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
+        checkOnboarding(session.user.id)
+      }
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
+        checkOnboarding(session.user.id)
+      } else {
+        setCurrentUserId(null)
+        setUserProfile(null)
+        setShowOnboardingModal(false)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   const whitePlayer = {
-    username: human === "W" ? "WhitePlayer" : "Computer",
+    username: human === "W" 
+      ? (userProfile?.username || "White Player")
+      : "Computer",
     elo: 1842,
     avatar: "W",
-    country: "US",
+    avatar_url: human === "W" && userProfile?.avatar_url 
+      ? `${userProfile.avatar_url}?t=${Date.now()}` 
+      : null,
+    country: human === "W" 
+      ? (userProfile?.country_code || "US")
+      : "US",
   }
 
   const bluePlayer = {
-    username: human === "B" ? "BluePlayer" : "Computer",
+    username: human === "B" 
+      ? (userProfile?.username || "Blue Player")
+      : "Computer",
     elo: 1798,
     avatar: "B",
-    country: "JP",
+    avatar_url: human === "B" && userProfile?.avatar_url 
+      ? `${userProfile.avatar_url}?t=${Date.now()}` 
+      : null,
+    country: human === "B" 
+      ? (userProfile?.country_code || "JP")
+      : "JP",
   }
 
   // Display positioning: human always right/bottom, opponent always left/top
@@ -302,31 +379,173 @@ function App() {
                 maxWidth: "90vw",
                 width: "25rem",
                 color: "#e5e7eb",
+                position: "relative",
               }}
             >
-              <div
+              {/* Close button */}
+              <button
+                onClick={() => actions.setStarted(true)}
                 style={{
-                  fontWeight: "bold",
-                  fontSize: "1.125rem",
-                  marginBottom: "12px",
-                  textAlign: "center",
+                  position: "absolute",
+                  top: "12px",
+                  right: "12px",
+                  background: "none",
+                  border: "none",
+                  color: "#9ca3af",
+                  fontSize: "1.5rem",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                  padding: "4px",
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent"
                 }}
               >
-                NEW GAME
+                ×
+              </button>
+
+              {/* Logo */}
+              <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                <img 
+                  src="/logo.png" 
+                  alt="Vekke" 
+                  style={{ height: "48px", width: "auto" }}
+                />
               </div>
 
+              {/* User section - Sign In or Welcome back */}
+              {userProfile ? (
+                // Logged in - compact horizontal layout
+                <div
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "0.625rem",
+                    border: "1px solid #4b5563",
+                    backgroundColor: "#1f2937",
+                    marginBottom: "12px",
+                    display: "flex",
+                    gap: "12px",
+                    alignItems: "center",
+                  }}
+                >
+                  {/* Avatar */}
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "50%",
+                      backgroundColor: "#9ca3af",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      fontSize: "1.125rem",
+                      fontWeight: "bold",
+                      color: "#1f2937",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {userProfile.avatar_url ? (
+                      <img
+                        src={`${userProfile.avatar_url}?t=${Date.now()}`}
+                        alt={userProfile.username}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      userProfile.username[0].toUpperCase()
+                    )}
+                  </div>
+                  
+                  {/* Info grid */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Top row: username and country */}
+                    <div style={{ display: "flex", gap: "12px", alignItems: "baseline", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: "bold", color: "#e5e7eb" }}>
+                        {userProfile.username}
+                      </div>
+                      {userProfile.country_name && (
+                        <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                          {userProfile.country_name}
+                        </div>
+                      )}
+                    </div>
+                    {/* Bottom row: edit profile */}
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setShowProfileModal(true)
+                      }}
+                      style={{
+                        color: "#9ca3af",
+                        fontSize: "0.6875rem",
+                        textDecoration: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Edit Profile
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                // Not logged in - show Sign In button
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "0.625rem",
+                    border: "2px solid #111",
+                    backgroundColor: "#ee484c",
+                    color: "white",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
+
+              {/* Promotional text - only show when not logged in */}
+              {!userProfile && (
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    opacity: 0.75,
+                    marginBottom: "14px",
+                    lineHeight: 1.35,
+                    textAlign: "center",
+                    color: "#d1d5db",
+                  }}
+                >
+                  Create an account to play vs others, get ranked, play friends, and do tournaments.
+                </div>
+              )}
+
+              {/* Separator */}
               <div
                 style={{
-                  fontSize: "0.8125rem",
-                  opacity: 0.85,
-                  marginBottom: "12px",
-                  lineHeight: 1.35,
-                  textAlign: "center",
-                  color: "#d1d5db",
+                  height: "1px",
+                  backgroundColor: "#4b5563",
+                  marginBottom: "14px",
                 }}
-              >
-                Select your opponent's difficulty level and begin a new game.
-              </div>
+              />
 
               {/* Time Control Selection */}
               <div
@@ -345,10 +564,10 @@ function App() {
               <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
                 {(["standard", "rapid", "blitz", "daily"] as const).map((id) => {
                   const labels = {
-                    standard: "Standard (10+5)",
-                    rapid: "Rapid (5+3)",
-                    blitz: "Blitz (3+2)",
-                    daily: "Daily (24h/move)",
+                    standard: "10 mins",
+                    rapid: "5 mins",
+                    blitz: "3 mins",
+                    daily: "24 hrs",
                   } as const
 
                   return (
@@ -387,7 +606,7 @@ function App() {
                 Opponent
               </div>
 
-              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                 <button
                   onClick={() => actions.setAiDifficulty("beginner")}
                   style={{
@@ -420,6 +639,38 @@ function App() {
                 >
                   Intermediate AI
                 </button>
+                <button
+                  onClick={() => {
+                    // TODO: Wire up tutorial
+                    console.log("Learn to Play clicked")
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #4b5563",
+                    background: "#374151",
+                    color: "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Tutorial
+                </button>
+              </div>
+
+              <div
+                style={{
+                  fontSize: "0.6875rem",
+                  opacity: 0.7,
+                  marginBottom: "14px",
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                  color: "#9ca3af",
+                }}
+              >
+                First time? Play our walkthrough tutorial
               </div>
 
               {/* Board Style Selection */}
@@ -497,7 +748,8 @@ function App() {
                   padding: "12px",
                   borderRadius: "0.625rem",
                   border: "2px solid #111",
-                  backgroundColor: "white",
+                  backgroundColor: "#ee484c",
+                  color: "white",
                   fontWeight: "bold",
                   cursor: "pointer",
                   fontSize: "0.875rem",
@@ -506,19 +758,45 @@ function App() {
                 Start Game
               </button>
 
-              {!audioReady && (
-                <div
+              {/* Bottom links */}
+              <div
+                style={{
+                  marginTop: "16px",
+                  textAlign: "center",
+                  fontSize: "0.75rem",
+                  color: "#9ca3af",
+                }}
+              >
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    console.log("Leaderboard clicked")
+                  }}
                   style={{
-                    marginTop: "10px",
-                    fontSize: "0.75rem",
-                    opacity: 0.6,
-                    textAlign: "center",
                     color: "#9ca3af",
+                    textDecoration: "none",
+                    cursor: "pointer",
                   }}
                 >
-                  Tip: click once anywhere if audio is blocked.
-                </div>
-              )}
+                  Leaderboard
+                </a>
+                <span style={{ margin: "0 8px", opacity: 0.5 }}>•</span>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    console.log("Wiki clicked")
+                  }}
+                  style={{
+                    color: "#9ca3af",
+                    textDecoration: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Wiki
+                </a>
+              </div>
             </div>
           </div>
         )}
@@ -541,31 +819,71 @@ function App() {
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}
               >
-                <div
-                  style={{
-                    width: "1.5rem",
-                    height: "1.5rem",
-                    borderRadius: "50%",
-                    backgroundColor: "#5de8f7",
-                    border: "2px solid #26c6da",
-                  }}
-                ></div>
-                <div style={{ fontWeight: "bold", fontSize: "0.6875rem" }}>
-                  VEKKE
-                </div>
+                <img 
+                  src="/logo.png" 
+                  alt="Vekke" 
+                  style={{ height: "1.5rem", width: "auto" }}
+                />
               </div>
-              <button
-                style={{
-                  fontSize: "1rem",
-                  background: "none",
-                  border: "none",
-                  color: "#e5e7eb",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                ☰
-              </button>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                {userProfile ? (
+                  <>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setShowProfileModal(true)
+                      }}
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#e5e7eb",
+                        fontWeight: "bold",
+                        maxWidth: "120px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textDecoration: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {userProfile.username}
+                    </a>
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut()
+                      }}
+                      style={{
+                        fontSize: "0.75rem",
+                        background: "none",
+                        border: "1px solid #4b5563",
+                        color: "#e5e7eb",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    style={{
+                      fontSize: "0.75rem",
+                      background: "none",
+                      border: "1px solid #4b5563",
+                      color: "#e5e7eb",
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Login
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Chat Section */}
@@ -706,9 +1024,22 @@ function App() {
                         fontSize: "1.125rem",
                         fontWeight: "bold",
                         color: "#1f2937",
+                        overflow: "hidden",
                       }}
                     >
-                      {topPlayer.avatar}
+                      {topPlayer.avatar_url ? (
+                        <img
+                          src={topPlayer.avatar_url}
+                          alt={topPlayer.username}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        topPlayer.avatar
+                      )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <div
@@ -1357,9 +1688,22 @@ function App() {
                         fontSize: "1.125rem",
                         fontWeight: "bold",
                         color: "#1f2937",
+                        overflow: "hidden",
                       }}
                     >
-                      {bottomPlayer.avatar}
+                      {bottomPlayer.avatar_url ? (
+                        <img
+                          src={bottomPlayer.avatar_url}
+                          alt={bottomPlayer.username}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        bottomPlayer.avatar
+                      )}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <div
@@ -1857,31 +2201,71 @@ function App() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    backgroundColor: "#5de8f7",
-                    border: "2px solid #26c6da",
-                  }}
+                <img 
+                  src="/logo.png" 
+                  alt="Vekke" 
+                  style={{ height: "36px", width: "auto" }}
                 />
-                <div style={{ fontWeight: 800, fontSize: 18, color: "#e5e7eb" }}>
-                  VEKKE
-                </div>
               </div>
-              <button
-                style={{
-                  fontSize: 24,
-                  background: "none",
-                  border: "none",
-                  color: "#e5e7eb",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                ☰
-              </button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                {userProfile ? (
+                  <>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setShowProfileModal(true)
+                      }}
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "#e5e7eb",
+                        fontWeight: "bold",
+                        maxWidth: "150px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textDecoration: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {userProfile.username}
+                    </a>
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut()
+                      }}
+                      style={{
+                        fontSize: "0.875rem",
+                        background: "none",
+                        border: "1px solid #4b5563",
+                        color: "#e5e7eb",
+                        padding: "8px 16px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    style={{
+                      fontSize: "0.875rem",
+                      background: "none",
+                      border: "1px solid #4b5563",
+                      color: "#e5e7eb",
+                      padding: "8px 16px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Login
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Main Content Area */}
@@ -1920,9 +2304,22 @@ function App() {
                         fontSize: 24,
                         fontWeight: 900,
                         color: "#1f2937",
+                        overflow: "hidden",
                       }}
                     >
-                      {leftPlayer.avatar}
+                      {leftPlayer.avatar_url ? (
+                        <img
+                          src={leftPlayer.avatar_url}
+                          alt={leftPlayer.username}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        leftPlayer.avatar
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -2492,9 +2889,22 @@ function App() {
                         fontSize: 24,
                         fontWeight: 900,
                         color: "#1f2937",
+                        overflow: "hidden",
                       }}
                     >
-                      {rightPlayer.avatar}
+                      {rightPlayer.avatar_url ? (
+                        <img
+                          src={rightPlayer.avatar_url}
+                          alt={rightPlayer.username}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        rightPlayer.avatar
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -2874,6 +3284,47 @@ function App() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Auth Modal */}
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
+        {/* Onboarding Modal */}
+        {showOnboardingModal && currentUserId && (
+          <OnboardingModal
+            userId={currentUserId}
+            onComplete={async () => {
+              setShowOnboardingModal(false)
+              // Refetch profile to update UI
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("username, country_code, country_name, avatar_url")
+                .eq("id", currentUserId)
+                .single()
+              if (profile) {
+                setUserProfile(profile)
+              }
+            }}
+          />
+        )}
+
+        {/* Profile Modal */}
+        {showProfileModal && currentUserId && (
+          <ProfileModal
+            userId={currentUserId}
+            onClose={() => setShowProfileModal(false)}
+            onUpdate={async () => {
+              // Refetch profile to update UI
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("username, country_code, country_name, avatar_url")
+                .eq("id", currentUserId)
+                .single()
+              if (profile) {
+                setUserProfile(profile)
+              }
+            }}
+          />
         )}
       </div>
     </ErrBoundary>
