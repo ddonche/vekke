@@ -1,6 +1,7 @@
 import { GameState, Player, Token } from "./state"
 import { Coord, toSq } from "./coords"
-import { Route, traceByRoute } from "./move"
+import { Route, traceByRoute, stepFlank } from "./move"
+import { Direction } from "./directions"
 
 // ------------------------------------------------------------
 // Helpers
@@ -54,8 +55,8 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, route: Rout
 function checkWinner(state: GameState) {
   const wOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "W")
   const bOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "B")
-  if (!wOnBoard) state.gameOver = { winner: "B" }
-  if (!bOnBoard) state.gameOver = { winner: "W" }
+  if (!wOnBoard && state.reserves["W"] === 0) state.gameOver = { winner: "B", reason: "elimination" }
+  if (!bOnBoard && state.reserves["B"] === 0) state.gameOver = { winner: "W", reason: "elimination" }
 }
 
 // ------------------------------------------------------------
@@ -205,6 +206,31 @@ function resolveFullSieges(state: GameState, siegers: Player): number {
 // ------------------------------------------------------------
 // ACTION completion -> REINFORCE or SWAP or END (skip swap)
 // ------------------------------------------------------------
+
+function hasAnyLegalMove(state: GameState, p: Player): boolean {
+  // Check if player p would have any legal moves on their next turn.
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+
+  if (tokens.length === 0) {
+    // No tokens on board — legal if they can reinforce
+    return state.reserves[p] > 0
+  }
+
+  const routes = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
+
+  // If all tokens are sieged, only escape is reinforcement
+  const allSieged = tokens.every((t) => isTokenLockedBySiege(state, t))
+  if (allSieged) return state.reserves[p] > 0
+
+  for (const t of tokens) {
+    for (const r of routes) {
+      if (canTokenUseRoute(state, p, t, r)) return true
+    }
+  }
+
+  return false
+}
+
 function finishActionIfDone(state: GameState) {
   const p = state.player
 
@@ -214,30 +240,6 @@ function finishActionIfDone(state: GameState) {
   const capturedByFullSiege = resolveFullSieges(state, p)
   if (capturedByFullSiege > 0) {
     state.log.unshift(`${p} captured ${capturedByFullSiege} token(s) by full siege (8-sided).`)
-  }
-
-  function hasAnyLegalMove(state: GameState, p: Player): boolean {
-    if (state.phase !== "ACTION") return true // only matters on your turn
-
-    const tokens = state.tokens.filter(
-      (t) => t.in === "BOARD" && t.owner === p
-    )
-
-    if (tokens.length === 0) return false
-
-    const routes = state.routes[p].filter(
-      (r) => !state.usedRoutes.includes(r.id)
-    )
-
-    for (const t of tokens) {
-      for (const r of routes) {
-        if (canTokenUseRoute(state, p, t, r)) {
-          return true
-        }
-      }
-    }
-
-    return false
   }
 
   checkWinner(state)
@@ -259,7 +261,7 @@ function finishActionIfDone(state: GameState) {
   // CHECKMATE: opponent has no legal moves
   const opp = other(p)
   if (!hasAnyLegalMove(state, opp)) {
-    state.gameOver = { winner: p }
+    state.gameOver = { winner: p, reason: "siegemate" }
     state.log.unshift(
       `== SIEGEMATE: ${p} wins by complete siege (no legal moves) ==`
     )
@@ -429,9 +431,8 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   token.pos = to
   state.usedRoutes.push(routeId)
 
-  // Log path
-  const path = steps.map(toSq).join(" → ")
-  state.log.unshift(`${p} ${token.id}: ${route.id}  ${toSq(from)} → ${path}`)
+  // Log move: just show start and destination
+  state.log.unshift(`${p} ${token.id}: ${route.id}  ${toSq(from)} → ${toSq(to)}`)
 
   // Invade capture if enemy there
   if (occ && occ.owner !== p) {
@@ -456,6 +457,14 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   checkWinner(state)
   if (state.gameOver) {
     state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    return
+  }
+
+  // Immediate siegemate check — don't wait until end of turn
+  const opp = other(p)
+  if (!hasAnyLegalMove(state, opp)) {
+    state.gameOver = { winner: p, reason: "siegemate" }
+    state.log.unshift(`== SIEGEMATE: ${p} wins by complete siege (no legal moves) ==`)
     return
   }
 
@@ -825,4 +834,205 @@ export function confirmSwapAndEndTurn(state: GameState) {
 
   // End turn (common bookkeeping + resets)
   endTurnCommon(state, `== ${p} ends turn ==`)
+}
+
+// ------------------------------------------------------------
+// Evasion (once per game defensive move during opponent's turn)
+// ------------------------------------------------------------
+export const EVASION_COST_CAPTIVES = 2
+export const EVASION_COST_RESERVES = 2
+
+export function armEvasion(state: GameState) {
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+  
+  // Evasion can only be used during opponent's ACTION phase
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Evasion only available during ACTION phase."
+    return
+  }
+  
+  const opponent = state.player
+  const defender = other(opponent)
+  
+  // Check if defender already used evasion
+  if (state.evasionUsed[defender]) {
+    state.warning = "INVALID: You already used your evasion this game."
+    return
+  }
+  
+  // Check if defender has enough resources
+  if (state.captives[defender] < EVASION_COST_CAPTIVES) {
+    state.warning = `INVALID: need ${EVASION_COST_CAPTIVES} captured token(s) to evade.`
+    return
+  }
+  if (state.reserves[defender] < EVASION_COST_RESERVES) {
+    state.warning = `INVALID: need ${EVASION_COST_RESERVES} reserve token(s) to evade.`
+    return
+  }
+  
+  state.warning = null
+  state.evasionArmed = true
+  state.pendingEvasion = { tokenId: null, to: null }
+  state.log.unshift(`== ${defender} Evasion armed (cost: ${EVASION_COST_CAPTIVES} captive + ${EVASION_COST_RESERVES} reserve) ==`)
+}
+
+export function cancelEvasion(state: GameState) {
+  if (!state.evasionArmed) return
+  state.evasionArmed = false
+  state.pendingEvasion = { tokenId: null, to: null }
+  state.warning = null
+}
+
+export function selectEvasionToken(state: GameState, tokenId: string) {
+  if (!state.evasionArmed) {
+    state.warning = "INVALID: Evasion not armed."
+    return
+  }
+  
+  const opponent = state.player
+  const defender = other(opponent)
+  
+  const token = state.tokens.find((t) => t.id === tokenId)
+  if (!token) {
+    state.warning = "INVALID: Token not found."
+    return
+  }
+  
+  if (token.owner !== defender) {
+    state.warning = "INVALID: You can only evade with your own tokens."
+    return
+  }
+  
+  // Token can be in BOARD or CAPTIVE
+  if (token.in === "BOARD") {
+    // If on board, cannot be sieged
+    if (isTokenLockedBySiege(state, token)) {
+      state.warning = "INVALID: Cannot evade with a sieged token."
+      return
+    }
+  } else if (token.in === "CAPTIVE") {
+    // If captured, must be the most recent capture to evade with it
+    if (!state.lastMove || state.lastMove.tokenId !== tokenId) {
+      state.warning = "INVALID: Can only evade with recently captured tokens."
+      return
+    }
+  } else {
+    state.warning = "INVALID: Cannot evade with a token in the void."
+    return
+  }
+  
+  state.warning = null
+  state.pendingEvasion.tokenId = tokenId
+}
+
+export function selectEvasionDestination(state: GameState, to: Coord) {
+  if (!state.evasionArmed) {
+    state.warning = "INVALID: Evasion not armed."
+    return
+  }
+  
+  const tokenId = state.pendingEvasion.tokenId
+  if (!tokenId) {
+    state.warning = "INVALID: Select a token first."
+    return
+  }
+  
+  const token = state.tokens.find((t) => t.id === tokenId)
+  if (!token) {
+    state.warning = "INVALID: Token not found."
+    return
+  }
+  
+  // Get source position
+  let from: Coord
+  if (token.in === "BOARD") {
+    from = token.pos
+  } else if (token.in === "CAPTIVE") {
+    // Must be last move's capture (validated in selectEvasionToken)
+    if (state.lastMove && state.lastMove.tokenId === tokenId) {
+      from = state.lastMove.to
+    } else {
+      state.warning = "INVALID: Cannot determine source position."
+      return
+    }
+  } else {
+    state.warning = "INVALID: Token is not in a valid location."
+    return
+  }
+  
+  // Validate destination is exactly 1 step away using flanking
+  const validDests: Coord[] = []
+  for (let dir = 1; dir <= 8; dir++) {
+    const dest = stepFlank(from, dir as Direction)
+    validDests.push(dest)
+  }
+  
+  const isValid = validDests.some((d) => d.x === to.x && d.y === to.y)
+  if (!isValid) {
+    state.warning = "INVALID: Destination must be exactly 1 space away (including flanking)."
+    return
+  }
+  
+  // Destination must be empty (no capture allowed)
+  const occupied = tokenAt(state, to.x, to.y)
+  if (occupied) {
+    state.warning = "INVALID: Cannot evade to an occupied square."
+    return
+  }
+  
+  state.warning = null
+  state.pendingEvasion.to = to
+}
+
+export function confirmEvasion(state: GameState) {
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+  
+  if (!state.evasionArmed) {
+    state.warning = "INVALID: Evasion not armed."
+    return
+  }
+  
+  const tokenId = state.pendingEvasion.tokenId
+  const to = state.pendingEvasion.to
+  
+  if (!tokenId || !to) {
+    state.warning = "INVALID: Select a token and destination first."
+    return
+  }
+  
+  const opponent = state.player
+  const defender = other(opponent)
+  
+  const token = state.tokens.find((t) => t.id === tokenId)
+  if (!token) {
+    state.warning = "INVALID: Token not found."
+    return
+  }
+  
+  // Pay the cost
+  state.captives[defender] -= EVASION_COST_CAPTIVES
+  state.reserves[defender] -= EVASION_COST_RESERVES
+  state.void[defender] += EVASION_COST_CAPTIVES + EVASION_COST_RESERVES
+  
+  // Get source position for logging
+  const from = token.in === "BOARD" ? token.pos : (state.lastMove?.to ?? { x: -1, y: -1 })
+  
+  // Move the token
+  token.in = "BOARD"
+  token.pos = to
+  
+  // Mark evasion as used
+  state.evasionUsed[defender] = true
+  state.evasionArmed = false
+  state.pendingEvasion = { tokenId: null, to: null }
+  
+  const fromSq = from.x >= 0 ? toSq(from) : "CAPTIVE"
+  state.log.unshift(`${defender} EVADED: moved ${tokenId} from ${fromSq} to ${toSq(to)} (paid ${EVASION_COST_CAPTIVES} captive + ${EVASION_COST_RESERVES} reserve → Void).`)
+  state.warning = null
 }

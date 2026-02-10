@@ -28,7 +28,8 @@ export type GameStats = {
   invades: { W: number; B: number }
 }
 
-export type GameOver = { winner: Player }
+export type GameOverReason = "elimination" | "siegemate" | "resignation" | "timeout"
+export type GameOver = { winner: Player; reason: GameOverReason }
 
 export type GameState = {
   mode: "tournament"
@@ -49,6 +50,10 @@ export type GameState = {
   earlySwapUsedThisTurn: boolean // prevents 2 swaps, and skips end-of-turn SWAP phase
   extraReinforcementBoughtThisTurn: boolean
   turnInvades: { W: number; B: number }
+
+  evasionUsed: { W: boolean; B: boolean }  // once per game tracker
+  evasionArmed: boolean                     // player clicked "Evasion" and is now selecting token+destination
+  pendingEvasion: { tokenId: string | null; to: Coord | null }
 
   deck: Route[]
   routes: { W: Route[]; B: Route[] }
@@ -128,6 +133,10 @@ export function newGame(): GameState {
     earlySwapUsedThisTurn: false,
     extraReinforcementBoughtThisTurn: false,
     turnInvades: { W: 0, B: 0 },
+
+    evasionUsed: { W: false, B: false },
+    evasionArmed: false,
+    pendingEvasion: { tokenId: null, to: null },
 
     deck,
     routes: { W: [], B: [] },

@@ -18,6 +18,13 @@ import {
   buyExtraReinforcement,
   EXTRA_REINFORCEMENT_COST,
   isTokenLockedBySiege,
+  armEvasion,
+  cancelEvasion,
+  selectEvasionToken,
+  selectEvasionDestination,
+  confirmEvasion,
+  EVASION_COST_CAPTIVES,
+  EVASION_COST_RESERVES,
 } from "./game"
 
 type SoundHandle = { stop: () => void; play: () => number; load?: () => void }
@@ -68,6 +75,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
+  const evasionAutoSelectedRef = useRef(false)
 
   // Timer refs
   const lastTickAtRef = useRef<number>(0)
@@ -159,6 +167,32 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     !extraReinfBought &&
     g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST
 
+  const evasionArmed = Boolean((g as any).evasionArmed)
+  const evasionUsed = (g as any).evasionUsed as { W: boolean; B: boolean } | undefined
+  const defender = other(g.player) // The player who is NOT currently moving
+  const hasUsedEvasion = evasionUsed?.[defender] ?? false
+
+  // Whose clock should be ticking?
+  // During evasion interrupt, defender's clock ticks. Otherwise, current player's clock ticks.
+  const clockPlayer = evasionArmed ? defender : g.player
+
+  const canUseEvasion =
+    g.phase === "ACTION" &&
+    !g.gameOver &&
+    !evasionArmed &&
+    !hasUsedEvasion &&
+    g.captives[defender] >= EVASION_COST_CAPTIVES &&
+    g.reserves[defender] >= EVASION_COST_RESERVES
+
+  // Evasion visualization data
+  const pendingEvasion = (g as any).pendingEvasion as { tokenId: string | null; to: Coord | null } | undefined
+  const evasionSourcePos = evasionArmed && selectedTokenId ? (() => {
+    const token = g.tokens.find((t) => t.id === selectedTokenId)
+    if (token?.in === "BOARD") return token.pos
+    if (token?.in === "CAPTIVE" && g.lastMove?.tokenId === selectedTokenId) return g.lastMove.to
+    return null
+  })() : null
+
   const update = useCallback((mut: (s: GameState) => void) => {
     setG((prev) => {
       const next: GameState = structuredClone(prev)
@@ -228,14 +262,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       lastTickAtRef.current = now
 
       setClocks((prev) => {
-        const p = g.player
+        const p = clockPlayer
         const nextVal = Math.max(0, prev[p] - dt)
         return { ...prev, [p]: nextVal }
       })
     }, intervalMs)
 
     return () => window.clearInterval(id)
-  }, [started, g.player, g.gameOver, timeControlId])
+  }, [started, g.player, g.gameOver, timeControlId, clockPlayer])
 
   useEffect(() => {
     if (!started) return
@@ -260,12 +294,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     if (g.gameOver) return
 
     if (clocks.W <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "B" } as any))
+      update((s) => ((s as any).gameOver = { winner: "B", reason: "timeout" } as any))
       warn("TIME: White ran out of time.")
       return
     }
     if (clocks.B <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "W" } as any))
+      update((s) => ((s as any).gameOver = { winner: "W", reason: "timeout" } as any))
       warn("TIME: Blue ran out of time.")
       return
     }
@@ -292,6 +326,22 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         return
       }
 
+      // Handle evasion clicks
+      if (evasionArmed) {
+        const t = boardMap.get(`${x},${y}`)
+        if (t) {
+          // Clicking on a token - select it for evasion
+          update((s) => selectEvasionToken(s, t.id))
+          setSelectedTokenId(t.id) // Update visual selection
+          playSound(sounds.click)
+        } else {
+          // Clicking on empty square - select as destination
+          update((s) => selectEvasionDestination(s, coord))
+          playSound(sounds.click)
+        }
+        return
+      }
+
       const t = boardMap.get(`${x},${y}`)
       if (t) {
         if (t.owner !== g.player && (g.phase === "ACTION" || g.phase === "SWAP")) {
@@ -302,26 +352,60 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, evasionArmed]
   )
 
   useEffect(() => {
-    const sel = selectedTokenId
-      ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId)
-      : null
+    // Auto-select for evasion - only on initial arm
+    if (evasionArmed && !evasionAutoSelectedRef.current) {
+      evasionAutoSelectedRef.current = true
+      
+      // If last move captured defender's token, select that captured token
+      if (g.lastMove) {
+        const capturedToken = g.tokens.find((t) => t.id === g.lastMove?.tokenId && t.owner === defender)
+        if (capturedToken) {
+          setSelectedTokenId(capturedToken.id)
+          // Also set in game engine
+          update((s) => selectEvasionToken(s, capturedToken.id))
+          return
+        }
+      }
+      
+      // Otherwise, select random defender's board token
+      const defenderTokens = g.tokens.filter((t) => t.in === "BOARD" && t.owner === defender)
+      if (defenderTokens.length > 0) {
+        setSelectedTokenId(defenderTokens[0].id)
+        // Also set in game engine
+        update((s) => selectEvasionToken(s, defenderTokens[0].id))
+      }
+      return
+    }
+    
+    // Reset ref when evasion ends
+    if (!evasionArmed) {
+      evasionAutoSelectedRef.current = false
+    }
 
-    if (g.phase === "ACTION" || g.phase === "SWAP") {
-      if (!sel || sel.owner !== g.player) {
-        const firstFriendly = g.tokens.find((t) => t.in === "BOARD" && t.owner === g.player)
-        setSelectedTokenId(firstFriendly ? firstFriendly.id : null)
+    // Normal auto-selection for regular turns
+    if (!evasionArmed) {
+      const sel = selectedTokenId
+        ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId)
+        : null
+
+      if (g.phase === "ACTION" || g.phase === "SWAP") {
+        if (!sel || sel.owner !== g.player) {
+          const firstFriendly = g.tokens.find((t) => t.in === "BOARD" && t.owner === g.player)
+          setSelectedTokenId(firstFriendly ? firstFriendly.id : null)
+        }
       }
     }
-  }, [g.player, g.phase, g.tokens, selectedTokenId])
+  }, [g.player, g.phase, g.tokens, evasionArmed, g.lastMove, defender, update, selectedTokenId])
 
   useEffect(() => {
     if (!started) return
     if (g.gameOver) return
     if (g.player !== ai) return
+    if (evasionArmed) return // Don't let AI move during evasion interrupt
 
     const t = window.setTimeout(() => {
       update((s) => {
@@ -347,6 +431,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     aiDifficulty,
     update,
     AI_DELAY_MS,
+    evasionArmed,
   ])
 
   useEffect(() => {
@@ -492,7 +577,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         if (g.gameOver) return
 
         update((s) => {
-          s.gameOver = { winner: other(s.player) }
+          s.gameOver = { winner: other(s.player), reason: "resignation" }
         })
       },
 
@@ -502,6 +587,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         if (!started) return
         if (g.gameOver) {
           warn("INVALID: Game is over.")
+          return
+        }
+
+        // Block current player from playing routes during evasion interrupt
+        if (evasionArmed && owner === g.player) {
+          warn("INVALID: Opponent is currently in evasion.")
           return
         }
 
@@ -650,6 +741,70 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         update((s) => yieldForcedIfNoUsableRoutes(s))
       },
 
+      armEvasion: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+
+        if (!canUseEvasion) {
+          if (g.phase !== "ACTION") {
+            warn("INVALID: Evasion is only available during ACTION phase.")
+            return
+          }
+          if (evasionArmed) {
+            warn("INVALID: Evasion is already armed.")
+            return
+          }
+          if (hasUsedEvasion) {
+            warn("INVALID: Evasion already used this game.")
+            return
+          }
+          if (g.captives[defender] < EVASION_COST_CAPTIVES) {
+            warn(`INVALID: Need ${EVASION_COST_CAPTIVES} captives to evade.`)
+            return
+          }
+          if (g.reserves[defender] < EVASION_COST_RESERVES) {
+            warn(`INVALID: Need ${EVASION_COST_RESERVES} reserves to evade.`)
+            return
+          }
+          warn("INVALID: Evasion not available right now.")
+          return
+        }
+
+        update((s) => armEvasion(s))
+      },
+
+      cancelEvasion: () => update((s) => cancelEvasion(s)),
+
+      selectEvasionToken: (tokenId: string) => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        update((s) => selectEvasionToken(s, tokenId))
+      },
+
+      selectEvasionDestination: (to: Coord) => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        update((s) => selectEvasionDestination(s, to))
+      },
+
+      confirmEvasion: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        update((s) => confirmEvasion(s))
+      },
+
       setSelectedTokenId,
     }
   }, [
@@ -665,6 +820,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     canEarlySwap,
     canBuyExtraReinforcement,
     extraReinfBought,
+    evasionArmed,
+    hasUsedEvasion,
+    canUseEvasion,
+    defender,
     selectedTokenId,
     warn,
     timeControlId,
@@ -686,12 +845,23 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
+    evasionArmed,
+    canUseEvasion,
+    pendingEvasion,
+    evasionSourcePos,
+    evasionPlayer: evasionArmed ? defender : null,
+    clockPlayer,
 
     timeControlId,
     timeControl,
     clocks,
 
-    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST },
+    constants: { 
+      EARLY_SWAP_COST, 
+      EXTRA_REINFORCEMENT_COST,
+      EVASION_COST_CAPTIVES,
+      EVASION_COST_RESERVES,
+    },
     actions,
   }
 }

@@ -19,6 +19,9 @@ interface IntersectionBoardProps {
   onSquareClick: (x: number, y: number) => void
   GHOST_MS: number
   mobile?: boolean
+  evasionSourcePos?: { x: number; y: number } | null
+  evasionDestPos?: { x: number; y: number } | null
+  evasionPlayer?: Player | null
 }
 
 export function IntersectionBoard({
@@ -30,6 +33,9 @@ export function IntersectionBoard({
   onSquareClick,
   GHOST_MS,
   mobile = false,
+  evasionSourcePos = null,
+  evasionDestPos = null,
+  evasionPlayer = null,
 }: IntersectionBoardProps) {
   // Mobile: match GridBoard flex proportions
   // Grid uses: gap 0.125rem (2px), padding 0.375rem (6px), 6 cells
@@ -153,6 +159,8 @@ export function IntersectionBoard({
       const key = `${boardX},${boardY}`
       const t = boardMap.get(key)
       const isSelected = t && t.id === selectedTokenId
+      const isEvasionSource = evasionSourcePos && boardX === evasionSourcePos.x && boardY === evasionSourcePos.y
+      const isEvasionDest = evasionDestPos && boardX === evasionDestPos.x && boardY === evasionDestPos.y
 
       // Clickable area
       intersections.push(
@@ -162,7 +170,7 @@ export function IntersectionBoard({
           cy={y}
           r={cellSize / 2}
           fill="transparent"
-          cursor={started && (phase === "OPENING" || Boolean(t)) ? "pointer" : "default"}
+          cursor={started && (phase === "OPENING" || Boolean(t) || evasionSourcePos != null) ? "pointer" : "default"}
           onClick={() => started && onSquareClick(boardX, boardY)}
         />
       )
@@ -195,6 +203,41 @@ export function IntersectionBoard({
           />
         )
       }
+
+      // Evasion source ring - cyan, marks where captured token came from
+      if (isEvasionSource) {
+        const highlightRadius = (mobile ? 21 : 35) + (mobile ? 6 : 8)
+        intersections.push(
+          <circle
+            key={`evasion-src-${key}`}
+            cx={x}
+            cy={y}
+            r={highlightRadius}
+            fill="none"
+            stroke="#5de8f7"
+            strokeWidth={mobile ? 2 : 3}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )
+      }
+
+      // Evasion dest ring - purple, marks selected destination
+      if (isEvasionDest) {
+        const highlightRadius = (mobile ? 21 : 35) + (mobile ? 6 : 8)
+        intersections.push(
+          <circle
+            key={`evasion-dest-${key}`}
+            cx={x}
+            cy={y}
+            r={highlightRadius}
+            fill="none"
+            stroke="#a78bfa"
+            strokeWidth={mobile ? 2 : 3}
+            pointerEvents="none"
+          />
+        )
+      }
     }
   }
 
@@ -218,6 +261,8 @@ export function IntersectionBoard({
           const isSelected = t && t.id === selectedTokenId
           const row = y
           const col = x
+          const isEvasionSource = evasionSourcePos && x === evasionSourcePos.x && y === evasionSourcePos.y
+          const isEvasionDest = evasionDestPos && x === evasionDestPos.x && y === evasionDestPos.y
 
           const posX = padding + col * cellSize
           const posY = padding + ((playableSize - 1 - row)) * cellSize
@@ -364,6 +409,52 @@ export function IntersectionBoard({
                   </div>
                 )
               })()}
+
+              {/* Evasion source ghost - faded token showing where captured token was (only when no token there) */}
+              {isEvasionSource && !t && evasionPlayer && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: posX - tokenRadius,
+                    top: posY - tokenRadius,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    style={{
+                      width: tokenRadius * 2,
+                      height: tokenRadius * 2,
+                      borderRadius: "50%",
+                      opacity: 0.35,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Evasion destination ghost - shows where token will land */}
+              {isEvasionDest && evasionPlayer && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: posX - tokenRadius,
+                    top: posY - tokenRadius,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    style={{
+                      width: tokenRadius * 2,
+                      height: tokenRadius * 2,
+                      borderRadius: "50%",
+                      opacity: 0.55,
+                      outline: `${mobile ? "2px" : "3px"} solid #a78bfa`,
+                      outlineOffset: "2px",
+                    }}
+                  />
+                </div>
+              )}
             </React.Fragment>
           )
         })

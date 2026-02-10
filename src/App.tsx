@@ -10,6 +10,7 @@ import { IntersectionBoard } from "./IntersectionBoard"
 import { AuthModal } from "./AuthModal"
 import { OnboardingModal } from "./OnboardingModal"
 import { ProfileModal } from "./ProfileModal"
+import { HelpModal } from "./HelpModal"
 import { supabase } from "./supabase"
 
 class ErrBoundary extends React.Component<
@@ -73,7 +74,13 @@ function App() {
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
-    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST },
+    evasionArmed,
+    canUseEvasion,
+    pendingEvasion,
+    evasionSourcePos,
+    evasionPlayer,
+    clockPlayer,
+    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, EVASION_COST_CAPTIVES, EVASION_COST_RESERVES },
     actions,
   } = useVekkeController({ sounds, aiDelayMs: 1200 })
 
@@ -93,6 +100,7 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState<"currentPlayer" | "evasion" | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<{
     username: string
@@ -1205,21 +1213,22 @@ function App() {
                     )}
 
                     {/* Evasion - only show when it's opponent's turn */}
-                    {g.player !== "W" && (
+                    {g.player !== topPlayer.avatar && (
                       <button
-                        disabled
+                        onClick={() => canUseEvasion && actions.armEvasion()}
+                        disabled={!canUseEvasion}
                         style={{
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
                           backgroundColor: "#1f2937",
                           border: "1px solid #6b7280",
-                          cursor: "default",
+                          cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: 0.5,
+                          opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
                         <svg
@@ -1240,6 +1249,7 @@ function App() {
 
                     {/* Help icon */}
                     <button
+                      onClick={() => setShowHelpModal(g.player === topPlayer.avatar ? "currentPlayer" : "evasion")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -1414,25 +1424,31 @@ function App() {
                       minHeight: 20,
                     }}
                   >
-                    {g.phase}: {g.player}{" "}
-                    {g.phase === "ACTION"
-                      ? "make your moves"
-                      : g.phase === "REINFORCE"
-                        ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                              place {g.reinforcementsToPlace} reinforcements
-                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                <div 
-                                  key={i} 
-                                  className={g.player === "W" ? "token-white" : "token-teal"}
-                                  style={{ width: "0.625rem", height: "0.625rem", borderRadius: "50%", position: "relative" }}
-                                />
-                              ))}
-                            </span>
-                          )
-                        : g.phase === "SWAP"
-                          ? "make a route swap"
-                          : "place opening tokens"}
+                    {evasionArmed ? (
+                      `${g.player === "W" ? "B" : "W"} is currently in Evasion`
+                    ) : (
+                      <>
+                        {g.phase}: {g.player}{" "}
+                        {g.phase === "ACTION"
+                          ? "make your moves"
+                          : g.phase === "REINFORCE"
+                            ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                                  place {g.reinforcementsToPlace} reinforcements
+                                  {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                    <div 
+                                      key={i} 
+                                      className={g.player === "W" ? "token-white" : "token-teal"}
+                                      style={{ width: "0.625rem", height: "0.625rem", borderRadius: "50%", position: "relative" }}
+                                    />
+                                  ))}
+                                </span>
+                              )
+                            : g.phase === "SWAP"
+                              ? "make a route swap"
+                              : "place opening tokens"}
+                      </>
+                    )}
                     {g.warning && (
                         <div
                           style={{
@@ -1571,6 +1587,9 @@ function App() {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={true}
+                    evasionSourcePos={evasionSourcePos}
+                    evasionDestPos={pendingEvasion?.to ?? null}
+                    evasionPlayer={evasionPlayer}
                   />
                 ) : (
                   <IntersectionBoard
@@ -1582,6 +1601,9 @@ function App() {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={true}
+                    evasionSourcePos={evasionSourcePos}
+                    evasionDestPos={pendingEvasion?.to ?? null}
+                    evasionPlayer={evasionPlayer}
                   />
                 )}
 
@@ -1868,21 +1890,22 @@ function App() {
                     )}
 
                     {/* Evasion - only show when it's opponent's turn */}
-                    {g.player !== "B" && (
+                    {g.player !== bottomPlayer.avatar && (
                       <button
-                        disabled
+                        onClick={() => canUseEvasion && actions.armEvasion()}
+                        disabled={!canUseEvasion}
                         style={{
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
                           backgroundColor: "#1f2937",
                           border: "1px solid #6b7280",
-                          cursor: "default",
+                          cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: 0.5,
+                          opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
                         <svg
@@ -1902,6 +1925,7 @@ function App() {
                     )}
 
                     <button
+                      onClick={() => setShowHelpModal(g.player === bottomPlayer.avatar ? "currentPlayer" : "evasion")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -2086,6 +2110,44 @@ function App() {
                       </button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Evasion Confirm/Cancel */}
+              {evasionArmed && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <button
+                    onClick={() => actions.confirmEvasion()}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "2px solid #3296ab",
+                      background: "#374151",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "#f9fafb",
+                    }}
+                  >
+                    Confirm Evasion
+                  </button>
+
+                  <button
+                    onClick={() => actions.cancelEvasion()}
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #4b5563",
+                      background: "transparent",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "#f9fafb",
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               )}
 
@@ -2408,21 +2470,22 @@ function App() {
                     )}
 
                     {/* Evasion - only show when it's opponent's turn */}
-                    {g.player !== "W" && (
+                    {g.player !== leftPlayer.avatar && (
                       <button
-                        disabled
+                        onClick={() => canUseEvasion && actions.armEvasion()}
+                        disabled={!canUseEvasion}
                         style={{
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
                           backgroundColor: "#1f2937",
                           border: "1px solid #6b7280",
-                          cursor: "default",
+                          cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: 0.5,
+                          opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
@@ -2434,6 +2497,7 @@ function App() {
                     )}
 
                     <button
+                      onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "evasion")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -2632,25 +2696,31 @@ function App() {
                       minHeight: 24,
                     }}
                   >
-                    {g.phase}: {g.player}{" "}
-                    {g.phase === "ACTION"
-                      ? "make your moves"
-                      : g.phase === "REINFORCE"
-                        ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                              place {g.reinforcementsToPlace} reinforcements
-                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                <div 
-                                  key={i} 
-                                  className={g.player === "W" ? "token-white" : "token-teal"}
-                                  style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
-                                />
-                              ))}
-                            </span>
-                          )
-                        : g.phase === "SWAP"
-                          ? "make a route swap"
-                          : "place opening tokens"}
+                    {evasionArmed ? (
+                      `${g.player === "W" ? "B" : "W"} is currently in Evasion`
+                    ) : (
+                      <>
+                        {g.phase}: {g.player}{" "}
+                        {g.phase === "ACTION"
+                          ? "make your moves"
+                          : g.phase === "REINFORCE"
+                            ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                                  place {g.reinforcementsToPlace} reinforcements
+                                  {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                    <div 
+                                      key={i} 
+                                      className={g.player === "W" ? "token-white" : "token-teal"}
+                                      style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
+                                    />
+                                  ))}
+                                </span>
+                              )
+                            : g.phase === "SWAP"
+                              ? "make a route swap"
+                              : "place opening tokens"}
+                      </>
+                    )}
                     {g.warning && (
                         <div
                           style={{
@@ -2736,6 +2806,9 @@ function App() {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={false}
+                    evasionSourcePos={evasionSourcePos}
+                    evasionDestPos={pendingEvasion?.to ?? null}
+                    evasionPlayer={evasionPlayer}
                   />
                 ) : (
                   <IntersectionBoard
@@ -2747,6 +2820,9 @@ function App() {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={false}
+                    evasionSourcePos={evasionSourcePos}
+                    evasionDestPos={pendingEvasion?.to ?? null}
+                    evasionPlayer={evasionPlayer}
                   />
                 )}
 
@@ -2810,6 +2886,44 @@ function App() {
                         </button>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Evasion Confirm/Cancel */}
+                {evasionArmed && (
+                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
+                    <button
+                      onClick={() => actions.confirmEvasion()}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "2px solid #3296ab",
+                        background: "#374151",
+                        fontWeight: 900,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "#f9fafb",
+                      }}
+                    >
+                      Confirm Evasion
+                    </button>
+
+                    <button
+                      onClick={() => actions.cancelEvasion()}
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: 10,
+                        border: "1px solid #4b5563",
+                        background: "transparent",
+                        fontWeight: 900,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "#f9fafb",
+                      }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
 
@@ -2993,21 +3107,22 @@ function App() {
                     )}
 
                     {/* Evasion - only show when it's opponent's turn */}
-                    {g.player !== "B" && (
+                    {g.player !== rightPlayer.avatar && (
                       <button
-                        disabled
+                        onClick={() => canUseEvasion && actions.armEvasion()}
+                        disabled={!canUseEvasion}
                         style={{
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
                           backgroundColor: "#1f2937",
                           border: "1px solid #6b7280",
-                          cursor: "default",
+                          cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: 0.5,
+                          opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
@@ -3019,6 +3134,7 @@ function App() {
                     )}
 
                     <button
+                      onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "evasion")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -3187,11 +3303,46 @@ function App() {
                   textAlign: "center",
                   fontSize: "1rem",
                   marginBottom: "12px",
-                  color: g.gameOver.winner === "W" ? "#e5e7eb" : "#5de8f7",
                   fontWeight: 900,
                 }}
               >
-                {g.gameOver.winner === "W" ? "WHITE" : "BLUE"} WINS!
+                {(() => {
+                  const go = g.gameOver!
+                  const reason = (go as any).reason as string | undefined
+                  const winner = go.winner
+                  const winnerName = winner === "W" ? "WHITE" : "BLUE"
+                  const loserName = winner === "W" ? "BLUE" : "WHITE"
+                  const winnerColor = winner === "W" ? "#e5e7eb" : "#5de8f7"
+                  const loserColor = winner === "W" ? "#5de8f7" : "#e5e7eb"
+
+                  if (reason === "timeout") {
+                    return (
+                      <span style={{ color: loserColor }}>
+                        {loserName} loses by timeout
+                      </span>
+                    )
+                  }
+                  if (reason === "resignation") {
+                    return (
+                      <span style={{ color: winnerColor }}>
+                        {winnerName} wins by resignation
+                      </span>
+                    )
+                  }
+                  if (reason === "siegemate") {
+                    return (
+                      <span style={{ color: winnerColor }}>
+                        {winnerName} wins by siegemate
+                      </span>
+                    )
+                  }
+                  // elimination (or undefined for backwards compat)
+                  return (
+                    <span style={{ color: winnerColor }}>
+                      {winnerName} wins by elimination
+                    </span>
+                  )
+                })()}
               </div>
 
               {/* Match summary */}
@@ -3324,6 +3475,14 @@ function App() {
                 setUserProfile(profile)
               }
             }}
+          />
+        )}
+
+        {/* Help Modal */}
+        {showHelpModal && (
+          <HelpModal
+            topic={showHelpModal}
+            onClose={() => setShowHelpModal(null)}
           />
         )}
       </div>

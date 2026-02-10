@@ -19,6 +19,9 @@ interface GridBoardProps {
   onSquareClick: (x: number, y: number) => void
   GHOST_MS: number
   mobile?: boolean
+  evasionSourcePos?: { x: number; y: number } | null
+  evasionDestPos?: { x: number; y: number } | null
+  evasionPlayer?: Player | null
 }
 
 export function GridBoard({
@@ -30,6 +33,9 @@ export function GridBoard({
   onSquareClick,
   GHOST_MS,
   mobile = false,
+  evasionSourcePos = null,
+  evasionDestPos = null,
+  evasionPlayer = null,
 }: GridBoardProps) {
   // Mobile: use same fixed sizing as IntersectionBoard
   // cellSize 58px spacing = 56px cell + 2px gap
@@ -66,6 +72,8 @@ export function GridBoard({
           const key = `${x},${y}`
           const t = boardMap.get(key)
           const isSelected = t && t.id === selectedTokenId
+          const isEvasionSource = evasionSourcePos && x === evasionSourcePos.x && y === evasionSourcePos.y
+          const isEvasionDest = evasionDestPos && x === evasionDestPos.x && y === evasionDestPos.y
 
           const col = String.fromCharCode(65 + x)
           const row = y + 1
@@ -78,17 +86,19 @@ export function GridBoard({
               style={{
                 width: mobile ? 56 : 90,
                 height: mobile ? 56 : 90,
-                backgroundColor: isSelected ? "#1f2937" : "#6b7280",
+                backgroundColor: isSelected || isEvasionSource ? "#1f2937" : "#6b7280",
                 borderRadius: cellBorderRadius,
-                boxShadow: isSelected
+                boxShadow: isSelected || isEvasionSource
                   ? `0 0 0 ${mobile ? "2px" : "3px"} #5de8f7`
-                  : "0 2px 4px rgba(0,0,0,0.2)",
+                  : isEvasionDest
+                    ? `0 0 0 ${mobile ? "2px" : "3px"} #a78bfa`
+                    : "0 2px 4px rgba(0,0,0,0.2)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 position: "relative",
                 cursor:
-                  started && (phase === "OPENING" || Boolean(t))
+                  started && (phase === "OPENING" || Boolean(t) || evasionSourcePos != null)
                     ? "pointer"
                     : "default",
               }}
@@ -106,6 +116,49 @@ export function GridBoard({
               >
                 {notation}
               </div>
+
+              {/* Evasion source ghost - faded token showing where captured token was (only when no token there) */}
+              {isEvasionSource && !t && evasionPlayer && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    style={{ width: tokenSize, height: tokenSize, borderRadius: "50%", opacity: 0.35 }}
+                  />
+                </div>
+              )}
+
+              {/* Evasion destination ghost - purple tint shows where token will land */}
+              {isEvasionDest && evasionPlayer && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    style={{
+                      width: tokenSize,
+                      height: tokenSize,
+                      borderRadius: "50%",
+                      opacity: 0.55,
+                      outline: `${mobile ? "2px" : "3px"} solid #a78bfa`,
+                      outlineOffset: "2px",
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Trailing ghost token - shows direction of movement */}
               {ghost && t && t.id === ghost.tokenId && (() => {
