@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
-import { aiStepBeginner, aiStepIntermediate, aiThinkDelayMs } from "./ai"
+import { aiStepNovice, aiStepIntermediate, aiStepAdvanced, aiStepMaster, aiStepGrandmaster, type AiLevel } from "./ai"
 import {
   applyRouteMove,
   chooseSwapHandRoute,
@@ -63,7 +63,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [human] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
   const ai: Player = human === "W" ? "B" : "W"
 
-  const [aiDifficulty, setAiDifficulty] = useState<"beginner" | "intermediate">("beginner")
+  const [aiDifficulty, setAiDifficulty] = useState<AiLevel>("novice")
 
   const [started, setStarted] = useState(false)
   const [audioReady, setAudioReady] = useState(false)
@@ -409,7 +409,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
     const t = window.setTimeout(() => {
       update((s) => {
-        const step = aiDifficulty === "beginner" ? aiStepBeginner : aiStepIntermediate
+        const stepMap: Record<AiLevel, typeof aiStepNovice> = {
+          novice: aiStepNovice,
+          intermediate: aiStepIntermediate,
+          advanced: aiStepAdvanced,
+          master: aiStepMaster,
+          grandmaster: aiStepGrandmaster,
+        }
+        const step = stepMap[aiDifficulty] ?? aiStepNovice
         step(s, ai)
       })
     }, AI_DELAY_MS)

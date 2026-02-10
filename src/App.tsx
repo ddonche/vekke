@@ -278,6 +278,25 @@ function App() {
   const leftPlayer = human === "W" ? bluePlayer : whitePlayer
   const rightPlayer = human === "W" ? whitePlayer : bluePlayer
 
+  // ------------------------------------------------------------
+  // Chat
+  // ------------------------------------------------------------
+  type ChatMsg = { id: string; at: number; from: "W" | "B" | "SYS"; text: string }
+  const [chatInput, setChatInput] = useState("")
+  const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>(() => [
+    { id: "seed-1", at: Date.now(), from: (human === "W" ? "B" : "W") as "W" | "B", text: "Good luck!" },
+    { id: "seed-2", at: Date.now(), from: human as "W" | "B", text: "Thanks, you too!" },
+  ])
+  function pushChat(from: "W" | "B" | "SYS", text: string) {
+    const t = String(text ?? "").trim()
+    if (!t) return
+    setChatMsgs((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, at: Date.now(), from, text: t }])
+  }
+  function sendChat() {
+    pushChat(human as "W" | "B", chatInput)
+    setChatInput("")
+  }
+
   return (
     <ErrBoundary>
       <div
@@ -616,20 +635,20 @@ function App() {
 
               <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                 <button
-                  onClick={() => actions.setAiDifficulty("beginner")}
+                  onClick={() => actions.setAiDifficulty("novice")}
                   style={{
                     flex: 1,
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "beginner" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "beginner" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "beginner" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "novice" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "novice" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "novice" ? "#5de8f7" : "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
                   }}
                 >
-                  Beginner AI
+                  Novice AI
                 </button>
                 <button
                   onClick={() => actions.setAiDifficulty("intermediate")}
@@ -956,36 +975,48 @@ function App() {
                     borderTop: "1px solid #4b5563",
                   }}
                 >
-                  <span style={{ fontWeight: "bold", color: "#5de8f7" }}>
-                    Computer:
-                  </span>{" "}
-                  Good luck!
+                  {chatMsgs.length > 0 && (() => {
+                    const m = chatMsgs[chatMsgs.length - 1]
+                    const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                    const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                    return <><span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}</>
+                  })()}
                 </div>
               )}
 
               {showChatExpanded && (
-                <div
-                  style={{
-                    padding: "0.5rem",
-                    fontSize: "0.6875rem",
-                    color: "#d1d5db",
-                    maxHeight: "12.5rem",
-                    overflowY: "auto",
-                    borderTop: "1px solid #4b5563",
-                  }}
-                  className="hide-scrollbar"
-                >
-                  <div style={{ marginBottom: "0.25rem" }}>
-                    <span style={{ fontWeight: "bold", color: "#5de8f7" }}>
-                      Computer:
-                    </span>{" "}
-                    Good luck!
+                <div style={{ borderTop: "1px solid #4b5563" }}>
+                  <div style={{ display: "flex", gap: 6, padding: "0.375rem 0.5rem", borderBottom: "1px solid #4b5563" }}>
+                    <input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
+                      placeholder="Message…"
+                      style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 6, padding: "6px 8px", color: "#e5e7eb", outline: "none", fontSize: "0.6875rem" }}
+                    />
+                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: "0.6875rem", flexShrink: 0 }}>
+                      Send
+                    </button>
                   </div>
-                  <div style={{ marginBottom: "0.25rem" }}>
-                    <span style={{ fontWeight: "bold", color: "#5de8f7" }}>
-                      You:
-                    </span>{" "}
-                    Thanks, you too!
+                  <div
+                    style={{
+                      padding: "0.5rem",
+                      fontSize: "0.6875rem",
+                      color: "#d1d5db",
+                      maxHeight: "10rem",
+                      overflowY: "auto",
+                    }}
+                    className="hide-scrollbar"
+                  >
+                    {[...chatMsgs].reverse().map((m) => {
+                      const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                      const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                      return (
+                        <div key={m.id} style={{ marginBottom: "0.25rem" }}>
+                          <span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -2333,14 +2364,14 @@ function App() {
               }}
             >
               {/* Left Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
                 {/* White Player Section */}
                 <div
                   style={{
                     padding: 12,
                     backgroundColor: "#374151",
                     borderRadius: 8,
-                    border: g.player === "W" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    border: g.player === leftPlayer.avatar ? "2px solid #5de8f7" : "1px solid #4b5563",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -2567,7 +2598,7 @@ function App() {
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
-                    minHeight: 260,
+                    minHeight: 0,
                   }}
                 >
                   <div
@@ -2587,6 +2618,18 @@ function App() {
                       <span>Chat</span>
                     </div>
                   </div>
+                  <div style={{ borderBottom: "1px solid #4b5563", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
+                    <input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
+                      placeholder="Type a message…"
+                      style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 10px", color: "#e5e7eb", outline: "none", fontSize: 12 }}
+                    />
+                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: 12, flexShrink: 0 }}>
+                      Send
+                    </button>
+                  </div>
                   <div
                     style={{
                       padding: 12,
@@ -2594,17 +2637,19 @@ function App() {
                       color: "#d1d5db",
                       overflowY: "auto",
                       flexGrow: 1,
+                      minHeight: 0,
                       lineHeight: 1.6,
                     }}
-                    className="hide-scrollbar"
                   >
-                    {/* Placeholder chat */}
-                    <div style={{ marginBottom: 8 }}>
-                      <span style={{ fontWeight: 900, color: "#5de8f7" }}>{bluePlayer.username}:</span> Good luck!
-                    </div>
-                    <div style={{ marginBottom: 8 }}>
-                      <span style={{ fontWeight: 900, color: "#e5e7eb" }}>{whitePlayer.username}:</span> Thanks, you too!
-                    </div>
+                    {[...chatMsgs].reverse().map((m) => {
+                      const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                      const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                      return (
+                        <div key={m.id} style={{ marginBottom: 8 }}>
+                          <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -2970,14 +3015,14 @@ function App() {
               </div>
 
               {/* Right Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
                 {/* Blue Player Section */}
                 <div
                   style={{
                     padding: 12,
                     backgroundColor: "#374151",
                     borderRadius: 8,
-                    border: g.player === "B" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    border: g.player === rightPlayer.avatar ? "2px solid #5de8f7" : "1px solid #4b5563",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -3204,7 +3249,7 @@ function App() {
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
-                    minHeight: 260,
+                    minHeight: 0,
                   }}
                 >
                   <div
@@ -3218,11 +3263,15 @@ function App() {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      cursor: "pointer",
+                      userSelect: "none",
                     }}
+                    onClick={() => setShowLogExpanded(!showLogExpanded)}
                   >
                     <span>Log</span>
-                    <span style={{ fontSize: 12, opacity: 0.6 }}>{showLogExpanded ? "Expanded" : ""}</span>
+                    <span style={{ fontSize: 14, opacity: 0.7 }}>{showLogExpanded ? "▲" : "▼"}</span>
                   </div>
+                  {showLogExpanded && (
                   <div
                     style={{
                       padding: 12,
@@ -3234,7 +3283,6 @@ function App() {
                       minHeight: 0,
                       lineHeight: 1.5,
                     }}
-                    className="hide-scrollbar"
                   >
                     {g.log.length === 0 ? (
                       <div style={{ opacity: 0.7 }}>No log entries yet.</div>
@@ -3246,6 +3294,7 @@ function App() {
                       ))
                     )}
                   </div>
+                  )}
                 </div>
               </div>
             </div>

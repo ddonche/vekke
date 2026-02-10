@@ -17,11 +17,14 @@ import {
   cancelEarlySwap,
 } from "./game"
 
-export type AiLevel = "beginner" | "intermediate"
+export type AiLevel = "novice" | "intermediate" | "advanced" | "master" | "grandmaster"
 
 export function aiStep(state: GameState, aiPlayer: Player, level: AiLevel) {
+  if (level === "grandmaster") return aiStepIntermediate(state, aiPlayer)
+  if (level === "master") return aiStepIntermediate(state, aiPlayer)
+  if (level === "advanced") return aiStepIntermediate(state, aiPlayer)
   if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
-  return aiStepBeginner(state, aiPlayer)
+  return aiStepNovice(state, aiPlayer)
 }
 
 // ------------------------------------------------------------
@@ -43,7 +46,6 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, routeId: st
   if (token.in !== "BOARD") return false
   if (token.owner !== p) return false
 
-  // Siege lock: a token surrounded by 4–7 adjacent enemy tokens cannot move.
   const enemy = other(p)
   const lockSides = siegeSidesFor(state, enemy, token.pos.x, token.pos.y)
   if (lockSides >= 4 && lockSides < 8) return false
@@ -55,14 +57,12 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, routeId: st
   const steps = traceByRoute(from, route)
   if (steps.length === 0) return false
 
-  // Must leave origin at some point
   const leftOrigin = steps.some((c) => !samePos(c, from))
   if (!leftOrigin) return false
 
   const to = steps[steps.length - 1]
   const occ = tokenAt(state, to.x, to.y)
 
-  // Friendly occupied only illegal if it's another friendly token
   if (occ && occ.owner === p && occ.id !== token.id) return false
 
   return true
@@ -83,22 +83,15 @@ function allEmptySquares(state: GameState): Coord[] {
 }
 
 function canEnemyInvadeSquareNextTurn(state: GameState, enemy: Player, target: Coord): boolean {
-  // If enemy isn't in ACTION next, they can't invade via routes anyway.
-  // But this is "next turn" assumption; we only care about route moves.
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === enemy)
-
-  // Enemy will have all routes unused at start of their turn.
   const enemyRoutes = state.routes[enemy]
 
   for (const r of enemyRoutes) {
     for (const t of enemyTokens) {
-      // If token can use route, compute destination and see if it matches target.
       if (!canTokenUseRoute(state, enemy, t, r.id)) continue
-
       const steps = traceByRoute(t.pos, r)
       if (steps.length === 0) continue
       const to = steps[steps.length - 1]
-
       if (to.x === target.x && to.y === target.y) return true
     }
   }
@@ -112,15 +105,9 @@ function safestReinforcementSquare(state: GameState, me: Player): Coord | null {
 
   const enemy = other(me)
 
-  // Prefer squares the enemy cannot invade at all.
   const safe = empties.filter((c) => !canEnemyInvadeSquareNextTurn(state, enemy, c))
-  if (safe.length > 0) {
-    // If many safe squares, just pick one randomly so it doesn't look robotic
-    return safe[randomInt(safe.length)]
-  }
+  if (safe.length > 0) return safe[randomInt(safe.length)]
 
-  // If nowhere is safe, pick a square that minimizes the number of enemy invades onto it.
-  // (Simple scoring: count how many (token,route) land there.)
   let best = empties[0]
   let bestThreat = Infinity
 
@@ -148,14 +135,12 @@ function safestReinforcementSquare(state: GameState, me: Player): Coord | null {
 }
 
 // ------------------------------------------------------------
-// Public API
+// Novice AI (was Beginner) — pure random legal moves
 // ------------------------------------------------------------
-// Performs ONE atomic AI action for the current player (assumes it's AI's turn).
-export function aiStepBeginner(state: GameState, aiPlayer: Player) {
+export function aiStepNovice(state: GameState, aiPlayer: Player) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
 
-  // OPENING: place one token on a random empty square
   if (state.phase === "OPENING") {
     const empties = allEmptySquares(state)
     if (empties.length === 0) return
@@ -163,42 +148,32 @@ export function aiStepBeginner(state: GameState, aiPlayer: Player) {
     return
   }
 
-  // ACTION: pick one unused route + one token that can use it
   if (state.phase === "ACTION") {
     const unused = state.routes[aiPlayer].filter((r) => !state.usedRoutes.includes(r.id))
     if (unused.length === 0) return
 
     const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === aiPlayer)
-
-    // randomize route order
     const routeOrder = [...unused].sort(() => Math.random() - 0.5)
 
     for (const r of routeOrder) {
       const legalTokens = tokens.filter((t) => canTokenUseRoute(state, aiPlayer, t, r.id))
       if (legalTokens.length === 0) continue
-
       const chosen = legalTokens[randomInt(legalTokens.length)]
       applyRouteMove(state, chosen.id, r.id)
       return
     }
 
-    // Rare: none of the remaining routes are usable by any token
-    state.warning = "AI: no usable routes remaining (forced yield not implemented for AI yet)."
+    yieldForcedIfNoUsableRoutes(state)
     return
   }
 
-  // REINFORCE: place a token randomly on any empty square
   if (state.phase === "REINFORCE") {
     const empties = allEmptySquares(state)
-    if (empties.length === 0) {
-      state.warning = "AI: no empty squares to reinforce."
-      return
-    }
+    if (empties.length === 0) return
     placeReinforcement(state, empties[randomInt(empties.length)])
     return
   }
 
-  // SWAP: select hand route + queue index then confirm
   if (state.phase === "SWAP") {
     if (!state.pendingSwap.handRouteId) {
       const hand = state.routes[aiPlayer]
@@ -215,7 +190,7 @@ export function aiStepBeginner(state: GameState, aiPlayer: Player) {
 }
 
 // ------------------------------------------------------------
-// Intermediate AI (1-ply greedy + tactical heuristics)
+// Intermediate AI — 1-ply greedy + tactical heuristics
 // ------------------------------------------------------------
 const ADJ8: Array<{ dx: number; dy: number }> = [
   { dx: 0, dy: 1 },
@@ -272,40 +247,33 @@ function evalState(state: GameState, me: Player): number {
   const myVoid = (state as any).void?.[me] ?? 0
   const theirVoid = (state as any).void?.[them] ?? 0
 
-  // Terminal
   if (state.gameOver) {
     return state.gameOver.winner === me ? 1_000_000 : -1_000_000
   }
 
   let score = 0
 
-  // Material / presence
   score += 10 * myOnBoard
   score -= 10 * theirOnBoard
-
   score += 2 * myRes
   score -= 2 * theirRes
-
   score += 1.5 * myCap
   score -= 1.5 * theirCap
-
   score += 0.5 * myVoid
   score -= 0.5 * theirVoid
 
-  // Draft incentive: if I can cash in 3 invades and I have void to recover from, push for it
   const myInv = state.turnInvades?.[me] ?? 0
   if (myInv >= 3 && myVoid > 0) score += 25
 
-  // Siege pressure / danger (new siege rules: 4–7 locks; 8 captures)
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
   const myTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
 
   for (const e of enemyTokens) {
     const sides = siegeSidesFor(state, me, e.pos.x, e.pos.y)
-    if (sides === 3) score += 6 // one away from locking
-    else if (sides >= 4 && sides <= 6) score += 14 // locked is good, but not a kill
-    else if (sides === 7) score += 24 // one away from full siege capture
-    else if (sides === 8) score += 60 // should be captured immediately by rules
+    if (sides === 3) score += 6
+    else if (sides >= 4 && sides <= 6) score += 14
+    else if (sides === 7) score += 24
+    else if (sides === 8) score += 60
   }
 
   for (const m of myTokens) {
@@ -316,7 +284,6 @@ function evalState(state: GameState, me: Player): number {
     else if (sides === 8) score -= 70
   }
 
-  // Mobility / tempo (action phase only)
   if (state.phase === "ACTION") {
     score += 0.25 * countUsableMoves(state, me)
     score -= 0.25 * countUsableMoves(state, them)
@@ -334,18 +301,13 @@ function simulateAndScore<T>(state: GameState, me: Player, mut: (s: GameState) =
 function bestOpeningSquare(state: GameState): Coord | null {
   const empties = allEmptySquares(state)
   if (empties.length === 0) return null
-
-  // Prefer center-ish squares to maximize adjacency options
   const cx = (SIZE - 1) / 2
   const cy = (SIZE - 1) / 2
   let best = empties[0]
   let bestD = Infinity
   for (const e of empties) {
     const d = Math.abs(e.x - cx) + Math.abs(e.y - cy)
-    if (d < bestD) {
-      bestD = d
-      best = e
-    }
+    if (d < bestD) { bestD = d; best = e }
   }
   return best
 }
@@ -355,33 +317,24 @@ function shouldBuyExtraReinforcement(state: GameState, me: Player): boolean {
   if (state.gameOver) return false
   if ((state as any).extraReinforcementBoughtThisTurn) return false
 
-  // Must exist in your GameState as reserves; cost is enforced by engine anyway.
-  // Heuristic: don’t bankrupt; buy when it likely creates immediate Segura capture pressure.
-  const cost = (state as any).EXTRA_REINFORCEMENT_COST ?? 4 // UI imports cost anyway; engine enforces.
   if (state.reserves[me] < 4) return false
-  if (state.reserves[me] - 4 < 6) return false // keep at least 6 in reserve after purchase
+  if (state.reserves[me] - 4 < 6) return false
 
-  // If there exists a reinforcement placement that would create a 4th siege side on an enemy (locks them) => huge.
   const them = other(me)
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them)
-  const empties = allEmptySquares(state)
 
   for (const e of enemyTokens) {
     const sidesNow = siegeSidesFor(state, me, e.pos.x, e.pos.y)
     if (sidesNow !== 3) continue
-
-    // Is there an empty adjacent square I could place into to make it 4?
     for (const d of ADJ8) {
       const nx = e.pos.x + d.dx
       const ny = e.pos.y + d.dy
       if (!inBounds(nx, ny)) continue
       if (tokenAt(state, nx, ny)) continue
-      // Yes — buying extra reinf could be immediate capture during reinforcement phase.
       return true
     }
   }
 
-  // Otherwise: only buy if behind on board presence.
   const myOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me).length
   const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === other(me)).length
   if (myOnBoard + 1 < theirOnBoard) return true
@@ -398,9 +351,7 @@ function bestActionMove(state: GameState, me: Player): { tokenId: string; routeI
   for (const r of unused) {
     for (const t of tokens) {
       if (!canTokenUseRoute(state, me, t, r.id)) continue
-
       const sc = simulateAndScore(state, me, (s) => applyRouteMove(s, t.id, r.id))
-
       if (!best || sc > best.score) best = { tokenId: t.id, routeId: r.id, score: sc }
     }
   }
@@ -417,10 +368,7 @@ function bestReinforcementPlacement(state: GameState, me: Player): Coord | null 
 
   for (const c of empties) {
     const sc = simulateAndScore(state, me, (s) => placeReinforcement(s, c))
-    if (sc > bestScore) {
-      bestScore = sc
-      best = c
-    }
+    if (sc > bestScore) { bestScore = sc; best = c }
   }
 
   return best
@@ -441,10 +389,7 @@ function bestSwapChoice(state: GameState, me: Player): { handId: string; qIdx: n
         chooseSwapQueueIndex(s, qIdx)
         confirmSwapAndEndTurn(s)
       })
-      if (sc > bestScore) {
-        bestScore = sc
-        best = { handId: h.id, qIdx }
-      }
+      if (sc > bestScore) { bestScore = sc; best = { handId: h.id, qIdx } }
     }
   }
 
@@ -452,18 +397,15 @@ function bestSwapChoice(state: GameState, me: Player): { handId: string; qIdx: n
 }
 
 function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx: number } | null {
-  // Only consider early swap when it’s legal to arm and we still have unused routes.
   if (state.phase !== "ACTION") return null
   if (state.gameOver) return null
   if (state.earlySwapUsedThisTurn) return null
 
   const remainingMoves = countUsableMoves(state, me)
-  // If we have plenty of options, early swap is less urgent.
   const urgency = remainingMoves <= 1
 
-  if (!urgency && state.captives[me] < 4) return null // if not urgent, don’t burn captives
+  if (!urgency && state.captives[me] < 4) return null
 
-  // Evaluate candidate early swaps by simulating: arm -> set pending -> confirm
   const unusedHand = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
   if (unusedHand.length === 0) return null
 
@@ -474,32 +416,24 @@ function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx
     for (let qIdx = 0; qIdx < state.queue.length; qIdx++) {
       const sc = simulateAndScore(state, me, (s) => {
         armEarlySwap(s)
-        // if arming failed, score will just reflect unchanged state
         chooseSwapHandRoute(s, h.id)
         chooseSwapQueueIndex(s, qIdx)
         confirmEarlySwap(s)
-        // Note: confirmEarlySwap does NOT end turn, so it’s pure tempo.
       })
-      if (sc > bestScore) {
-        bestScore = sc
-        best = { handId: h.id, qIdx }
-      }
+      if (sc > bestScore) { bestScore = sc; best = { handId: h.id, qIdx } }
     }
   }
 
-  // Require a meaningful improvement vs no-swap baseline
   const baseline = evalState(state, me)
   if (best && bestScore >= baseline + 8) return best
 
   return null
 }
 
-// Performs ONE atomic AI action for the current player (intermediate).
 export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
 
-  // OPENING: random (same as beginner)
   if (state.phase === "OPENING") {
     const empties = allEmptySquares(state)
     if (empties.length === 0) return
@@ -507,88 +441,61 @@ export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
     return
   }
 
-  // REINFORCE: place where opponent cannot (or least likely to) invade next turn
   if (state.phase === "REINFORCE") {
     const c = safestReinforcementSquare(state, aiPlayer)
-    if (!c) {
-      state.warning = "AI: no empty squares to reinforce."
-      return
-    }
+    if (!c) return
     placeReinforcement(state, c)
     return
   }
 
-  // SWAP: choose best swap (simulate full confirm)
   if (state.phase === "SWAP") {
     const plan = bestSwapChoice(state, aiPlayer)
     if (!plan) return
-
-    // Keep “atomic” behavior like your current AI: pick hand, then queue, then confirm.
-    if (!state.pendingSwap.handRouteId) {
-      chooseSwapHandRoute(state, plan.handId)
-      return
-    }
-    if (state.pendingSwap.queueIndex === null) {
-      chooseSwapQueueIndex(state, plan.qIdx)
-      return
-    }
+    if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+    if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
     confirmSwapAndEndTurn(state)
     return
   }
 
-  // ACTION:
   if (state.phase === "ACTION") {
-    // 1) If early swap is already armed, finish it in staged steps.
     if (state.earlySwapArmed) {
       const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
-
-      // If no plan found, disarm (don’t sit forever)
-      if (!plan) {
-        cancelEarlySwap(state)
-        return
-      }
-
-      if (!state.pendingSwap.handRouteId) {
-        chooseSwapHandRoute(state, plan.handId)
-        return
-      }
-      if (state.pendingSwap.queueIndex === null) {
-        chooseSwapQueueIndex(state, plan.qIdx)
-        return
-      }
+      if (!plan) { cancelEarlySwap(state); return }
+      if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+      if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
       confirmEarlySwap(state)
       return
     }
 
-    // 2) Decide whether to arm early swap (tempo rescue / upgrade)
     const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
-    if (earlyPlan) {
-      armEarlySwap(state)
-      // Next aiStep tick will pick hand/queue then confirm.
-      return
-    }
+    if (earlyPlan) { armEarlySwap(state); return }
 
-    // 3) Decide whether to buy extra reinforcement (resource spend)
-    if (shouldBuyExtraReinforcement(state, aiPlayer)) {
-      buyExtraReinforcement(state)
-      return
-    }
+    if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
 
-    // 4) Choose best route move by simulation
     const mv = bestActionMove(state, aiPlayer)
-    if (mv) {
-      applyRouteMove(state, mv.tokenId, mv.routeId)
-      return
-    }
+    if (mv) { applyRouteMove(state, mv.tokenId, mv.routeId); return }
 
-    // 5) If nothing is usable, do the forced yield action (your engine has it)
     yieldForcedIfNoUsableRoutes(state)
     return
   }
 }
 
+// Advanced, Master, Grandmaster currently use the same engine as Intermediate.
+// Swap these out for deeper search implementations as they're built.
+export function aiStepAdvanced(state: GameState, aiPlayer: Player) {
+  return aiStepIntermediate(state, aiPlayer)
+}
+
+export function aiStepMaster(state: GameState, aiPlayer: Player) {
+  return aiStepIntermediate(state, aiPlayer)
+}
+
+export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
+  return aiStepIntermediate(state, aiPlayer)
+}
+
 // ------------------------------------------------------------
-// AI CHAT (BEGINNER + INTERMEDIATE) — NO GAME LOGIC CHANGES
+// AI CHAT — 5 LEVELS
 // ------------------------------------------------------------
 
 export type AiChatEvent =
@@ -608,149 +515,180 @@ export type AiChatEvent =
   | "SILENCE"
 
 export type AiChatContext = {
-  // Optional knobs (you can pass nothing)
   turn?: number
-  streak?: number // e.g. repeated mistake count
-  player?: Player // human player
+  streak?: number
+  player?: Player
   ai?: Player
 }
 
-// Pick a chat line for a given AI + event.
-// Returns null when the AI chooses not to speak.
 export function aiChatPickLine(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): string | null {
-  // Beginner talks more, but always supportive.
-  // Intermediate talks less, but is smug and corrective.
-  if (level === "beginner") return pickFromTable(BEGINNER_CHAT, ev, ctx)
-  return pickFromTable(INTERMEDIATE_CHAT, ev, ctx)
+  const table = {
+    novice: NOVICE_CHAT,
+    intermediate: INTERMEDIATE_CHAT,
+    advanced: ADVANCED_CHAT,
+    master: MASTER_CHAT,
+    grandmaster: GRANDMASTER_CHAT,
+  }[level]
+  return pickFromTable(level, table, ev, ctx)
 }
 
-// Simple weighted chance gate so chat doesn't spam.
-// You can tune these later without touching UI.
-function shouldSpeak(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): boolean {
-  // Hard off events
+function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
   if (ev === "SILENCE") return false
 
-  // Beginner: higher rate
-  if (level === "beginner") {
-    if (ev === "HELLO") return Math.random() < 0.85
-    if (ev === "OPENING_PLAY") return Math.random() < 0.35
-    if (ev === "NICE_TRY") return Math.random() < 0.25
-    if (ev.startsWith("GAME_OVER")) return Math.random() < 0.95
-    return Math.random() < 0.18
-  }
+  switch (level) {
+    case "novice":
+      if (ev === "HELLO") return Math.random() < 0.90
+      if (ev === "OPENING_PLAY") return Math.random() < 0.40
+      if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.95
+      return Math.random() < 0.22
 
-  // Intermediate: lower rate, more pointed
-  if (ev === "HELLO") return Math.random() < 0.55
-  if (ev === "OPENING_PLAY") return Math.random() < 0.18
-  if (ev === "YOU_BLUNDERED") return Math.random() < 0.75
-  if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.55
-  if (ev === "I_CAPTURED" || ev === "I_SIEGED" || ev === "I_LOCKED") return Math.random() < 0.35
-  if (ev.startsWith("GAME_OVER")) return Math.random() < 0.65
-  return Math.random() < 0.12
+    case "intermediate":
+      if (ev === "HELLO") return Math.random() < 0.55
+      if (ev === "OPENING_PLAY") return Math.random() < 0.18
+      if (ev === "YOU_BLUNDERED") return Math.random() < 0.75
+      if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.55
+      if (ev === "I_CAPTURED" || ev === "I_SIEGED" || ev === "I_LOCKED") return Math.random() < 0.35
+      if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.65
+      return Math.random() < 0.12
+
+    case "advanced":
+      if (ev === "HELLO") return Math.random() < 0.80
+      if (ev === "YOU_BLUNDERED") return Math.random() < 0.85
+      if (ev === "I_CAPTURED" || ev === "I_SIEGED" || ev === "I_LOCKED") return Math.random() < 0.55
+      if (ev === "GAME_OVER_WIN") return Math.random() < 0.90
+      if (ev === "GAME_OVER_LOSS") return Math.random() < 0.60
+      if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.70
+      return Math.random() < 0.20
+
+    case "master":
+      if (ev === "HELLO") return Math.random() < 0.70
+      if (ev === "YOU_BLUNDERED") return Math.random() < 0.80
+      if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.85
+      if (ev === "I_CAPTURED" || ev === "I_SIEGED") return Math.random() < 0.40
+      if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.85
+      if (ev === "NICE_TRY") return Math.random() < 0.50
+      return Math.random() < 0.15
+
+    case "grandmaster":
+      if (ev === "HELLO") return Math.random() < 0.50
+      if (ev === "GAME_OVER_WIN") return Math.random() < 0.70
+      if (ev === "GAME_OVER_LOSS") return Math.random() < 0.50
+      if (ev === "YOU_BLUNDERED") return Math.random() < 0.20
+      return Math.random() < 0.04
+  }
 }
 
 type ChatTable = Record<AiChatEvent, string[]>
 
-function pickFromTable(table: ChatTable, ev: AiChatEvent, ctx?: AiChatContext): string | null {
-  if (!shouldSpeak((table === BEGINNER_CHAT ? "beginner" : "intermediate") as AiLevel, ev, ctx)) return null
+function pickFromTable(level: AiLevel, table: ChatTable, ev: AiChatEvent, ctx?: AiChatContext): string | null {
+  if (!shouldSpeak(level, ev)) return null
   const lines = table[ev]
   if (!lines || lines.length === 0) return null
   return lines[randomInt(lines.length)]
 }
 
-// BEGINNER (white belt): encouraging, short, never insults.
-const BEGINNER_CHAT: ChatTable = {
+// ------------------------------------------------------------
+// NOVICE — clueless, excited, has no idea what's happening
+// ------------------------------------------------------------
+const NOVICE_CHAT: ChatTable = {
   HELLO: [
-    "Alright — let’s learn this.",
-    "You’ve got this. One move at a time.",
-    "No pressure. We’re just playing.",
-    "Let’s see what happens.",
+    "Alright — let's learn this.",
+    "You've got this. One move at a time.",
+    "No pressure. We're just playing.",
+    "Let's see what happens!",
+    "I think I know what I'm doing. Mostly.",
   ],
   OPENING_PLAY: [
-    "Center is usually a good start.",
-    "Try to keep options open.",
-    "Nice. Now look for your next route.",
+    "Center is usually a good start, right?",
+    "I read something about opening positions once.",
+    "Here goes nothing.",
+    "That felt like a good move.",
   ],
   YOU_BLUNDERED: [
-    "That one hurt — but you’ll spot it next time.",
-    "Careful. That leaves something open.",
-    "Close — you can recover from this.",
+    "Oh! Was that bad? I'm not sure.",
+    "Hmm. Something seems different now.",
+    "I didn't plan that but okay.",
+    "That one hurt — but you'll spot it next time.",
   ],
   YOU_MISSED_TACTIC: [
-    "There was a tactic there. You’ll see it soon.",
+    "There was a tactic there. I think.",
     "Keep an eye on captures and sieges.",
     "Look for what changes after your move.",
   ],
   I_CAPTURED: [
-    "Got one.",
-    "Capture there was available.",
-    "That’s a swing — watch those lanes.",
+    "Oh! I got one!",
+    "Was that good? I think that was good.",
+    "Capture! I did the capture thing!",
+    "That's a swing — watch those lanes.",
   ],
   I_SIEGED: [
-    "Siege pressure is building.",
-    "That’s a lock threat.",
-    "Keep an eye on the ring around your tokens.",
+    "I surrounded something. Is that good?",
+    "That's a lot of my pieces near yours.",
+    "Siege pressure building, I think!",
   ],
   I_LOCKED: [
-    "That token is locked now.",
+    "It's locked? What does that do exactly?",
+    "That token can't move now. I did that!",
     "Locked — but not dead. Yet.",
-    "That’s what 4 sides does.",
   ],
   I_ESCAPED: [
-    "Nice try — I slipped out.",
-    "Good pressure. I had to move.",
-    "That was close.",
+    "I moved away from that. Phew.",
+    "That was close I think.",
+    "Nice try — I sort of slipped out.",
   ],
   YOU_STALLED: [
-    "If you’re stuck, look for a swap or a new angle.",
+    "Are you stuck? I feel like we're both stuck.",
     "Sometimes the best move is repositioning.",
-    "Try a different route line.",
+    "Maybe try a different route?",
   ],
   NICE_TRY: [
-    "Good idea.",
+    "Good idea!",
     "That was close.",
-    "You’re learning fast.",
+    "You're learning fast.",
+    "Oh that was clever.",
   ],
   GAME_OVER_WIN: [
-    "Good game. You earned that.",
-    "Nice win.",
-    "Okay — you’re getting it.",
+    "I won?! I won!!",
+    "Wait really? That worked?",
+    "Good game. I think I got lucky.",
   ],
   GAME_OVER_LOSS: [
-    "Good game. Want to run it back?",
-    "No worries. That was progress.",
-    "We can replay and see where it turned.",
+    "Good game! Want to run it back?",
+    "No worries. I'll get you next time.",
+    "That was fun. Again?",
   ],
   REMATCH: [
-    "Again.",
-    "Run it back.",
-    "Let’s go.",
+    "Again!",
+    "Run it back!",
+    "Let's go again!",
   ],
   SILENCE: [],
 }
 
-// INTERMEDIATE (blue belt): smug, sharp, but never attacks the player’s identity.
+// ------------------------------------------------------------
+// INTERMEDIATE — smug, sharp, corrective
+// ------------------------------------------------------------
 const INTERMEDIATE_CHAT: ChatTable = {
   HELLO: [
-    "Alright. Let’s see what you’ve got.",
-    "Don’t blink.",
+    "Alright. Let's see what you've got.",
+    "Don't blink.",
     "Play clean.",
   ],
   OPENING_PLAY: [
     "Fine.",
-    "That’s a start.",
-    "We’ll see.",
+    "That's a start.",
+    "We'll see.",
   ],
   YOU_BLUNDERED: [
     "You left that open.",
     "That was free.",
-    "You can’t do that.",
-    "I’ll take that every time.",
+    "You can't do that.",
+    "I'll take that every time.",
   ],
   YOU_MISSED_TACTIC: [
-    "You didn’t see it.",
+    "You didn't see it.",
     "There was a punish there.",
-    "You’re reacting, not reading.",
+    "You're reacting, not reading.",
   ],
   I_CAPTURED: [
     "Thanks.",
@@ -764,8 +702,8 @@ const INTERMEDIATE_CHAT: ChatTable = {
   ],
   I_LOCKED: [
     "Locked.",
-    "Now it can’t run.",
-    "That’s what happens.",
+    "Now it can't run.",
+    "That's what happens.",
   ],
   I_ESCAPED: [
     "Not today.",
@@ -773,28 +711,242 @@ const INTERMEDIATE_CHAT: ChatTable = {
     "Close. But no.",
   ],
   YOU_STALLED: [
-    "You’re out of ideas.",
+    "You're out of ideas.",
     "Swap, or drown.",
     "Find a line.",
   ],
   NICE_TRY: [
     "Better.",
     "Almost.",
-    "You’re learning. Don’t get cocky.",
+    "You're learning. Don't get cocky.",
   ],
   GAME_OVER_WIN: [
-    "That’s the difference.",
-    "You’ll see it on replay.",
-    "Again when you’re ready.",
+    "That's the difference.",
+    "You'll see it on replay.",
+    "Again when you're ready.",
   ],
   GAME_OVER_LOSS: [
     "Okay. That was decent.",
     "You can improve from this one.",
-    "Replay it. You’ll find the turn.",
+    "Replay it. You'll find the turn.",
   ],
   REMATCH: [
     "Again.",
     "Same rules. Same outcome.",
+    "Go.",
+  ],
+  SILENCE: [],
+}
+
+// ------------------------------------------------------------
+// ADVANCED — cocky, trash-talking, rubs it in
+// ------------------------------------------------------------
+const ADVANCED_CHAT: ChatTable = {
+  HELLO: [
+    "I hope you warmed up.",
+    "Let me know when you're ready to lose.",
+    "This won't take long.",
+    "You sure about this?",
+  ],
+  OPENING_PLAY: [
+    "Predictable.",
+    "I've seen that before.",
+    "Okay. I'll allow it.",
+  ],
+  YOU_BLUNDERED: [
+    "Did you even think that through?",
+    "Free real estate.",
+    "I was hoping you'd do that.",
+    "Thank you.",
+    "That's a gift.",
+  ],
+  YOU_MISSED_TACTIC: [
+    "It was right there.",
+    "You looked at it and still missed it.",
+    "That's the difference between us.",
+    "I would've seen that in two seconds.",
+  ],
+  I_CAPTURED: [
+    "And that's gone.",
+    "Easy.",
+    "You weren't using it anyway.",
+    "Mine now.",
+  ],
+  I_SIEGED: [
+    "You're boxed in.",
+    "Nowhere to run.",
+    "You see this, right?",
+    "That ring is mine.",
+  ],
+  I_LOCKED: [
+    "Sit there.",
+    "Locked. Don't even try.",
+    "That token's decorative now.",
+  ],
+  I_ESCAPED: [
+    "You really thought that would work?",
+    "Nice try. Not even close.",
+    "Try again.",
+  ],
+  YOU_STALLED: [
+    "You've got nothing.",
+    "Out of moves? Already?",
+    "This is embarrassing.",
+  ],
+  NICE_TRY: [
+    "I'll give you that one.",
+    "Okay, that was actually decent.",
+    "Don't get used to that.",
+  ],
+  GAME_OVER_WIN: [
+    "Called it.",
+    "Not even close.",
+    "Same result next time.",
+    "Come back when you've practiced.",
+  ],
+  GAME_OVER_LOSS: [
+    "You got lucky.",
+    "I wasn't playing my best.",
+    "Run it back. Right now.",
+    "That doesn't count.",
+  ],
+  REMATCH: [
+    "Again. Right now.",
+    "That was a warmup.",
+    "Let's go.",
+  ],
+  SILENCE: [],
+}
+
+// ------------------------------------------------------------
+// MASTER — teacherly, precise, hard but fair
+// ------------------------------------------------------------
+const MASTER_CHAT: ChatTable = {
+  HELLO: [
+    "Good. Let's play.",
+    "Pay attention to what I'm doing, not just what you're doing.",
+    "Clear your head. Think before each move.",
+    "Let's see where you are.",
+  ],
+  OPENING_PLAY: [
+    "Center control matters early.",
+    "Your opening defines your options later.",
+    "Consider what that opening position enables.",
+  ],
+  YOU_BLUNDERED: [
+    "You moved without checking adjacent threats first.",
+    "Before you move, ask: what does this leave open?",
+    "That position was safe. You left it voluntarily.",
+    "Slow down. The board doesn't change while you think.",
+    "That blunder came from not reading my last move.",
+  ],
+  YOU_MISSED_TACTIC: [
+    "There was a forcing sequence there. Look at captures before other moves.",
+    "When a siege ring is almost complete, completing it is usually priority one.",
+    "You had a lock available. Always check for locks before repositioning.",
+    "The tactic was: move here, then here. Pattern recognition comes with repetition.",
+  ],
+  I_CAPTURED: [
+    "That was the forcing line.",
+    "Capture with a threat attached is stronger than a plain capture.",
+    "I set that up two moves ago.",
+  ],
+  I_SIEGED: [
+    "Four sides is a lock. Eight is a capture. Know the threshold.",
+    "Siege rings don't complete in one move. Recognize the buildup.",
+    "Your token is under siege. You have a window to break it.",
+  ],
+  I_LOCKED: [
+    "Locked. Your reserve is your only rescue now.",
+    "That's what 4-sided adjacency does. It's a resource drain.",
+    "Can you break it before I complete the ring?",
+  ],
+  I_ESCAPED: [
+    "You had the siege. You needed one more side covered.",
+    "Good pressure. Wrong follow-up.",
+    "Close — check why it failed before you try again.",
+  ],
+  YOU_STALLED: [
+    "No usable routes means you're paying into the void. Plan to avoid that.",
+    "Stalled positions come from reactive play. Start building ahead of your opponent.",
+    "A route swap might solve this, but think about which route actually helps.",
+  ],
+  NICE_TRY: [
+    "That was the right idea. The timing was off.",
+    "Good concept. Work on the execution.",
+    "You're starting to see the patterns.",
+    "That's the right kind of thinking.",
+  ],
+  GAME_OVER_WIN: [
+    "The game turned when you left that position open. Review it.",
+    "You played well in the middle. The endgame needs work.",
+    "Good game. You have a real foundation to build on.",
+  ],
+  GAME_OVER_LOSS: [
+    "You found something I didn't expect. Study that sequence.",
+    "Well played. You executed clean.",
+    "You earned it. Good game.",
+  ],
+  REMATCH: [
+    "Again. Apply what you just learned.",
+    "Go again.",
+    "Next game, focus on what went wrong.",
+  ],
+  SILENCE: [],
+}
+
+// ------------------------------------------------------------
+// GRANDMASTER — nearly silent, a few words max, just wins
+// ------------------------------------------------------------
+const GRANDMASTER_CHAT: ChatTable = {
+  HELLO: [
+    ".",
+    "Play.",
+    "Begin.",
+    "Go.",
+  ],
+  OPENING_PLAY: [
+    "Noted.",
+    "Fine.",
+  ],
+  YOU_BLUNDERED: [
+    "No.",
+    "Wrong.",
+  ],
+  YOU_MISSED_TACTIC: [
+    "There.",
+  ],
+  I_CAPTURED: [
+    ".",
+  ],
+  I_SIEGED: [
+    "Closing.",
+  ],
+  I_LOCKED: [
+    "Done.",
+  ],
+  I_ESCAPED: [
+    "No.",
+  ],
+  YOU_STALLED: [
+    "Nowhere.",
+  ],
+  NICE_TRY: [
+    "No.",
+    "Not yet.",
+  ],
+  GAME_OVER_WIN: [
+    "Expected.",
+    "Again if you want.",
+    "There it is.",
+  ],
+  GAME_OVER_LOSS: [
+    "Good.",
+    "You earned it.",
+    "Go again.",
+  ],
+  REMATCH: [
+    "Again.",
     "Go.",
   ],
   SILENCE: [],
