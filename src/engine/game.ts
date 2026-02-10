@@ -55,8 +55,8 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, route: Rout
 function checkWinner(state: GameState) {
   const wOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "W")
   const bOnBoard = state.tokens.some((t) => t.in === "BOARD" && t.owner === "B")
-  if (!wOnBoard && state.reserves["W"] === 0) state.gameOver = { winner: "B", reason: "elimination" }
-  if (!bOnBoard && state.reserves["B"] === 0) state.gameOver = { winner: "W", reason: "elimination" }
+  if (!wOnBoard) state.gameOver = { winner: "B", reason: "elimination" }
+  if (!bOnBoard) state.gameOver = { winner: "W", reason: "elimination" }
 }
 
 // ------------------------------------------------------------
@@ -218,9 +218,10 @@ function hasAnyLegalMove(state: GameState, p: Player): boolean {
 
   const routes = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
 
-  // If all tokens are sieged, only escape is reinforcement
+  // If all tokens are sieged, forced yield burns 1 reserve per route.
+  // Escape via reinforcement only survives if reserves > routes.length (net > 0 after burn).
   const allSieged = tokens.every((t) => isTokenLockedBySiege(state, t))
-  if (allSieged) return state.reserves[p] > 0
+  if (allSieged) return state.reserves[p] > routes.length
 
   for (const t of tokens) {
     for (const r of routes) {

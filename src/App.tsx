@@ -1366,13 +1366,13 @@ function App() {
                           key={r.id}
                           route={r}
                           onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
+                          selected={isSelected}
+                          highlightColor="#ee484c"
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
                             cursor: isActive && !used ? "pointer" : "default",
                             opacity: used ? 0.3 : 1,
-                            border: isSelected ? "2px solid #5de8f7" : "none",
-                            borderRadius: "0.25rem",
                           }}
                         />
                       )
@@ -1561,15 +1561,12 @@ function App() {
                       key={`${r.id}-${idx}`}
                       route={r}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
+                      selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
+                      highlightColor="#ee484c"
                       style={{
                         width: "2.1875rem",
                         aspectRatio: "7/13",
                         cursor: canPickQueueForSwap ? "pointer" : "default",
-                        border:
-                          canPickQueueForSwap && g.pendingSwap.queueIndex === idx
-                            ? "2px solid #5de8f7"
-                            : "none",
-                        borderRadius: "0.25rem",
                         verticalAlign: "top",
                       }}
                     />
@@ -2039,13 +2036,13 @@ function App() {
                           key={r.id}
                           route={r}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
+                          selected={isSelected}
+                          highlightColor="#ee484c"
                           style={{
                             width: "2.1875rem",
                             aspectRatio: "7/13",
                             cursor: isActive && !used ? "pointer" : "default",
                             opacity: used ? 0.3 : 1,
-                            border: isSelected ? "2px solid #5de8f7" : "none",
-                            borderRadius: "0.25rem",
                           }}
                         />
                       )
@@ -2220,7 +2217,7 @@ function App() {
                       color: "#d1d5db",
                       fontFamily: "monospace",
                       overflowY: "auto",
-                      flexGrow: 1,
+                      maxHeight: "12rem",
                       lineHeight: "1.4",
                     }}
                     className="hide-scrollbar"
@@ -2228,18 +2225,11 @@ function App() {
                     {g.log.length === 0 ? (
                       <div style={{ opacity: 0.7 }}>No log entries yet.</div>
                     ) : (
-                      <div
-                        key={g.log[0]} // forces refresh even if length doesn't change
-                        style={{
-                          padding: "4px 0",
-                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                          fontSize: 12,
-                          lineHeight: 1.4,
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {g.log[0]}
-                      </div>
+                      g.log.map((l, i) => (
+                        <div key={i} style={{ padding: "2px 0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 11, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
+                          {l}
+                        </div>
+                      ))
                     )}
                   </div>
                 )}
@@ -2552,13 +2542,13 @@ function App() {
                             key={r.id}
                             route={r}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
+                            selected={isSelected}
+                            highlightColor="#ee484c"
                             style={{
                               width: 50,
                               aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
                               opacity: used ? 0.3 : 1,
-                              border: isSelected ? "2px solid #5de8f7" : "none",
-                              borderRadius: 6,
                             }}
                           />
                         )
@@ -2641,12 +2631,12 @@ function App() {
                     key={`${r.id}-${idx}`}
                     route={r}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
+                    selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
+                    highlightColor="#ee484c"
                     style={{
                       width: 50,
                       aspectRatio: "7/13",
                       cursor: canPickQueueForSwap ? "pointer" : "default",
-                      border: canPickQueueForSwap && g.pendingSwap.queueIndex === idx ? "2px solid #5de8f7" : "none",
-                      borderRadius: 6,
                     }}
                   />
                 ))}
@@ -3189,13 +3179,13 @@ function App() {
                             key={r.id}
                             route={r}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
+                            selected={isSelected}
+                            highlightColor="#ee484c"
                             style={{
                               width: 50,
                               aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
                               opacity: used ? 0.3 : 1,
-                              border: isSelected ? "2px solid #5de8f7" : "none",
-                              borderRadius: 6,
                             }}
                           />
                         )
@@ -3241,6 +3231,7 @@ function App() {
                       fontFamily: "monospace",
                       overflowY: "auto",
                       flexGrow: 1,
+                      minHeight: 0,
                       lineHeight: 1.5,
                     }}
                     className="hide-scrollbar"

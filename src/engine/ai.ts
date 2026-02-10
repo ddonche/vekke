@@ -302,10 +302,10 @@ function evalState(state: GameState, me: Player): number {
 
   for (const e of enemyTokens) {
     const sides = siegeSidesFor(state, me, e.pos.x, e.pos.y)
-    if (sides === 3) score += 6               // one away from locking
+    if (sides === 3) score += 6 // one away from locking
     else if (sides >= 4 && sides <= 6) score += 14 // locked is good, but not a kill
-    else if (sides === 7) score += 24         // one away from full siege capture
-    else if (sides === 8) score += 60         // should be captured immediately by rules
+    else if (sides === 7) score += 24 // one away from full siege capture
+    else if (sides === 8) score += 60 // should be captured immediately by rules
   }
 
   for (const m of myTokens) {
@@ -585,4 +585,217 @@ export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
     yieldForcedIfNoUsableRoutes(state)
     return
   }
+}
+
+// ------------------------------------------------------------
+// AI CHAT (BEGINNER + INTERMEDIATE) — NO GAME LOGIC CHANGES
+// ------------------------------------------------------------
+
+export type AiChatEvent =
+  | "HELLO"
+  | "OPENING_PLAY"
+  | "YOU_BLUNDERED"
+  | "YOU_MISSED_TACTIC"
+  | "I_CAPTURED"
+  | "I_SIEGED"
+  | "I_LOCKED"
+  | "I_ESCAPED"
+  | "YOU_STALLED"
+  | "NICE_TRY"
+  | "GAME_OVER_WIN"
+  | "GAME_OVER_LOSS"
+  | "REMATCH"
+  | "SILENCE"
+
+export type AiChatContext = {
+  // Optional knobs (you can pass nothing)
+  turn?: number
+  streak?: number // e.g. repeated mistake count
+  player?: Player // human player
+  ai?: Player
+}
+
+// Pick a chat line for a given AI + event.
+// Returns null when the AI chooses not to speak.
+export function aiChatPickLine(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): string | null {
+  // Beginner talks more, but always supportive.
+  // Intermediate talks less, but is smug and corrective.
+  if (level === "beginner") return pickFromTable(BEGINNER_CHAT, ev, ctx)
+  return pickFromTable(INTERMEDIATE_CHAT, ev, ctx)
+}
+
+// Simple weighted chance gate so chat doesn't spam.
+// You can tune these later without touching UI.
+function shouldSpeak(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): boolean {
+  // Hard off events
+  if (ev === "SILENCE") return false
+
+  // Beginner: higher rate
+  if (level === "beginner") {
+    if (ev === "HELLO") return Math.random() < 0.85
+    if (ev === "OPENING_PLAY") return Math.random() < 0.35
+    if (ev === "NICE_TRY") return Math.random() < 0.25
+    if (ev.startsWith("GAME_OVER")) return Math.random() < 0.95
+    return Math.random() < 0.18
+  }
+
+  // Intermediate: lower rate, more pointed
+  if (ev === "HELLO") return Math.random() < 0.55
+  if (ev === "OPENING_PLAY") return Math.random() < 0.18
+  if (ev === "YOU_BLUNDERED") return Math.random() < 0.75
+  if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.55
+  if (ev === "I_CAPTURED" || ev === "I_SIEGED" || ev === "I_LOCKED") return Math.random() < 0.35
+  if (ev.startsWith("GAME_OVER")) return Math.random() < 0.65
+  return Math.random() < 0.12
+}
+
+type ChatTable = Record<AiChatEvent, string[]>
+
+function pickFromTable(table: ChatTable, ev: AiChatEvent, ctx?: AiChatContext): string | null {
+  if (!shouldSpeak((table === BEGINNER_CHAT ? "beginner" : "intermediate") as AiLevel, ev, ctx)) return null
+  const lines = table[ev]
+  if (!lines || lines.length === 0) return null
+  return lines[randomInt(lines.length)]
+}
+
+// BEGINNER (white belt): encouraging, short, never insults.
+const BEGINNER_CHAT: ChatTable = {
+  HELLO: [
+    "Alright — let’s learn this.",
+    "You’ve got this. One move at a time.",
+    "No pressure. We’re just playing.",
+    "Let’s see what happens.",
+  ],
+  OPENING_PLAY: [
+    "Center is usually a good start.",
+    "Try to keep options open.",
+    "Nice. Now look for your next route.",
+  ],
+  YOU_BLUNDERED: [
+    "That one hurt — but you’ll spot it next time.",
+    "Careful. That leaves something open.",
+    "Close — you can recover from this.",
+  ],
+  YOU_MISSED_TACTIC: [
+    "There was a tactic there. You’ll see it soon.",
+    "Keep an eye on captures and sieges.",
+    "Look for what changes after your move.",
+  ],
+  I_CAPTURED: [
+    "Got one.",
+    "Capture there was available.",
+    "That’s a swing — watch those lanes.",
+  ],
+  I_SIEGED: [
+    "Siege pressure is building.",
+    "That’s a lock threat.",
+    "Keep an eye on the ring around your tokens.",
+  ],
+  I_LOCKED: [
+    "That token is locked now.",
+    "Locked — but not dead. Yet.",
+    "That’s what 4 sides does.",
+  ],
+  I_ESCAPED: [
+    "Nice try — I slipped out.",
+    "Good pressure. I had to move.",
+    "That was close.",
+  ],
+  YOU_STALLED: [
+    "If you’re stuck, look for a swap or a new angle.",
+    "Sometimes the best move is repositioning.",
+    "Try a different route line.",
+  ],
+  NICE_TRY: [
+    "Good idea.",
+    "That was close.",
+    "You’re learning fast.",
+  ],
+  GAME_OVER_WIN: [
+    "Good game. You earned that.",
+    "Nice win.",
+    "Okay — you’re getting it.",
+  ],
+  GAME_OVER_LOSS: [
+    "Good game. Want to run it back?",
+    "No worries. That was progress.",
+    "We can replay and see where it turned.",
+  ],
+  REMATCH: [
+    "Again.",
+    "Run it back.",
+    "Let’s go.",
+  ],
+  SILENCE: [],
+}
+
+// INTERMEDIATE (blue belt): smug, sharp, but never attacks the player’s identity.
+const INTERMEDIATE_CHAT: ChatTable = {
+  HELLO: [
+    "Alright. Let’s see what you’ve got.",
+    "Don’t blink.",
+    "Play clean.",
+  ],
+  OPENING_PLAY: [
+    "Fine.",
+    "That’s a start.",
+    "We’ll see.",
+  ],
+  YOU_BLUNDERED: [
+    "You left that open.",
+    "That was free.",
+    "You can’t do that.",
+    "I’ll take that every time.",
+  ],
+  YOU_MISSED_TACTIC: [
+    "You didn’t see it.",
+    "There was a punish there.",
+    "You’re reacting, not reading.",
+  ],
+  I_CAPTURED: [
+    "Thanks.",
+    "Free piece.",
+    "Obvious.",
+  ],
+  I_SIEGED: [
+    "That ring is closing.",
+    "Count the sides.",
+    "You feel that pressure yet?",
+  ],
+  I_LOCKED: [
+    "Locked.",
+    "Now it can’t run.",
+    "That’s what happens.",
+  ],
+  I_ESCAPED: [
+    "Not today.",
+    "Good idea. Wrong timing.",
+    "Close. But no.",
+  ],
+  YOU_STALLED: [
+    "You’re out of ideas.",
+    "Swap, or drown.",
+    "Find a line.",
+  ],
+  NICE_TRY: [
+    "Better.",
+    "Almost.",
+    "You’re learning. Don’t get cocky.",
+  ],
+  GAME_OVER_WIN: [
+    "That’s the difference.",
+    "You’ll see it on replay.",
+    "Again when you’re ready.",
+  ],
+  GAME_OVER_LOSS: [
+    "Okay. That was decent.",
+    "You can improve from this one.",
+    "Replay it. You’ll find the turn.",
+  ],
+  REMATCH: [
+    "Again.",
+    "Same rules. Same outcome.",
+    "Go.",
+  ],
+  SILENCE: [],
 }
