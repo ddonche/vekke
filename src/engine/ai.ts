@@ -17,14 +17,15 @@ import {
   cancelEarlySwap,
 } from "./game"
 
-export type AiLevel = "novice" | "intermediate" | "advanced" | "master" | "grandmaster"
+export type AiLevel = "novice" | "intermediate" | "advanced" | "master" | "senior_master" | "grandmaster"
 
 export function aiStep(state: GameState, aiPlayer: Player, level: AiLevel) {
-  if (level === "grandmaster") return aiStepGrandmaster(state, aiPlayer)
-  if (level === "master") return aiStepMaster(state, aiPlayer)
-  if (level === "advanced") return aiStepAdvanced(state, aiPlayer)
-  if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
-  return aiStepNovice(state, aiPlayer)
+if (level === "grandmaster") return aiStepGrandmaster(state, aiPlayer)
+if (level === "senior_master") return aiStepSeniorMaster(state, aiPlayer)
+if (level === "master") return aiStepMaster(state, aiPlayer)
+if (level === "advanced") return aiStepAdvanced(state, aiPlayer)
+if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
+return aiStepNovice(state, aiPlayer)
 }
 
 // ------------------------------------------------------------
@@ -777,6 +778,63 @@ function bestGrandmasterActionMove(state: GameState, me: Player): ActionMove | n
   return best
 }
 
+
+
+// ------------------------------------------------------------
+// Senior Master AI — between Master and Grandmaster
+// - Uses Grandmaster's opening/reinforce heuristics
+// - Uses Master's action move chooser (fast + strong) but without GM's deeper lookahead
+// ------------------------------------------------------------
+export function aiStepSeniorMaster(state: GameState, aiPlayer: Player) {
+  if (state.gameOver) return
+  if (state.player !== aiPlayer) return
+
+  if (state.phase === "OPENING") {
+    const c = bestOpeningSquare(state) ?? (allEmptySquares(state)[0] ?? null)
+    if (!c) return
+    placeOpeningToken(state, c)
+    return
+  }
+
+  if (state.phase === "REINFORCE") {
+    const c = bestReinforcementPlacement(state, aiPlayer) ?? safestReinforcementSquare(state, aiPlayer)
+    if (!c) return
+    placeReinforcement(state, c)
+    return
+  }
+
+  if (state.phase === "SWAP") {
+    const plan = bestSwapChoice(state, aiPlayer)
+    if (!plan) return
+    if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+    if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
+    confirmSwapAndEndTurn(state)
+    return
+  }
+
+  if (state.phase === "ACTION") {
+    // Same economy decisions as Master/Grandmaster.
+    if (state.earlySwapArmed) {
+      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      if (!plan) { cancelEarlySwap(state); return }
+      if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+      if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
+      confirmEarlySwap(state)
+      return
+    }
+
+    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    if (earlyPlan) { armEarlySwap(state); return }
+
+    if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
+
+    const mv = bestMasterActionMove(state, aiPlayer)
+    if (mv) { applyRouteMove(state, mv.tokenId, mv.routeId); return }
+
+    yieldForcedIfNoUsableRoutes(state)
+    return
+  }
+}
 export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
@@ -856,7 +914,7 @@ export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
 }
 
 // ------------------------------------------------------------
-// AI CHAT — 5 LEVELS
+// AI CHAT — 6 LEVELS
 // ------------------------------------------------------------
 
 export type AiChatEvent =
@@ -888,6 +946,7 @@ export function aiChatPickLine(level: AiLevel, ev: AiChatEvent, ctx?: AiChatCont
     intermediate: INTERMEDIATE_CHAT,
     advanced: ADVANCED_CHAT,
     master: MASTER_CHAT,
+    senior_master: SENIOR_MASTER_CHAT,
     grandmaster: GRANDMASTER_CHAT,
   }[level]
   return pickFromTable(level, table, ev, ctx)
@@ -922,6 +981,7 @@ function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
       return Math.random() < 0.20
 
     case "master":
+    case "senior_master":
       if (ev === "HELLO") return Math.random() < 0.70
       if (ev === "YOU_BLUNDERED") return Math.random() < 0.80
       if (ev === "YOU_MISSED_TACTIC") return Math.random() < 0.85
@@ -1259,6 +1319,8 @@ const MASTER_CHAT: ChatTable = {
 // ------------------------------------------------------------
 // GRANDMASTER — nearly silent, a few words max, just wins
 // ------------------------------------------------------------
+const SENIOR_MASTER_CHAT = MASTER_CHAT
+
 const GRANDMASTER_CHAT: ChatTable = {
   HELLO: [
     ".",

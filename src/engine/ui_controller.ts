@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
+import { supabase } from "../supabase"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
 import { aiStepNovice, aiStepIntermediate, aiStepAdvanced, aiStepMaster, aiStepGrandmaster, type AiLevel } from "./ai"
@@ -50,14 +51,60 @@ const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
   daily: { id: "daily", label: "Daily (24h/move)", baseMs: 24 * 60 * 60_000, incMs: 0 },
 }
 
+
+// ------------------------------------------------------------
+// AI fixed ratings (do NOT change over time)
+// NOTE: Keys must match AiLevel exactly.
+// ------------------------------------------------------------
+export const AI_RATING: Record<AiLevel, number> = {
+  novice: 900,
+  intermediate: 1100,
+  advanced: 1300,
+  master: 1500,
+  grandmaster: 2000,
+}
+
+// Stable UUIDs to represent AI opponents in the games table.
+// These do NOT need to correspond to auth.users (and are never updated in player_stats).
+const AI_UUID: Record<AiLevel, string> = {
+  novice: "00000000-0000-4000-8000-000000000901",
+  intermediate: "00000000-0000-4000-8000-000000001101",
+  advanced: "00000000-0000-4000-8000-000000001301",
+  master: "00000000-0000-4000-8000-000000001501",
+  grandmaster: "00000000-0000-4000-8000-000000002001",
+}
+
 type Clocks = { W: number; B: number }
 
 const other = (p: Player): Player => (p === "W" ? "B" : "W")
+
+function eloCol(format: TimeControlId): "elo_blitz" | "elo_rapid" | "elo_standard" | "elo_daily" {
+  if (format === "blitz") return "elo_blitz"
+  if (format === "rapid") return "elo_rapid"
+  if (format === "daily") return "elo_daily"
+  return "elo_standard"
+}
+
+function kFor(format: TimeControlId): number {
+  if (format === "blitz") return 32
+  if (format === "rapid") return 28
+  if (format === "daily") return 20
+  return 24
+}
+
+function eloNew(a: number, b: number, scoreA: 0 | 1, k: number): number {
+  const expectedA = 1 / (1 + Math.pow(10, (b - a) / 400))
+  return Math.round(a + k * (scoreA - expectedA))
+}
+
 
 export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number }) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
 
+  // ------------------------------------------------------------
+  // Core game state
+  // ------------------------------------------------------------
   const [g, setG] = useState<GameState>(() => newGame())
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null)
   const [human] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
@@ -72,6 +119,54 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [timeControlId, setTimeControlId] = useState<TimeControlId>("standard")
   const timeControl = TIME_CONTROLS[timeControlId]
   const [clocks, setClocks] = useState<Clocks>(() => ({ W: timeControl.baseMs, B: timeControl.baseMs }))
+
+
+
+  // ------------------------------------------------------------
+  // Online reporting / Elo wiring
+  // (Add-only: does not affect gameplay logic)
+  // ------------------------------------------------------------
+  const [vsAi, setVsAi] = useState<boolean>(true) // PvP not wired yet
+  const [isRanked, setIsRanked] = useState<boolean>(true) // Elo always for now
+  const [gameId, setGameId] = useState<string | null>(null)
+  const reportedResultRef = useRef<string | null>(null)
+
+
+  const setWarning = useCallback((msg: string) => {
+    setG((prev) => {
+      const next = structuredClone(prev)
+      next.warning = msg
+      return next
+    })
+  }, [])
+
+  // NOTE: We are NOT persisting games yet.
+  // We only update player_stats when a game ends.
+  // Keep this helper as a safe no-op so the rest of the controller can call it.
+  const creatingGameRowRef = useRef(false)
+  const ensureGameRow = useCallback(async (_state: GameState, _tc: TimeControlId) => {
+    if (creatingGameRowRef.current) return
+    creatingGameRowRef.current = true
+    try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser()
+      if (userErr) throw userErr
+      const userId = userData.user?.id ?? null
+      if (!userId) {
+        // Loud, visible failure: you must be logged in to record elo.
+        setWarning("SUPABASE: Not logged in. Sign in to record elo.")
+        return
+      }
+
+      // Intentionally do NOT create a games row yet.
+      setGameId(null)
+    } catch (e) {
+      console.error("SUPABASE: auth check failed:", e)
+    } finally {
+      creatingGameRowRef.current = false
+    }
+  }, [setWarning])
+
+
 
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
@@ -122,6 +217,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       window.removeEventListener("keydown", unlock)
     }
   }, [unlockAudio])
+
+  // If the UI starts a game without calling actions.newGame(), still create the games row.
+  useEffect(() => {
+    if (!started) return
+    if (g.gameOver) return
+    if (gameId) return
+    void ensureGameRow(g, timeControlId)
+  }, [started, g.gameOver, gameId, ensureGameRow, g, timeControlId])
+
 
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
@@ -481,6 +585,135 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     }
   }, [g.gameOver, sounds.gameOver])
 
+  // ------------------------------------------------------------
+  // Report result + apply Elo (AI fixed rating; human updates only)
+  // NOTE: We are NOT persisting games rows yet.
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if (!started) return
+    if (!g.gameOver) return
+
+    // De-dupe: same terminal state can re-render.
+    const reportKey = `${g.gameOver.winner}:${g.gameOver.reason}:${g.log.length}`
+    if (reportedResultRef.current === reportKey) return
+    reportedResultRef.current = reportKey
+
+    ;(async () => {
+      try {
+        const endedAt = new Date().toISOString()
+
+        const { data: userData, error: userErr } = await supabase.auth.getUser()
+        if (userErr) throw userErr
+        const myId = userData.user?.id ?? null
+        if (!myId) return
+
+        // PvP isn't wired yet. For now we treat all matches as vs AI.
+        if (!vsAi) return
+
+        // Update ONLY the human's player_stats using fixed AI rating.
+        const col = eloCol(timeControlId)
+        const k = kFor(timeControlId)
+        const aiRating = AI_RATING[aiDifficulty] ?? 1200
+
+        // Ensure player_stats row exists
+        const { data: ps0, error: ps0Err } = await supabase
+          .from("player_stats")
+          .select(
+            "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily, wins_active, losses_active, losses_timeout, resignations, wins_by_opponent_resign, games_played, last_game_at, games_blitz, wins_blitz, losses_blitz, games_rapid, wins_rapid, losses_rapid, games_standard, wins_standard, losses_standard, games_daily, wins_daily, losses_daily"
+          )
+          .eq("user_id", myId)
+          .maybeSingle()
+        if (ps0Err) throw ps0Err
+
+        const ps =
+          ps0 ??
+          (
+            await supabase
+              .from("player_stats")
+              .insert({
+                user_id: myId,
+                elo: 1200,
+                elo_blitz: 1200,
+                elo_rapid: 1200,
+                elo_standard: 1200,
+                elo_daily: 1200,
+                wins_active: 0,
+                losses_active: 0,
+                losses_timeout: 0,
+                resignations: 0,
+                wins_by_opponent_resign: 0,
+                games_played: 0,
+                games_blitz: 0,
+                wins_blitz: 0,
+                losses_blitz: 0,
+                games_rapid: 0,
+                wins_rapid: 0,
+                losses_rapid: 0,
+                games_standard: 0,
+                wins_standard: 0,
+                losses_standard: 0,
+                games_daily: 0,
+                wins_daily: 0,
+                losses_daily: 0,
+              })
+              .select(
+                "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily, wins_active, losses_active, losses_timeout, resignations, wins_by_opponent_resign, games_played, last_game_at, games_blitz, wins_blitz, losses_blitz, games_rapid, wins_rapid, losses_rapid, games_standard, wins_standard, losses_standard, games_daily, wins_daily, losses_daily"
+              )
+              .single()
+          ).data
+
+        if (!ps) throw new Error("player_stats row missing and could not be created")
+
+        const before = (ps as any)[col] ?? 1200
+        const humanWon = g.gameOver.winner === human
+        const score: 0 | 1 = humanWon ? 1 : 0
+        const after = eloNew(before, aiRating, score, k)
+
+        const reason = g.gameOver.reason
+        const isTimeoutLoss = !humanWon && reason === "timeout"
+        const isResignLoss = !humanWon && reason === "resignation"
+        const isOppResignWin = humanWon && reason === "resignation"
+
+        const patch: any = {
+          [col]: after,
+          last_game_at: endedAt,
+          games_played: (ps.games_played ?? 0) + 1,
+          wins_active: (ps.wins_active ?? 0) + (humanWon && !isOppResignWin ? 1 : 0),
+          losses_active: (ps.losses_active ?? 0) + (!humanWon && !isTimeoutLoss && !isResignLoss ? 1 : 0),
+          losses_timeout: (ps.losses_timeout ?? 0) + (isTimeoutLoss ? 1 : 0),
+          resignations: (ps.resignations ?? 0) + (isResignLoss ? 1 : 0),
+          wins_by_opponent_resign: (ps.wins_by_opponent_resign ?? 0) + (isOppResignWin ? 1 : 0),
+        }
+
+        // Update overall elo to match the selected format (keeps "elo" consistent for now).
+        patch.elo = after
+
+        if (timeControlId === "blitz") {
+          patch.games_blitz = (ps.games_blitz ?? 0) + 1
+          patch.wins_blitz = (ps.wins_blitz ?? 0) + (humanWon ? 1 : 0)
+          patch.losses_blitz = (ps.losses_blitz ?? 0) + (!humanWon ? 1 : 0)
+        } else if (timeControlId === "rapid") {
+          patch.games_rapid = (ps.games_rapid ?? 0) + 1
+          patch.wins_rapid = (ps.wins_rapid ?? 0) + (humanWon ? 1 : 0)
+          patch.losses_rapid = (ps.losses_rapid ?? 0) + (!humanWon ? 1 : 0)
+        } else if (timeControlId === "daily") {
+          patch.games_daily = (ps.games_daily ?? 0) + 1
+          patch.wins_daily = (ps.wins_daily ?? 0) + (humanWon ? 1 : 0)
+          patch.losses_daily = (ps.losses_daily ?? 0) + (!humanWon ? 1 : 0)
+        } else {
+          patch.games_standard = (ps.games_standard ?? 0) + 1
+          patch.wins_standard = (ps.wins_standard ?? 0) + (humanWon ? 1 : 0)
+          patch.losses_standard = (ps.losses_standard ?? 0) + (!humanWon ? 1 : 0)
+        }
+
+        const { error: psUpErr } = await supabase.from("player_stats").update(patch).eq("user_id", myId)
+        if (psUpErr) throw psUpErr
+      } catch (err) {
+        console.error("Result reporting / Elo failed:", err)
+      }
+    })()
+  }, [started, g.gameOver, g.log.length, vsAi, timeControlId, aiDifficulty, human])
+
   useEffect(() => {
     if (!started) return
 
@@ -577,7 +810,20 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
   const actions = useMemo(() => {
     return {
-      setStarted,
+      setVsAi,
+      setIsRanked,
+      setGameId: (id: string | null) => {
+        setGameId(id)
+        reportedResultRef.current = null
+      },
+
+      setStarted: (v: boolean) => {
+        setStarted(v)
+        if (v) {
+          // Make sure the DB is wired even if UI starts without actions.newGame().
+          void ensureGameRow(g, timeControlId)
+        }
+      },
       setAiDifficulty,
       unlockAudio,
 
@@ -585,6 +831,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       newGame: async (tc: TimeControlId = timeControlId) => {
         await unlockAudio()
+
+        reportedResultRef.current = null  // RESET result de-dupe for the next game
 
         const ng = newGame()
         setG(ng)
@@ -596,7 +844,9 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setTimeControlId(tc)
         setClocks({ W: t.baseMs, B: t.baseMs })
         lastTickAtRef.current = performance.now()
-        prevTurnPlayerRef.current = null
+        prevTurnPlayerRef.current = null        // Create a games row immediately (wiring the DB).
+        // Works even if UI starts without calling actions.newGame().
+        await ensureGameRow(ng, tc)
       },
 
       resign: () => {
@@ -854,10 +1104,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     selectedTokenId,
     warn,
     timeControlId,
+    ensureGameRow,
   ])
 
   return {
     g,
+    vsAi,
+    isRanked,
+    gameId,
+
     selectedTokenId,
     selected,
     human,

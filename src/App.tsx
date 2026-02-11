@@ -4,7 +4,7 @@ import type { GameState, Player, Token } from "./engine/state"
 import type { Direction } from "./engine/directions"
 import { sounds } from "./sounds"
 import { RouteIcon } from "./RouteIcon"
-import { useVekkeController } from "./engine/ui_controller"
+import { useVekkeController, AI_RATING } from "./engine/ui_controller"
 import { GridBoard } from "./GridBoard"
 import { IntersectionBoard } from "./IntersectionBoard"
 import { AuthModal } from "./AuthModal"
@@ -108,6 +108,118 @@ function App() {
     country_name: string | null
     avatar_url: string | null
   } | null>(null)
+
+  type PlayerStats = {
+    user_id: string
+    elo: number
+    elo_blitz: number
+    elo_rapid: number
+    elo_standard: number
+    elo_daily: number
+  }
+
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
+
+  const eloForFormat = (ps: PlayerStats | null, tc: typeof timeControlId): number => {
+    if (!ps) return 1200
+    if (tc === "blitz") return (ps.elo_blitz ?? 1200) as number
+    if (tc === "rapid") return (ps.elo_rapid ?? 1200) as number
+    if (tc === "daily") return (ps.elo_daily ?? 1200) as number
+    return (ps.elo_standard ?? 1200) as number
+  }
+
+  const peakElo = (ps: PlayerStats | null): number => {
+    if (!ps) return 1200
+    return Math.max(ps.elo_standard ?? 1200, ps.elo_rapid ?? 1200, ps.elo_blitz ?? 1200, ps.elo_daily ?? 1200)
+  }
+
+  const myElo = currentUserId ? eloForFormat(playerStats, timeControlId) : 1200
+  const myPeak = currentUserId ? peakElo(playerStats) : 1200
+  const aiElo = (AI_RATING as any)[aiDifficulty] ?? 1200
+
+  const formatLabel =
+    timeControlId === "blitz" ? "Blitz" :
+    timeControlId === "rapid" ? "Rapid" :
+    timeControlId === "daily" ? "Daily" :
+    "Standard"
+
+  // Fetch player_stats for ratings display.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      if (!currentUserId) {
+        setPlayerStats(null)
+        return
+      }
+
+      const sel = "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily"
+      const { data, error } = await supabase
+        .from("player_stats")
+        .select(sel)
+        .eq("user_id", currentUserId)
+        .maybeSingle()
+
+      if (cancelled) return
+
+      if (error) {
+        console.error("Failed to load player_stats:", error)
+        setPlayerStats(null)
+        return
+      }
+
+      if (!data) {
+        // Create an initial row so the UI has something consistent to display.
+        const { data: ins, error: insErr } = await supabase
+          .from("player_stats")
+          .insert({
+            user_id: currentUserId,
+            elo: 1200,
+            elo_blitz: 1200,
+            elo_rapid: 1200,
+            elo_standard: 1200,
+            elo_daily: 1200,
+          })
+          .select(sel)
+          .single()
+
+        if (cancelled) return
+        if (insErr) {
+          console.error("Failed to create initial player_stats:", insErr)
+          setPlayerStats(null)
+          return
+        }
+
+        setPlayerStats(ins as any)
+        return
+      }
+
+      setPlayerStats(data as any)
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [currentUserId])
+
+  // Refresh rating after a finished game (Elo is updated async in the controller).
+  useEffect(() => {
+    if (!currentUserId) return
+    if (!g.gameOver) return
+
+    const t = window.setTimeout(async () => {
+      const sel = "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily"
+      const { data } = await supabase
+        .from("player_stats")
+        .select(sel)
+        .eq("user_id", currentUserId)
+        .maybeSingle()
+      if (data) setPlayerStats(data as any)
+    }, 600)
+
+    return () => window.clearTimeout(t)
+  }, [g.gameOver?.winner, g.gameOver?.reason, g.log.length, currentUserId])
 
   // Helper for padding numbers
   const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -248,7 +360,7 @@ function App() {
     username: human === "W" 
       ? (userProfile?.username || "White Player")
       : "Computer",
-    elo: 1842,
+    elo: human === "W" ? myElo : aiElo,
     avatar: "W",
     avatar_url: human === "W" && userProfile?.avatar_url 
       ? `${userProfile.avatar_url}?t=${Date.now()}` 
@@ -262,7 +374,7 @@ function App() {
     username: human === "B" 
       ? (userProfile?.username || "Blue Player")
       : "Computer",
-    elo: 1798,
+    elo: human === "B" ? myElo : aiElo,
     avatar: "B",
     avatar_url: human === "B" && userProfile?.avatar_url 
       ? `${userProfile.avatar_url}?t=${Date.now()}` 
@@ -503,6 +615,18 @@ function App() {
                     <div style={{ display: "flex", gap: "12px", alignItems: "baseline", marginBottom: "4px" }}>
                       <div style={{ fontSize: "0.9375rem", fontWeight: "bold", color: "#e5e7eb" }}>
                         {userProfile.username}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "#9ca3af",
+                          fontWeight: 900,
+                          whiteSpace: "nowrap",
+                        }}
+                        title={`Rating for ${formatLabel} (peak ${myPeak})`}
+                      >
+                        {myElo} <span style={{ opacity: 0.7 }}>{formatLabel}</span>{" "}
+                        {myPeak !== myElo ? <span style={{ opacity: 0.6 }}>(peak {myPeak})</span> : null}
                       </div>
                       {userProfile.country_name && (
                         <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
