@@ -630,14 +630,21 @@ function App() {
                   letterSpacing: "0.05em",
                 }}
               >
-                Opponent
+                Opponent Skill
               </div>
 
-              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "8px",
+                  marginBottom: "8px",
+                }}
+              >
+                {/* Novice */}
                 <button
                   onClick={() => actions.setAiDifficulty("novice")}
                   style={{
-                    flex: 1,
                     padding: "10px 12px",
                     borderRadius: "8px",
                     border: aiDifficulty === "novice" ? "2px solid #5de8f7" : "1px solid #4b5563",
@@ -648,12 +655,18 @@ function App() {
                     fontSize: "0.875rem",
                   }}
                 >
-                  Novice AI
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div>Novice</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
+                      &lt;800
+                    </div>
+                  </div>
                 </button>
+
+                {/* Intermediate */}
                 <button
                   onClick={() => actions.setAiDifficulty("intermediate")}
                   style={{
-                    flex: 1,
                     padding: "10px 12px",
                     borderRadius: "8px",
                     border: aiDifficulty === "intermediate" ? "2px solid #5de8f7" : "1px solid #4b5563",
@@ -664,19 +677,92 @@ function App() {
                     fontSize: "0.875rem",
                   }}
                 >
-                  Intermediate AI
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div>Intermediate</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
+                      800–1200
+                    </div>
+                  </div>
                 </button>
+
+                {/* Advanced */}
+                <button
+                  onClick={() => actions.setAiDifficulty("advanced")}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === "advanced" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "advanced" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "advanced" ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div>Advanced</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
+                      1200–1600
+                    </div>
+                  </div>
+                </button>
+
+                {/* Master */}
+                <button
+                  onClick={() => actions.setAiDifficulty("master")}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === "master" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "master" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "master" ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div>Master</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
+                      1600–2000
+                    </div>
+                  </div>
+                </button>
+
+                {/* Grandmaster */}
+                <button
+                  onClick={() => actions.setAiDifficulty("grandmaster")}
+                  style={{
+                    gridColumn: "1 / -1",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === "grandmaster" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "grandmaster" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "grandmaster" ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div>Grandmaster</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
+                      2000+
+                    </div>
+                  </div>
+                </button>
+
+                {/* Tutorial */}
                 <button
                   onClick={() => {
-                    // TODO: Wire up tutorial
                     console.log("Learn to Play clicked")
                   }}
                   style={{
-                    flex: 1,
+                    gridColumn: "1 / -1",
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: "1px solid #4b5563",
-                    background: "#374151",
+                    background: "#111827",
+                    border: "1px dashed #4b5563",
                     color: "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
@@ -685,19 +771,6 @@ function App() {
                 >
                   Tutorial
                 </button>
-              </div>
-
-              <div
-                style={{
-                  fontSize: "0.6875rem",
-                  opacity: 0.7,
-                  marginBottom: "14px",
-                  lineHeight: 1.35,
-                  textAlign: "center",
-                  color: "#9ca3af",
-                }}
-              >
-                First time? Play our walkthrough tutorial
               </div>
 
               {/* Board Style Selection */}

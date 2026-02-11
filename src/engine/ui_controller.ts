@@ -328,6 +328,26 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
       // Handle evasion clicks
       if (evasionArmed) {
+        // --- EVASION: allow selecting the last-captured token by clicking its capture square ---
+        if (g.lastMove) {
+          const captured = g.tokens.find(
+            (t) => t.id === g.lastMove!.tokenId && t.in === "CAPTIVE"
+          )
+
+          // Only when we haven't selected an evasion token yet
+          if (
+            captured &&
+            !pendingEvasion?.tokenId &&
+            x === g.lastMove.to.x &&
+            y === g.lastMove.to.y
+          ) {
+            update((s) => selectEvasionToken(s, captured.id))
+            setSelectedTokenId(captured.id) // so your UI highlights correctly
+            playSound(sounds.click)
+            return
+          }
+        }
+
         const t = boardMap.get(`${x},${y}`)
         if (t) {
           // Clicking on a token - select it for evasion

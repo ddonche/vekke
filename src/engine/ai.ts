@@ -20,9 +20,9 @@ import {
 export type AiLevel = "novice" | "intermediate" | "advanced" | "master" | "grandmaster"
 
 export function aiStep(state: GameState, aiPlayer: Player, level: AiLevel) {
-  if (level === "grandmaster") return aiStepIntermediate(state, aiPlayer)
-  if (level === "master") return aiStepIntermediate(state, aiPlayer)
-  if (level === "advanced") return aiStepIntermediate(state, aiPlayer)
+  if (level === "grandmaster") return aiStepGrandmaster(state, aiPlayer)
+  if (level === "master") return aiStepMaster(state, aiPlayer)
+  if (level === "advanced") return aiStepAdvanced(state, aiPlayer)
   if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
   return aiStepNovice(state, aiPlayer)
 }
@@ -430,7 +430,47 @@ function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx
   return null
 }
 
-export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
+
+function bestActionMovesTopN(
+  state: GameState,
+  me: Player,
+  n: number
+): Array<{ tokenId: string; routeId: string; score: number }> {
+  const unused = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
+
+  const scored: Array<{ tokenId: string; routeId: string; score: number }> = []
+
+  for (const r of unused) {
+    for (const t of tokens) {
+      if (!canTokenUseRoute(state, me, t, r.id)) continue
+      const sc = simulateAndScore(state, me, (s) => applyRouteMove(s, t.id, r.id))
+      scored.push({ tokenId: t.id, routeId: r.id, score: sc })
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored.slice(0, Math.max(1, n))
+}
+
+function pickBlueBeltMove(
+  top: Array<{ tokenId: string; routeId: string; score: number }>,
+  mistakeChance: number
+): { tokenId: string; routeId: string } | null {
+  if (top.length === 0) return null
+
+  // 25%: intentionally *not* the best move (when we have alternatives).
+  if (top.length >= 2 && Math.random() < mistakeChance) {
+    if (top.length === 2) return { tokenId: top[1].tokenId, routeId: top[1].routeId }
+    // Prefer 2nd-best over 3rd-best.
+    const pick = Math.random() < 0.7 ? top[1] : top[2]
+    return { tokenId: pick.tokenId, routeId: pick.routeId }
+  }
+
+  return { tokenId: top[0].tokenId, routeId: top[0].routeId }
+}
+
+function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
 
@@ -472,7 +512,70 @@ export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
 
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
 
-    const mv = bestActionMove(state, aiPlayer)
+    // Blue belt separation lives here: same greedy evaluator, but occasional intentional imperfection.
+    const top = bestActionMovesTopN(state, aiPlayer, 3)
+    const picked = pickBlueBeltMove(top, mistakeChance)
+    if (picked) { applyRouteMove(state, picked.tokenId, picked.routeId); return }
+
+    yieldForcedIfNoUsableRoutes(state)
+    return
+  }
+}
+
+// Blue belt (approx): 1-ply greedy + 25% imperfection.
+export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
+  return aiStepGreedy(state, aiPlayer, 0.25)
+}
+
+// Purple belt (approx): same greedy engine, but no intentional mistakes.
+export function aiStepAdvanced(state: GameState, aiPlayer: Player) {
+  return aiStepGreedy(state, aiPlayer, 0.0)
+}
+
+// Brown belt (approx): 2-ply minimax (me → opponent) on ACTION, otherwise strong-but-normal policy.
+export function aiStepMaster(state: GameState, aiPlayer: Player) {
+  if (state.gameOver) return
+  if (state.player !== aiPlayer) return
+
+  if (state.phase === "OPENING") {
+    const empties = allEmptySquares(state)
+    if (empties.length === 0) return
+    placeOpeningToken(state, empties[randomInt(empties.length)])
+    return
+  }
+
+  if (state.phase === "REINFORCE") {
+    const c = safestReinforcementSquare(state, aiPlayer)
+    if (!c) return
+    placeReinforcement(state, c)
+    return
+  }
+
+  if (state.phase === "SWAP") {
+    const plan = bestSwapChoice(state, aiPlayer)
+    if (!plan) return
+    if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+    if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
+    confirmSwapAndEndTurn(state)
+    return
+  }
+
+  if (state.phase === "ACTION") {
+    if (state.earlySwapArmed) {
+      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      if (!plan) { cancelEarlySwap(state); return }
+      if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
+      if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
+      confirmEarlySwap(state)
+      return
+    }
+
+    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    if (earlyPlan) { armEarlySwap(state); return }
+
+    if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
+
+    const mv = bestMasterActionMove(state, aiPlayer)
     if (mv) { applyRouteMove(state, mv.tokenId, mv.routeId); return }
 
     yieldForcedIfNoUsableRoutes(state)
@@ -480,18 +583,276 @@ export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
   }
 }
 
-// Advanced, Master, Grandmaster currently use the same engine as Intermediate.
-// Swap these out for deeper search implementations as they're built.
-export function aiStepAdvanced(state: GameState, aiPlayer: Player) {
-  return aiStepIntermediate(state, aiPlayer)
+function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player): number {
+  if (state.gameOver) return evalState(state, me)
+
+  const opp = other(me)
+  if (state.player !== opp) return evalState(state, me)
+
+  if (state.phase !== "ACTION") {
+    const c: GameState = structuredClone(state)
+    playoutFullTurnWithIntermediate(c, opp)
+    return evalState(c, me)
+  }
+
+  const moves = enumerateLegalActionMoves(state, opp)
+  if (moves.length === 0) {
+    const c: GameState = structuredClone(state)
+    yieldForcedIfNoUsableRoutes(c)
+    playoutFullTurnWithIntermediate(c, opp)
+    return evalState(c, me)
+  }
+
+  let worstForMe = Infinity
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+    playoutFullTurnWithIntermediate(c, opp)
+    const sc = evalState(c, me)
+    if (sc < worstForMe) worstForMe = sc
+  }
+
+  return worstForMe
 }
 
-export function aiStepMaster(state: GameState, aiPlayer: Player) {
-  return aiStepIntermediate(state, aiPlayer)
+function bestMasterActionMove(state: GameState, me: Player): ActionMove | null {
+  const moves = enumerateLegalActionMoves(state, me)
+  if (moves.length === 0) return null
+
+  let best: ActionMove | null = null
+  let bestScore = -Infinity
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+    playoutFullTurnWithIntermediate(c, me)
+
+    // 2-ply: opponent best reply only (no "me response" ply).
+    const sc = opponentBestResponseMinimizingMe2ply(c, me)
+
+    if (sc > bestScore) { bestScore = sc; best = mv }
+  }
+
+  return best
+}
+
+// ------------------------------------------------------------
+// Grandmaster AI — shallow minimax (2-ply) + full-turn playout
+// ------------------------------------------------------------
+type ActionMove = { tokenId: string; routeId: string }
+
+function meBestResponseMaximizing(state: GameState, me: Player): number {
+  if (state.gameOver) return evalState(state, me)
+  if (state.player !== me) return evalState(state, me)
+
+  if (state.phase !== "ACTION") {
+    const c: GameState = structuredClone(state)
+    playoutFullTurnWithIntermediate(c, me)
+    return evalState(c, me)
+  }
+
+  const moves = enumerateLegalActionMoves(state, me)
+  if (moves.length === 0) {
+    const c: GameState = structuredClone(state)
+    yieldForcedIfNoUsableRoutes(c)
+    playoutFullTurnWithIntermediate(c, me)
+    return evalState(c, me)
+  }
+
+  let best = -Infinity
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+    playoutFullTurnWithIntermediate(c, me)
+    const sc = evalState(c, me)
+    if (sc > best) best = sc
+  }
+
+  return best
+}
+
+function enumerateLegalActionMoves(state: GameState, p: Player): ActionMove[] {
+  if (state.phase !== "ACTION") return []
+  const unused = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+  const out: ActionMove[] = []
+  for (const r of unused) {
+    for (const t of tokens) {
+      if (!canTokenUseRoute(state, p, t, r.id)) continue
+      out.push({ tokenId: t.id, routeId: r.id })
+    }
+  }
+  return out
+}
+
+// Run the Intermediate policy until the active player changes (i.e., a full turn finishes),
+// or the game ends. This is intentionally deterministic so search is stable.
+function playoutFullTurnWithIntermediate(state: GameState, p: Player) {
+  const hardCap = 256
+  let n = 0
+  while (!state.gameOver && state.player === p && n < hardCap) {
+    aiStepIntermediate(state, p)
+    n += 1
+  }
+}
+
+// Given a state where it's opponent's turn, assume opponent chooses a best reply
+// that minimizes "me"'s evaluation.
+function opponentBestResponseMinimizingMe(state: GameState, me: Player): number {
+  if (state.gameOver) return evalState(state, me)
+
+  const opp = other(me)
+  if (state.player !== opp) return evalState(state, me)
+
+  if (state.phase !== "ACTION") {
+    const c: GameState = structuredClone(state)
+    playoutFullTurnWithIntermediate(c, opp)
+    return meBestResponseMaximizing(c, me)  // 👈 3rd ply
+  }
+
+  const moves = enumerateLegalActionMoves(state, opp)
+  if (moves.length === 0) {
+    const c: GameState = structuredClone(state)
+    yieldForcedIfNoUsableRoutes(c)
+    playoutFullTurnWithIntermediate(c, opp)
+    return meBestResponseMaximizing(c, me)
+  }
+
+  let worstForMe = Infinity
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+    playoutFullTurnWithIntermediate(c, opp)
+
+    const sc = meBestResponseMaximizing(c, me)  // 👈 third ply
+    if (sc < worstForMe) worstForMe = sc
+  }
+
+  return worstForMe
+}
+
+function bestGrandmasterActionMove(state: GameState, me: Player): ActionMove | null {
+  const moves = enumerateLegalActionMoves(state, me)
+  if (moves.length === 0) return null
+
+  // If too many branches, fallback to 2-ply
+  const useThreePly = moves.length <= 8
+
+  let best: ActionMove | null = null
+  let bestScore = -Infinity
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+
+    // Commit the candidate first ACTION move.
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+
+    // Finish out MY turn deterministically.
+    playoutFullTurnWithIntermediate(c, me)
+
+    // Opponent chooses a best reply (minimizes my eval).
+    let sc: number
+    if (useThreePly) {
+      sc = opponentBestResponseMinimizingMe(c, me)
+    } else {
+      // fallback to 2-ply
+      const opp = other(me)
+      if (c.player === opp) {
+        sc = opponentBestResponseMinimizingMe2ply(c, me)
+      } else {
+        sc = evalState(c, me)
+      }
+    }
+
+    if (sc > bestScore) {
+      bestScore = sc
+      best = mv
+    }
+  }
+
+  return best
 }
 
 export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
-  return aiStepIntermediate(state, aiPlayer)
+  if (state.gameOver) return
+  if (state.player !== aiPlayer) return
+
+  if (state.phase === "OPENING") {
+    // Stronger opening: prefer central pressure rather than random.
+    const c = bestOpeningSquare(state) ?? (allEmptySquares(state)[0] ?? null)
+    if (!c) return
+    placeOpeningToken(state, c)
+    return
+  }
+
+  if (state.phase === "REINFORCE") {
+    // Stronger reinforce: pick placement that maximizes evaluation.
+    const c = bestReinforcementPlacement(state, aiPlayer) ?? safestReinforcementSquare(state, aiPlayer)
+    if (!c) return
+    placeReinforcement(state, c)
+    return
+  }
+
+  if (state.phase === "SWAP") {
+    const plan = bestSwapChoice(state, aiPlayer)
+    if (!plan) return
+    if (!state.pendingSwap.handRouteId) {
+      chooseSwapHandRoute(state, plan.handId)
+      return
+    }
+    if (state.pendingSwap.queueIndex === null) {
+      chooseSwapQueueIndex(state, plan.qIdx)
+      return
+    }
+    confirmSwapAndEndTurn(state)
+    return
+  }
+
+  if (state.phase === "ACTION") {
+    // Preserve the same economy decisions as Intermediate (early swap, buy extra reinforce).
+    if (state.earlySwapArmed) {
+      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      if (!plan) {
+        cancelEarlySwap(state)
+        return
+      }
+      if (!state.pendingSwap.handRouteId) {
+        chooseSwapHandRoute(state, plan.handId)
+        return
+      }
+      if (state.pendingSwap.queueIndex === null) {
+        chooseSwapQueueIndex(state, plan.qIdx)
+        return
+      }
+      confirmEarlySwap(state)
+      return
+    }
+
+    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    if (earlyPlan) {
+      armEarlySwap(state)
+      return
+    }
+
+    if (shouldBuyExtraReinforcement(state, aiPlayer)) {
+      buyExtraReinforcement(state)
+      return
+    }
+
+    // Strength bump: 2-ply minimax on the next ACTION move.
+    const mv = bestGrandmasterActionMove(state, aiPlayer)
+    if (mv) {
+      applyRouteMove(state, mv.tokenId, mv.routeId)
+      return
+    }
+
+    yieldForcedIfNoUsableRoutes(state)
+    return
+  }
 }
 
 // ------------------------------------------------------------

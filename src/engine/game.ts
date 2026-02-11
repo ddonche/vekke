@@ -71,6 +71,10 @@ function endTurnCommon(state: GameState, reasonLog: string) {
   state.turn += 1
   const next = other(p)
 
+  // No escalation. Still track rounds if you want.
+  if (p === "B") state.round += 1
+
+  /*
   // Tournament: escalation after each ROUND (after Blue finishes), capped at 5 routes
   if (p === "B") {
     state.round += 1
@@ -87,6 +91,7 @@ function endTurnCommon(state: GameState, reasonLog: string) {
       state.log.unshift(`== Round ${state.round}: escalation +1 route to B (${bNew.id}) ==`)
     }
   }
+  */
 
   state.player = next
   state.phase = "ACTION"
@@ -299,9 +304,9 @@ export function finishOpeningAndDeal(state: GameState) {
     return
   }
 
-  // Deal 2 routes to each
-  state.routes.B = [drawTop(state), drawTop(state)]
-  state.routes.W = [drawTop(state), drawTop(state)]
+  // Deal 3 routes to each (fixed for whole game)
+  state.routes.B = [drawTop(state), drawTop(state), drawTop(state)]
+  state.routes.W = [drawTop(state), drawTop(state), drawTop(state)]
 
   // Queue of 3, face-up (tournament)
   state.queue = [drawTop(state), drawTop(state), drawTop(state)]
@@ -599,7 +604,7 @@ export function placeReinforcement(state: GameState, coord: Coord) {
 // ------------------------------------------------------------
 // Extra Reinforcement Buy
 // ------------------------------------------------------------
-export const EXTRA_REINFORCEMENT_COST = 3
+export const EXTRA_REINFORCEMENT_COST = 2
 
 export function buyExtraReinforcement(state: GameState) {
   if (state.phase !== "ACTION") {
@@ -636,7 +641,7 @@ export function buyExtraReinforcement(state: GameState) {
 // ------------------------------------------------------------
 // Swap phase (mandatory) + Early swap (ACTION)
 // ------------------------------------------------------------
-export const EARLY_SWAP_COST = 3 // adjust if needed
+export const EARLY_SWAP_COST = 2 // adjust if needed
 
 export function armEarlySwap(state: GameState) {
   if (state.phase !== "ACTION") {
@@ -840,8 +845,8 @@ export function confirmSwapAndEndTurn(state: GameState) {
 // ------------------------------------------------------------
 // Evasion (once per game defensive move during opponent's turn)
 // ------------------------------------------------------------
-export const EVASION_COST_CAPTIVES = 2
-export const EVASION_COST_RESERVES = 2
+export const EVASION_COST_CAPTIVES = 1
+export const EVASION_COST_RESERVES = 1
 
 export function armEvasion(state: GameState) {
   if (state.gameOver) {
