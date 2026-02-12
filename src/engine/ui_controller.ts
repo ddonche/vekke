@@ -3,7 +3,15 @@ import { Howler } from "howler"
 import { supabase } from "../supabase"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
-import { aiStepNovice, aiStepIntermediate, aiStepAdvanced, aiStepMaster, aiStepGrandmaster, type AiLevel } from "./ai"
+import {
+  aiStepNovice,
+  aiStepIntermediate,
+  aiStepAdvanced,
+  aiStepMaster,
+  aiStepSeniorMaster,
+  aiStepGrandmaster,
+  type AiLevel,
+} from "./ai"
 import {
   applyRouteMove,
   chooseSwapHandRoute,
@@ -56,21 +64,23 @@ const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
 // NOTE: Keys must match AiLevel exactly.
 // ------------------------------------------------------------
 export const AI_RATING: Record<AiLevel, number> = {
-  novice: 900,
-  intermediate: 1100,
-  advanced: 1300,
+  novice: 600,
+  intermediate: 900,
+  advanced: 1200,
   master: 1500,
+  senior_master: 1750,
   grandmaster: 2000,
 }
 
 // Stable UUIDs to represent AI opponents in the games table.
 // These do NOT need to correspond to auth.users (and are never updated in player_stats).
 const AI_UUID: Record<AiLevel, string> = {
-  novice: "00000000-0000-4000-8000-000000000901",
-  intermediate: "00000000-0000-4000-8000-000000001101",
-  advanced: "00000000-0000-4000-8000-000000001301",
-  master: "00000000-0000-4000-8000-000000001501",
-  grandmaster: "00000000-0000-4000-8000-000000002001",
+  novice: "00000000-0000-4000-8000-000000000600",
+  intermediate: "00000000-0000-4000-8000-000000000900",
+  advanced: "00000000-0000-4000-8000-000000001200",
+  master: "00000000-0000-4000-8000-000000001500",
+  senior_master: "00000000-0000-4000-8000-000000001750",
+  grandmaster: "00000000-0000-4000-8000-000000002000",
 }
 
 type Clocks = { W: number; B: number }
@@ -508,6 +518,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           intermediate: aiStepIntermediate,
           advanced: aiStepAdvanced,
           master: aiStepMaster,
+          senior_master: aiStepSeniorMaster,
           grandmaster: aiStepGrandmaster,
         }
         const step = stepMap[aiDifficulty] ?? aiStepNovice
@@ -583,7 +594,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         // Update ONLY the human's player_stats using fixed AI rating.
         const col = eloCol(timeControlId)
         const k = kFor(timeControlId)
-        const aiRating = AI_RATING[aiDifficulty] ?? 1200
+        const aiRating = AI_RATING[aiDifficulty] ?? 600
 
         // Ensure player_stats row exists
         const { data: ps0, error: ps0Err } = await supabase
@@ -602,11 +613,11 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
               .from("player_stats")
               .insert({
                 user_id: myId,
-                elo: 1200,
-                elo_blitz: 1200,
-                elo_rapid: 1200,
-                elo_standard: 1200,
-                elo_daily: 1200,
+                elo: 600,
+                elo_blitz: 600,
+                elo_rapid: 600,
+                elo_standard: 600,
+                elo_daily: 600,
                 wins_active: 0,
                 losses_active: 0,
                 losses_timeout: 0,

@@ -845,7 +845,7 @@ useEffect(() => {
                       />
                       <div>Novice</div>
                     </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>&lt;999</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>600</div>
                   </div>
                 </button>
 
@@ -877,7 +877,7 @@ useEffect(() => {
                       />
                       <div>Intermediate</div>
                     </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1000-1199</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>900</div>
                   </div>
                 </button>
 
@@ -909,7 +909,7 @@ useEffect(() => {
                       />
                       <div>Advanced</div>
                     </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1200–1399</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1200</div>
                   </div>
                 </button>
 
@@ -941,7 +941,7 @@ useEffect(() => {
                       />
                       <div>Master</div>
                     </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1400-1699</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1500</div>
                   </div>
                 </button>
 
@@ -973,7 +973,7 @@ useEffect(() => {
                       />
                       <div>Senior Master</div>
                     </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1700-1999</div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1750</div>
                   </div>
                 </button>
 
