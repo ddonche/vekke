@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { SIZE, toSq, type Coord } from "./engine/coords"
 import type { GameState, Player, Token } from "./engine/state"
 import type { Direction } from "./engine/directions"
@@ -287,6 +287,58 @@ function App() {
   // Wider breakpoint so shrinking the browser reliably flips to mobile.
   const MOBILE_BREAKPOINT = 1100
   const [isMobile, setIsMobile] = useState(false)
+
+  // Mobile needs to fit everything on one screen, so cap domino + token sizing.
+  const MOBILE_ROUTE_DOMINO_MAX = 64 // px cap for a single route domino on mobile
+  const MOBILE_ROUTE_SCALE = 0.8 // shrink mobile route dominoes so they don't fill the entire panel
+  const MOBILE_TOKEN_SIZE = "0.75rem"
+  const MOBILE_TOKEN_GAP = "0.1875rem"
+  const MOBILE_TOKEN_WRAP_MAX = "5.5rem"
+
+  // Route domino sizing: make the 3 hand routes fill the route panel width,
+// then mirror that single-domino width in the Queue so all dominoes match.
+//
+// IMPORTANT: We measure *every* visible player route row (mobile top/bottom, desktop left/right)
+// and choose the smallest computed per-domino width so nobody overflows and "hides" the 3rd card.
+const routeMeasureEls = useRef<Array<HTMLDivElement | null>>([])
+const setRouteMeasureEl =
+  (idx: number) =>
+  (el: HTMLDivElement | null) => {
+    routeMeasureEls.current[idx] = el
+  }
+
+const [routeDominoW, setRouteDominoW] = useState<number | null>(null)
+
+useEffect(() => {
+  const els = routeMeasureEls.current.filter(Boolean) as HTMLDivElement[]
+  if (els.length === 0) return
+
+  const computeForEl = (el: HTMLDivElement) => {
+    const cs = window.getComputedStyle(el)
+    const gapStr =
+      (cs.columnGap && cs.columnGap !== "normal") ? cs.columnGap : (cs.gap || "0px")
+    const gapPx = parseFloat(gapStr) || 0
+    // "Fill" width for 3 across, then (on mobile) intentionally shrink so the row doesn't occupy the entire panel.
+    const perFill = (el.clientWidth - gapPx * 2) / 3
+    const perMobile = Math.min(perFill * MOBILE_ROUTE_SCALE, MOBILE_ROUTE_DOMINO_MAX)
+    const per = isMobile ? perMobile : perFill
+    return per
+  }
+
+  const compute = () => {
+    const pers = els.map(computeForEl).filter((n) => Number.isFinite(n) && n > 0)
+    if (pers.length === 0) return
+    const per = Math.floor(Math.min(...pers))
+    if (per > 0) setRouteDominoW(per)
+  }
+
+  compute()
+
+  const ro = new ResizeObserver(() => compute())
+  els.forEach((el) => ro.observe(el))
+  return () => ro.disconnect()
+}, [isMobile])
+
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
@@ -780,10 +832,20 @@ function App() {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div>Novice</div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
-                      &lt;800
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#6b7280", // grey
+                          marginRight: 6,
+                          display: "inline-block",
+                        }}
+                      />
+                      <div>Novice</div>
                     </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>&lt;999</div>
                   </div>
                 </button>
 
@@ -802,10 +864,20 @@ function App() {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div>Intermediate</div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
-                      800–1200
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#2563eb", // blue
+                          marginRight: 6,
+                          display: "inline-block",
+                        }}
+                      />
+                      <div>Intermediate</div>
                     </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1000-1199</div>
                   </div>
                 </button>
 
@@ -824,10 +896,20 @@ function App() {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div>Advanced</div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
-                      1200–1600
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#dc2626", // red
+                          marginRight: 6,
+                          display: "inline-block",
+                        }}
+                      />
+                      <div>Advanced</div>
                     </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1200–1399</div>
                   </div>
                 </button>
 
@@ -846,18 +928,59 @@ function App() {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div>Master</div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
-                      1600–2000
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#16a34a", // green
+                          marginRight: 6,
+                          display: "inline-block",
+                        }}
+                      />
+                      <div>Master</div>
                     </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1400-1699</div>
                   </div>
                 </button>
 
-                {/* Grandmaster */}
+                {/* Senior Master */}
+                <button
+                  onClick={() => actions.setAiDifficulty("senior_master" as any)}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: aiDifficulty === ("senior_master" as any) ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === ("senior_master" as any) ? "#1f2937" : "#374151",
+                    color: aiDifficulty === ("senior_master" as any) ? "#5de8f7" : "#e5e7eb",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#7c2d12", // brown
+                          marginRight: 6,
+                          display: "inline-block",
+                        }}
+                      />
+                      <div>Senior Master</div>
+                    </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1700-1999</div>
+                  </div>
+                </button>
+
+                {/* Grandmaster (NOT full width anymore) */}
                 <button
                   onClick={() => actions.setAiDifficulty("grandmaster")}
                   style={{
-                    gridColumn: "1 / -1",
                     padding: "10px 12px",
                     borderRadius: "8px",
                     border: aiDifficulty === "grandmaster" ? "2px solid #5de8f7" : "1px solid #4b5563",
@@ -869,10 +992,21 @@ function App() {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div>Grandmaster</div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>
-                      2000+
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#000000", // black
+                          marginRight: 6,
+                          display: "inline-block",
+                          boxShadow: "0 0 0 1px rgba(255,255,255,0.18)", // helps it read on dark bg
+                        }}
+                      />
+                      <div>Grandmaster</div>
                     </div>
+                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>2000+</div>
                   </div>
                 </button>
 
@@ -1526,8 +1660,8 @@ function App() {
                         style={{
                           display: "flex",
                           flexWrap: "wrap",
-                          gap: "0.1875rem",
-                          maxWidth: "5rem",
+                          gap: MOBILE_TOKEN_GAP,
+                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
                         }}
                       >
                         {Array.from({ length: g.reserves[topPlayer.avatar as "W" | "B"] }).map((_, i) => (
@@ -1535,8 +1669,8 @@ function App() {
                             key={i}
                             className={topPlayer.avatar === "W" ? "token-white" : "token-teal"}
                             style={{
-                              width: "0.75rem",
-                              height: "0.75rem",
+                              width: MOBILE_TOKEN_SIZE,
+                              height: MOBILE_TOKEN_SIZE,
                               borderRadius: "50%",
                               position: "relative",
                               display: "inline-block",
@@ -1560,8 +1694,8 @@ function App() {
                         style={{
                           display: "flex",
                           flexWrap: "wrap",
-                          gap: "0.1875rem",
-                          maxWidth: "5rem",
+                          gap: MOBILE_TOKEN_GAP,
+                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
                         }}
                       >
                         {Array.from({ length: g.captives.W }).map((_, i) => (
@@ -1569,8 +1703,8 @@ function App() {
                             key={i}
                             className="token-teal"
                             style={{
-                              width: "0.75rem",
-                              height: "0.75rem",
+                              width: MOBILE_TOKEN_SIZE,
+                              height: MOBILE_TOKEN_SIZE,
                               borderRadius: "50%",
                               position: "relative",
                               display: "inline-block",
@@ -1582,8 +1716,11 @@ function App() {
                   </div>
 
                   {/* Right 50%: Route cards */}
-                  <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
-                    {g.routes[topPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                  <div
+                    ref={setRouteMeasureEl(0)}
+                    style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "center" }}
+                  >
+                    {g.routes[topPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                       const isActive = g.player === topPlayer.avatar
                       const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                         const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
@@ -1597,7 +1734,10 @@ function App() {
                           selected={isSelected}
                           highlightColor="#ee484c"
                           style={{
-                            width: "2.1875rem",
+                            ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
+                            alignSelf: "center",
+                            flex: "0 0 auto",
+                            minWidth: 0,
                             aspectRatio: "7/13",
                             cursor: isActive && !used ? "pointer" : "default",
                             opacity: used ? 0.3 : 1,
@@ -1779,7 +1919,9 @@ function App() {
                     flexShrink: 0,
 
                     // MIN SIZE so it doesn't collapse when empty
-                    minWidth: "2.9375rem",
+                    width: (routeDominoW != null ? routeDominoW + 12 : 72),
+
+                    minWidth: (routeDominoW != null ? routeDominoW + 12 : "3.25rem"),
                     minHeight: "6.75rem",
                   }}
                 >
@@ -1792,7 +1934,9 @@ function App() {
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                       highlightColor="#ee484c"
                       style={{
-                        width: "2.1875rem",
+                        ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
+                        alignSelf: "center",
+                        flex: "0 0 auto",
                         aspectRatio: "7/13",
                         cursor: canPickQueueForSwap ? "pointer" : "default",
                         verticalAlign: "top",
@@ -1847,7 +1991,9 @@ function App() {
                     flexShrink: 0,
 
                     // MIN SIZE so it doesn't collapse when empty
-                    minWidth: "2.9375rem",
+                    width: (routeDominoW != null ? routeDominoW + 12 : 72),
+
+                    minWidth: (routeDominoW != null ? routeDominoW + 12 : "3.25rem"),
                     minHeight: "4.75rem",
                   }}
                 >
@@ -2197,8 +2343,8 @@ function App() {
                         style={{
                           display: "flex",
                           flexWrap: "wrap",
-                          gap: "0.1875rem",
-                          maxWidth: "5rem",
+                          gap: MOBILE_TOKEN_GAP,
+                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
                         }}
                       >
                         {Array.from({ length: g.reserves[bottomPlayer.avatar as "W" | "B"] }).map((_, i) => (
@@ -2206,8 +2352,8 @@ function App() {
                             key={i}
                             className={bottomPlayer.avatar === "W" ? "token-white" : "token-teal"}
                             style={{
-                              width: "0.75rem",
-                              height: "0.75rem",
+                              width: MOBILE_TOKEN_SIZE,
+                              height: MOBILE_TOKEN_SIZE,
                               borderRadius: "50%",
                               position: "relative",
                               display: "inline-block",
@@ -2231,8 +2377,8 @@ function App() {
                         style={{
                           display: "flex",
                           flexWrap: "wrap",
-                          gap: "0.1875rem",
-                          maxWidth: "5rem",
+                          gap: MOBILE_TOKEN_GAP,
+                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
                         }}
                       >
                         {Array.from({ length: g.captives.B }).map((_, i) => (
@@ -2240,8 +2386,8 @@ function App() {
                             key={i}
                             className="token-white"
                             style={{
-                              width: "0.75rem",
-                              height: "0.75rem",
+                              width: MOBILE_TOKEN_SIZE,
+                              height: MOBILE_TOKEN_SIZE,
                               borderRadius: "50%",
                               position: "relative",
                               display: "inline-block",
@@ -2252,8 +2398,11 @@ function App() {
                     </div>
                   </div>
 
-                  <div style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "space-between" }}>
-                    {g.routes[bottomPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                  <div
+                    ref={setRouteMeasureEl(1)}
+                    style={{ flex: 1, display: "flex", gap: "0.25rem", justifyContent: "center" }}
+                  >
+                    {g.routes[bottomPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                       const isActive = g.player === bottomPlayer.avatar
                       const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                         const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
@@ -2267,7 +2416,10 @@ function App() {
                           selected={isSelected}
                           highlightColor="#ee484c"
                           style={{
-                            width: "2.1875rem",
+                            ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
+                            alignSelf: "center",
+                            flex: "0 0 auto",
+                            minWidth: 0,
                             aspectRatio: "7/13",
                             cursor: isActive && !used ? "pointer" : "default",
                             opacity: used ? 0.3 : 1,
@@ -2740,17 +2892,17 @@ function App() {
                   <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {Array.from({ length: g.reserves[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div key={i} className={leftPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                          <div key={i} className={leftPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {Array.from({ length: g.captives[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div key={i} className={leftPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                          <div key={i} className={leftPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
@@ -2759,8 +2911,8 @@ function App() {
                   {/* Route Cards */}
                   <div>
                     <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {g.routes[leftPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                    <div ref={setRouteMeasureEl(2)} style={{ display: "flex", gap: 6, width: "100%" }}>
+                      {g.routes[leftPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                         const isActive = g.player === leftPlayer.avatar
                         const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                           const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
@@ -2773,8 +2925,11 @@ function App() {
                             selected={isSelected}
                             highlightColor="#ee484c"
                             style={{
-                              width: 50,
-                              aspectRatio: "7/13",
+                            ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
+                            alignSelf: "center",
+                            flex: "0 0 auto",
+                            minWidth: 0,
+                            aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
                               opacity: used ? 0.3 : 1,
                             }}
@@ -2864,7 +3019,7 @@ function App() {
                   alignItems: "center",
                   boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                   flexShrink: 0,
-                  minWidth: 74,
+                  width: (routeDominoW != null ? routeDominoW + 24 : 120),
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Queue</div>
@@ -2876,7 +3031,10 @@ function App() {
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                     highlightColor="#ee484c"
                     style={{
-                      width: 50,
+                      ...(routeDominoW
+                        ? { flex: "0 0 auto", width: routeDominoW }
+                        : { width: "100%" }),
+                      minWidth: 0,
                       aspectRatio: "7/13",
                       cursor: canPickQueueForSwap ? "pointer" : "default",
                     }}
@@ -3197,7 +3355,7 @@ function App() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Void</div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, width: "100%" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {Array.from({ length: Math.min(g.void.W, 8) }).map((_, i) => (
                       <div key={`vw${i}`} className="token-white" style={{ width: 18, height: 18, borderRadius: "50%", position: "relative" }} />
@@ -3391,17 +3549,17 @@ function App() {
                   <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {Array.from({ length: g.reserves[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div key={i} className={rightPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                          <div key={i} className={rightPlayer.avatar === "W" ? "token-white" : "token-teal"} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {Array.from({ length: g.captives[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div key={i} className={rightPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 16, height: 16, borderRadius: "50%", position: "relative" }} />
+                          <div key={i} className={rightPlayer.avatar === "W" ? "token-teal" : "token-white"} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
@@ -3410,8 +3568,8 @@ function App() {
                   {/* Route Cards */}
                   <div>
                     <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {g.routes[rightPlayer.avatar as "W" | "B"].slice(0, 4).map((r) => {
+                    <div ref={setRouteMeasureEl(3)} style={{ display: "flex", gap: 6, width: "100%" }}>
+                      {g.routes[rightPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                         const isActive = g.player === rightPlayer.avatar
                         const used = isActive && g.usedRoutes.includes(r.id) && g.phase !== "SWAP"
                           const canClick = isActive && ((g.phase === "SWAP") || (g.phase === "ACTION" && !g.usedRoutes.includes(r.id)))
@@ -3424,8 +3582,11 @@ function App() {
                             selected={isSelected}
                             highlightColor="#ee484c"
                             style={{
-                              width: 50,
-                              aspectRatio: "7/13",
+                            ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
+                            alignSelf: "center",
+                            flex: "0 0 auto",
+                            minWidth: 0,
+                            aspectRatio: "7/13",
                               cursor: isActive && !used ? "pointer" : "default",
                               opacity: used ? 0.3 : 1,
                             }}

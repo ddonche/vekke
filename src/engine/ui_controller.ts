@@ -51,7 +51,6 @@ const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
   daily: { id: "daily", label: "Daily (24h/move)", baseMs: 24 * 60 * 60_000, incMs: 0 },
 }
 
-
 // ------------------------------------------------------------
 // AI fixed ratings (do NOT change over time)
 // NOTE: Keys must match AiLevel exactly.
@@ -97,7 +96,6 @@ function eloNew(a: number, b: number, scoreA: 0 | 1, k: number): number {
   return Math.round(a + k * (scoreA - expectedA))
 }
 
-
 export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number }) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
@@ -107,7 +105,9 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   // ------------------------------------------------------------
   const [g, setG] = useState<GameState>(() => newGame())
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null)
-  const [human] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
+
+  // IMPORTANT: human MUST reset each new game (you asked for this).
+  const [human, setHuman] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
   const ai: Player = human === "W" ? "B" : "W"
 
   const [aiDifficulty, setAiDifficulty] = useState<AiLevel>("novice")
@@ -120,8 +120,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const timeControl = TIME_CONTROLS[timeControlId]
   const [clocks, setClocks] = useState<Clocks>(() => ({ W: timeControl.baseMs, B: timeControl.baseMs }))
 
-
-
   // ------------------------------------------------------------
   // Online reporting / Elo wiring
   // (Add-only: does not affect gameplay logic)
@@ -130,7 +128,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [isRanked, setIsRanked] = useState<boolean>(true) // Elo always for now
   const [gameId, setGameId] = useState<string | null>(null)
   const reportedResultRef = useRef<string | null>(null)
-
 
   const setWarning = useCallback((msg: string) => {
     setG((prev) => {
@@ -144,29 +141,30 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   // We only update player_stats when a game ends.
   // Keep this helper as a safe no-op so the rest of the controller can call it.
   const creatingGameRowRef = useRef(false)
-  const ensureGameRow = useCallback(async (_state: GameState, _tc: TimeControlId) => {
-    if (creatingGameRowRef.current) return
-    creatingGameRowRef.current = true
-    try {
-      const { data: userData, error: userErr } = await supabase.auth.getUser()
-      if (userErr) throw userErr
-      const userId = userData.user?.id ?? null
-      if (!userId) {
-        // Loud, visible failure: you must be logged in to record elo.
-        setWarning("SUPABASE: Not logged in. Sign in to record elo.")
-        return
+  const ensureGameRow = useCallback(
+    async (_state: GameState, _tc: TimeControlId) => {
+      if (creatingGameRowRef.current) return
+      creatingGameRowRef.current = true
+      try {
+        const { data: userData, error: userErr } = await supabase.auth.getUser()
+        if (userErr) throw userErr
+        const userId = userData.user?.id ?? null
+        if (!userId) {
+          // Loud, visible failure: you must be logged in to record elo.
+          setWarning("SUPABASE: Not logged in. Sign in to record elo.")
+          return
+        }
+
+        // Intentionally do NOT create a games row yet.
+        setGameId(null)
+      } catch (e) {
+        console.error("SUPABASE: auth check failed:", e)
+      } finally {
+        creatingGameRowRef.current = false
       }
-
-      // Intentionally do NOT create a games row yet.
-      setGameId(null)
-    } catch (e) {
-      console.error("SUPABASE: auth check failed:", e)
-    } finally {
-      creatingGameRowRef.current = false
-    }
-  }, [setWarning])
-
-
+    },
+    [setWarning]
+  )
 
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
@@ -226,7 +224,6 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     void ensureGameRow(g, timeControlId)
   }, [started, g.gameOver, gameId, ensureGameRow, g, timeControlId])
 
-
   const boardMap = useMemo(() => {
     const m = new Map<string, Token>()
     for (const t of g.tokens) {
@@ -235,20 +232,19 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     return m
   }, [g.tokens])
 
-  const remainingRoutes =
-    g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
+  const remainingRoutes = g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
 
   const forcedYieldAvailable = useMemo(() => {
-      if (!started) return false
-      if (g.phase !== "ACTION") return false
-      if (g.gameOver) return false
-      if (remainingRoutes.length === 0) return false
+    if (!started) return false
+    if (g.phase !== "ACTION") return false
+    if (g.gameOver) return false
+    if (remainingRoutes.length === 0) return false
 
-      const test: GameState = structuredClone(g)
-      const before0 = test.log[0]
-      yieldForcedIfNoUsableRoutes(test)
-      return (test as any).warning == null && test.log[0] !== before0
-    }, [started, g, remainingRoutes.length])
+    const test: GameState = structuredClone(g)
+    const before0 = test.log[0]
+    yieldForcedIfNoUsableRoutes(test)
+    return (test as any).warning == null && test.log[0] !== before0
+  }, [started, g, remainingRoutes.length])
 
   const earlySwapArmed = Boolean((g as any).earlySwapArmed)
   const earlySwapUsedThisTurn = Boolean((g as any).earlySwapUsedThisTurn)
@@ -266,10 +262,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const extraReinfBought = Boolean((g as any).extraReinforcementBoughtThisTurn)
 
   const canBuyExtraReinforcement =
-    g.phase === "ACTION" &&
-    !g.gameOver &&
-    !extraReinfBought &&
-    g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST
+    g.phase === "ACTION" && !g.gameOver && !extraReinfBought && g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST
 
   const evasionArmed = Boolean((g as any).evasionArmed)
   const evasionUsed = (g as any).evasionUsed as { W: boolean; B: boolean } | undefined
@@ -290,12 +283,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
   // Evasion visualization data
   const pendingEvasion = (g as any).pendingEvasion as { tokenId: string | null; to: Coord | null } | undefined
-  const evasionSourcePos = evasionArmed && selectedTokenId ? (() => {
-    const token = g.tokens.find((t) => t.id === selectedTokenId)
-    if (token?.in === "BOARD") return token.pos
-    if (token?.in === "CAPTIVE" && g.lastMove?.tokenId === selectedTokenId) return g.lastMove.to
-    return null
-  })() : null
+  const evasionSourcePos = evasionArmed && selectedTokenId
+    ? (() => {
+        const token = g.tokens.find((t) => t.id === selectedTokenId)
+        if (token?.in === "BOARD") return token.pos
+        if (token?.in === "CAPTIVE" && g.lastMove?.tokenId === selectedTokenId) return g.lastMove.to
+        return null
+      })()
+    : null
 
   const update = useCallback((mut: (s: GameState) => void) => {
     setG((prev) => {
@@ -305,30 +300,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     })
   }, [])
 
-  const warn = useCallback((msg: string) => {
-    update((s) => {
-      (s as any).warning = msg
-    })
-  }, [update])
-
-  // Play invalid sound on any new INVALID warning (original robust version, fixed deps)
-  const currentWarning = useMemo(() => (g as any).warning ?? null, [g])   // stable ref to string or null
-
-  useEffect(() => {
-    if (!audioReady) return
-
-    const w = currentWarning
-    if (!w || typeof w !== "string" || !w.toUpperCase().startsWith("INVALID")) {
-      lastInvalidRef.current = null
-      return
-    }
-
-    if (lastInvalidRef.current === w) return   // don't repeat same message
-
-    console.log("[INVALID SOUND] Triggered for:", w)   // debug: see if it fires
-    lastInvalidRef.current = w
-    playSound(sounds.invalid)
-  }, [currentWarning, audioReady, playSound, sounds.invalid])
+  const warn = useCallback(
+    (msg: string) => {
+      update((s) => {
+        ;(s as any).warning = msg
+      })
+    },
+    [update]
+  )
 
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)
@@ -434,17 +413,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       if (evasionArmed) {
         // --- EVASION: allow selecting the last-captured token by clicking its capture square ---
         if (g.lastMove) {
-          const captured = g.tokens.find(
-            (t) => t.id === g.lastMove!.tokenId && t.in === "CAPTIVE"
-          )
+          const captured = g.tokens.find((t) => t.id === g.lastMove!.tokenId && t.in === "CAPTIVE")
 
           // Only when we haven't selected an evasion token yet
-          if (
-            captured &&
-            !pendingEvasion?.tokenId &&
-            x === g.lastMove.to.x &&
-            y === g.lastMove.to.y
-          ) {
+          if (captured && !pendingEvasion?.tokenId && x === g.lastMove.to.x && y === g.lastMove.to.y) {
             update((s) => selectEvasionToken(s, captured.id))
             setSelectedTokenId(captured.id) // so your UI highlights correctly
             playSound(sounds.click)
@@ -476,14 +448,14 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, evasionArmed]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, evasionArmed, pendingEvasion]
   )
 
   useEffect(() => {
     // Auto-select for evasion - only on initial arm
     if (evasionArmed && !evasionAutoSelectedRef.current) {
       evasionAutoSelectedRef.current = true
-      
+
       // If last move captured defender's token, select that captured token
       if (g.lastMove) {
         const capturedToken = g.tokens.find((t) => t.id === g.lastMove?.tokenId && t.owner === defender)
@@ -494,7 +466,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           return
         }
       }
-      
+
       // Otherwise, select random defender's board token
       const defenderTokens = g.tokens.filter((t) => t.in === "BOARD" && t.owner === defender)
       if (defenderTokens.length > 0) {
@@ -504,7 +476,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       }
       return
     }
-    
+
     // Reset ref when evasion ends
     if (!evasionArmed) {
       evasionAutoSelectedRef.current = false
@@ -512,9 +484,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
     // Normal auto-selection for regular turns
     if (!evasionArmed) {
-      const sel = selectedTokenId
-        ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId)
-        : null
+      const sel = selectedTokenId ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId) : null
 
       if (g.phase === "ACTION" || g.phase === "SWAP") {
         if (!sel || sel.owner !== g.player) {
@@ -742,17 +712,20 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
 
     if (audioReady) {
       if (lockedNow > 0) {
-        try { sounds.siegeLock.play() } catch {}
+        try {
+          sounds.siegeLock.play()
+        } catch {}
       }
       if (unlockedNow > 0) {
-        try { sounds.siegeBreak.play() } catch {}
+        try {
+          sounds.siegeBreak.play()
+        } catch {}
       }
     }
 
     const didPickSwap =
       g.phase === "SWAP" &&
-      (g.pendingSwap.handRouteId !== prev.pendingSwap.handRouteId ||
-        g.pendingSwap.queueIndex !== prev.pendingSwap.queueIndex)
+      (g.pendingSwap.handRouteId !== prev.pendingSwap.handRouteId || g.pendingSwap.queueIndex !== prev.pendingSwap.queueIndex)
 
     const prevCaptives = prev.captives.B + prev.captives.W
     const nextCaptives = g.captives.B + g.captives.W
@@ -805,8 +778,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     }
   }, [g, started, audioReady, playSound, sounds])
 
-  const selected =
-    selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
+  const selected = selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
 
   const actions = useMemo(() => {
     return {
@@ -832,7 +804,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       newGame: async (tc: TimeControlId = timeControlId) => {
         await unlockAudio()
 
-        reportedResultRef.current = null  // RESET result de-dupe for the next game
+        // IMPORTANT: reset human side each new game
+        setHuman(Math.random() < 0.5 ? "W" : "B")
+
+        reportedResultRef.current = null // RESET result de-dupe for the next game
 
         const ng = newGame()
         setG(ng)
@@ -844,8 +819,9 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         setTimeControlId(tc)
         setClocks({ W: t.baseMs, B: t.baseMs })
         lastTickAtRef.current = performance.now()
-        prevTurnPlayerRef.current = null        // Create a games row immediately (wiring the DB).
-        // Works even if UI starts without calling actions.newGame().
+        prevTurnPlayerRef.current = null
+
+        // DB wiring only (NO games inserts)
         await ensureGameRow(ng, tc)
       },
 
@@ -1138,8 +1114,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     timeControl,
     clocks,
 
-    constants: { 
-      EARLY_SWAP_COST, 
+    constants: {
+      EARLY_SWAP_COST,
       EXTRA_REINFORCEMENT_COST,
       EVASION_COST_CAPTIVES,
       EVASION_COST_RESERVES,
