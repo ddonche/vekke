@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import { getCurrentUserId } from "../services/auth"
 import { reportVsAiEloAndStats } from "../services/player_stats"
+import { getAccountTier, saveGameLog } from "../services/game_logs"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
+import { VgnRecorder } from "./vgn"
 import {
   aiStepNovice,
   aiStepAdept,
@@ -159,6 +161,16 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
   const evasionAutoSelectedRef = useRef(false)
+
+  // ------------------------------------------------------------
+  // VGN recording (pure state-transition ledger)
+  // ------------------------------------------------------------
+  const vgnRef = useRef<VgnRecorder | null>(null)
+  const vgnGameIdRef = useRef<string | null>(null)
+  const vgnStartPerfRef = useRef<number>(0)
+  const vgnEndedKeyRef = useRef<string | null>(null)
+  const savedVgnRef = useRef<string | null>(null)
+  const lastPlayedRouteRef = useRef<{ by: Player; routeId: string } | null>(null)
 
   // Timer refs
   const lastTickAtRef = useRef<number>(0)
@@ -559,6 +571,13 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     if (reportedResultRef.current === reportKey) return
     reportedResultRef.current = reportKey
 
+    // --- VGN TERMINAL MARKER (emit once) ---
+    if (vgnRef.current && vgnEndedKeyRef.current !== reportKey) {
+      vgnEndedKeyRef.current = reportKey
+      vgnRef.current.end(performance.now(), g.gameOver.winner, g.gameOver.reason)
+    }
+    // --- END VGN TERMINAL MARKER ---
+
     ;(async () => {
       try {
         const endedAt = new Date().toISOString()
@@ -578,6 +597,50 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           reason: g.gameOver.reason,
           endedAt,
         })
+
+        // --- SAVE VGN (AI only for PRO accounts) ---
+        try {
+          if (savedVgnRef.current !== reportKey) {
+            savedVgnRef.current = reportKey
+
+            if (vsAi) {
+              const accountTier = await getAccountTier(userId)
+              if (accountTier === "pro") {
+                const gameId = vgnGameIdRef.current
+                const rec: any = vgnRef.current as any
+
+                const vgnText: string | null =
+                  rec?.toVgnText?.() ??
+                  rec?.toVgn?.() ??
+                  rec?.toText?.() ??
+                  rec?.dump?.() ??
+                  (typeof rec?.toString === "function" ? rec.toString() : null)
+
+                if (gameId && vgnText) {
+                  await saveGameLog({
+                    gameId,
+                    ownerId: userId,
+                    opponentId: AI_UUID[aiDifficulty] ?? null,
+                    mode: "ai",
+                    timeControlId,
+                    winner: g.gameOver.winner,
+                    reason: g.gameOver.reason,
+                    aiLevel: aiDifficulty,
+                    vgn: vgnText,
+                  })
+                } else {
+                  console.warn("VGN not saved: missing gameId or VGN text", {
+                    gameId,
+                    hasRecorder: !!vgnRef.current,
+                  })
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("VGN save failed:", e)
+        }
+        // --- END SAVE VGN ---
       } catch (err) {
         console.error("Result reporting / Elo failed:", err)
       }
@@ -590,6 +653,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     const prev = prevRef.current
     prevRef.current = g
     if (!prev) return
+
+    // --- VGN DIFF CAPTURE ---
+    if (vgnRef.current) {
+      const now = performance.now()
+      vgnRef.current.onTurnChange(now, g.player)
+      vgnRef.current.captureDiff(now, prev, g, lastPlayedRouteRef.current)
+      lastPlayedRouteRef.current = null
+    }
+    // --- END VGN DIFF CAPTURE ---
 
     // Siege SFX: detect lock/unlock transitions (4–7 adjacent enemy tokens = locked; dropping below 4 = unlocked)
     // We compute from state each render (no cached flags) so UI/AI/engine stay consistent.
@@ -704,18 +776,51 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       newGame: async (tc: TimeControlId = timeControlId) => {
         await unlockAudio()
 
-        // IMPORTANT: reset human side each new game
-        setHuman(Math.random() < 0.5 ? "W" : "B")
-
         reportedResultRef.current = null // RESET result de-dupe for the next game
+        savedVgnRef.current = null // RESET VGN save de-dupe for the next game
 
         const ng = newGame()
         setG(ng)
+        // --- VGN INIT (new game) ---
+        const perf0 = performance.now()
+        vgnStartPerfRef.current = perf0
+
+        // VGN game id is local for now (PvP will replace with real games.id later)
+        const vgnGameId = crypto.randomUUID()
+        vgnGameIdRef.current = vgnGameId
+        vgnEndedKeyRef.current = null
+
+        // Determine player ids for META header
+        const myId = (await getCurrentUserId()) ?? "anon"
+
+        // For now, AI id is stable-by-difficulty at game start (you already have AI_UUID in this file)
+        const aiId = AI_UUID[aiDifficulty] ?? "AI"
+
+        // Who is W/B in this game is determined by `human` after we set it.
+        // BUT setHuman is async state; we need a local coinflip here so VGN header matches reality.
+        const humanSide: Player = Math.random() < 0.5 ? "W" : "B"
+        setHuman(humanSide) // keep your existing reset behavior, but make it deterministic for VGN
+        const aiSide: Player = humanSide === "W" ? "B" : "W"
+
+        const t = TIME_CONTROLS[tc]
+
+        vgnRef.current = new VgnRecorder({
+          gameId: vgnGameId,
+          ruleset: "vekke",
+          version: 1,
+          whiteId: humanSide === "W" ? myId : aiId,
+          blueId: humanSide === "B" ? myId : aiId,
+          tokensW: 18,
+          tokensB: 18,
+          tc: { id: tc, baseMs: t.baseMs, incMs: t.incMs },
+          gameStartPerfMs: perf0,
+        })
+        // --- END VGN INIT ---
+
         setSelectedTokenId(null)
         prevRef.current = ng
         playedGameOverSound.current = false
 
-        const t = TIME_CONTROLS[tc]
         setTimeControlId(tc)
         setClocks({ W: t.baseMs, B: t.baseMs })
         lastTickAtRef.current = performance.now()
@@ -770,6 +875,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
             return
           }
 
+          lastPlayedRouteRef.current = { by: g.player, routeId }
           update((s) => applyRouteMove(s, selectedTokenId, routeId))
           return
         }
