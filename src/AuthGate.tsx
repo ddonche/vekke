@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from "react"
-import { supabase } from "./supabase"
-
-type Profile = {
-  id: string
-  username: string
-  avatar_url: string | null
-  country_code: string | null
-  country_name: string | null
-}
+import { supabase } from "./services/supabase"
+import { fetchIdentity, type Profile } from "./services/identity"
 
 function isOnboarded(p: Profile) {
   const placeholder = p.username.startsWith("user_")
@@ -36,41 +29,33 @@ export function AuthGate(props: { lobby: React.ReactNode }) {
       setErr(null)
       setLoading(true)
 
-      const { data: sess, error: sessErr } = await supabase.auth.getSession()
-      if (!alive) return
-      if (sessErr) {
-        setErr(sessErr.message)
+      try {
+        const { data: sess, error: sessErr } = await supabase.auth.getSession()
+        if (!alive) return
+        if (sessErr) throw sessErr
+
+        setSession(sess.session)
+
+        // Not logged in -> done
+        if (!sess.session) {
+          setProfile(null)
+          setLoading(false)
+          return
+        }
+
+        // Logged in -> load identity via service (profile + optional stats)
+        const uid = sess.session.user.id
+        const ident = await fetchIdentity(uid)
+        if (!alive) return
+
+        setProfile(ident.profile)
         setLoading(false)
-        return
-      }
-
-      setSession(sess.session)
-
-      // Not logged in -> done
-      if (!sess.session) {
+      } catch (e: any) {
+        if (!alive) return
+        setErr(e?.message ?? String(e))
         setProfile(null)
         setLoading(false)
-        return
       }
-
-      // Logged in -> load profile
-      const uid = sess.session.user.id
-      const { data: p, error: pErr } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, country_code, country_name")
-        .eq("id", uid)
-        .single()
-
-      if (!alive) return
-      if (pErr) {
-        setErr(pErr.message)
-        setProfile(null)
-        setLoading(false)
-        return
-      }
-
-      setProfile(p as Profile)
-      setLoading(false)
     }
 
     // Initial load

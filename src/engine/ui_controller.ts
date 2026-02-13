@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
-import { supabase } from "../supabase"
+import { getCurrentUserId } from "../services/auth"
+import { reportVsAiEloAndStats } from "../services/player_stats"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
 import {
   aiStepNovice,
-  aiStepIntermediate,
-  aiStepAdvanced,
+  aiStepAdept,
+  aiStepExpert,
   aiStepMaster,
   aiStepSeniorMaster,
   aiStepGrandmaster,
@@ -65,8 +66,8 @@ const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
 // ------------------------------------------------------------
 export const AI_RATING: Record<AiLevel, number> = {
   novice: 600,
-  intermediate: 900,
-  advanced: 1200,
+  adept: 900,
+  expert: 1200,
   master: 1500,
   senior_master: 1750,
   grandmaster: 2000,
@@ -76,8 +77,8 @@ export const AI_RATING: Record<AiLevel, number> = {
 // These do NOT need to correspond to auth.users (and are never updated in player_stats).
 const AI_UUID: Record<AiLevel, string> = {
   novice: "00000000-0000-4000-8000-000000000600",
-  intermediate: "00000000-0000-4000-8000-000000000900",
-  advanced: "00000000-0000-4000-8000-000000001200",
+  adept: "00000000-0000-4000-8000-000000000900",
+  expert: "00000000-0000-4000-8000-000000001200",
   master: "00000000-0000-4000-8000-000000001500",
   senior_master: "00000000-0000-4000-8000-000000001750",
   grandmaster: "00000000-0000-4000-8000-000000002000",
@@ -86,25 +87,6 @@ const AI_UUID: Record<AiLevel, string> = {
 type Clocks = { W: number; B: number }
 
 const other = (p: Player): Player => (p === "W" ? "B" : "W")
-
-function eloCol(format: TimeControlId): "elo_blitz" | "elo_rapid" | "elo_standard" | "elo_daily" {
-  if (format === "blitz") return "elo_blitz"
-  if (format === "rapid") return "elo_rapid"
-  if (format === "daily") return "elo_daily"
-  return "elo_standard"
-}
-
-function kFor(format: TimeControlId): number {
-  if (format === "blitz") return 32
-  if (format === "rapid") return 28
-  if (format === "daily") return 20
-  return 24
-}
-
-function eloNew(a: number, b: number, scoreA: 0 | 1, k: number): number {
-  const expectedA = 1 / (1 + Math.pow(10, (b - a) / 400))
-  return Math.round(a + k * (scoreA - expectedA))
-}
 
 export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number }) {
   const sounds = opts.sounds
@@ -156,12 +138,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       if (creatingGameRowRef.current) return
       creatingGameRowRef.current = true
       try {
-        const { data: userData, error: userErr } = await supabase.auth.getUser()
-        if (userErr) throw userErr
-        const userId = userData.user?.id ?? null
+        const userId = await getCurrentUserId()
         if (!userId) {
           // Loud, visible failure: you must be logged in to record elo.
-          setWarning("SUPABASE: Not logged in. Sign in to record elo.")
+          setWarning("Not logged in. Sign in to record elo.")
           return
         }
 
@@ -515,8 +495,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       update((s) => {
         const stepMap: Record<AiLevel, typeof aiStepNovice> = {
           novice: aiStepNovice,
-          intermediate: aiStepIntermediate,
-          advanced: aiStepAdvanced,
+          adept: aiStepAdept,
+          expert: aiStepExpert,
           master: aiStepMaster,
           senior_master: aiStepSeniorMaster,
           grandmaster: aiStepGrandmaster,
@@ -583,112 +563,21 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
       try {
         const endedAt = new Date().toISOString()
 
-        const { data: userData, error: userErr } = await supabase.auth.getUser()
-        if (userErr) throw userErr
-        const myId = userData.user?.id ?? null
-        if (!myId) return
+        const userId = await getCurrentUserId()
+        if (!userId) return
 
         // PvP isn't wired yet. For now we treat all matches as vs AI.
         if (!vsAi) return
 
-        // Update ONLY the human's player_stats using fixed AI rating.
-        const col = eloCol(timeControlId)
-        const k = kFor(timeControlId)
-        const aiRating = AI_RATING[aiDifficulty] ?? 600
-
-        // Ensure player_stats row exists
-        const { data: ps0, error: ps0Err } = await supabase
-          .from("player_stats")
-          .select(
-            "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily, wins_active, losses_active, losses_timeout, resignations, wins_by_opponent_resign, games_played, last_game_at, games_blitz, wins_blitz, losses_blitz, games_rapid, wins_rapid, losses_rapid, games_standard, wins_standard, losses_standard, games_daily, wins_daily, losses_daily"
-          )
-          .eq("user_id", myId)
-          .maybeSingle()
-        if (ps0Err) throw ps0Err
-
-        const ps =
-          ps0 ??
-          (
-            await supabase
-              .from("player_stats")
-              .insert({
-                user_id: myId,
-                elo: 600,
-                elo_blitz: 600,
-                elo_rapid: 600,
-                elo_standard: 600,
-                elo_daily: 600,
-                wins_active: 0,
-                losses_active: 0,
-                losses_timeout: 0,
-                resignations: 0,
-                wins_by_opponent_resign: 0,
-                games_played: 0,
-                games_blitz: 0,
-                wins_blitz: 0,
-                losses_blitz: 0,
-                games_rapid: 0,
-                wins_rapid: 0,
-                losses_rapid: 0,
-                games_standard: 0,
-                wins_standard: 0,
-                losses_standard: 0,
-                games_daily: 0,
-                wins_daily: 0,
-                losses_daily: 0,
-              })
-              .select(
-                "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily, wins_active, losses_active, losses_timeout, resignations, wins_by_opponent_resign, games_played, last_game_at, games_blitz, wins_blitz, losses_blitz, games_rapid, wins_rapid, losses_rapid, games_standard, wins_standard, losses_standard, games_daily, wins_daily, losses_daily"
-              )
-              .single()
-          ).data
-
-        if (!ps) throw new Error("player_stats row missing and could not be created")
-
-        const before = (ps as any)[col] ?? 1200
-        const humanWon = g.gameOver.winner === human
-        const score: 0 | 1 = humanWon ? 1 : 0
-        const after = eloNew(before, aiRating, score, k)
-
-        const reason = g.gameOver.reason
-        const isTimeoutLoss = !humanWon && reason === "timeout"
-        const isResignLoss = !humanWon && reason === "resignation"
-        const isOppResignWin = humanWon && reason === "resignation"
-
-        const patch: any = {
-          [col]: after,
-          last_game_at: endedAt,
-          games_played: (ps.games_played ?? 0) + 1,
-          wins_active: (ps.wins_active ?? 0) + (humanWon && !isOppResignWin ? 1 : 0),
-          losses_active: (ps.losses_active ?? 0) + (!humanWon && !isTimeoutLoss && !isResignLoss ? 1 : 0),
-          losses_timeout: (ps.losses_timeout ?? 0) + (isTimeoutLoss ? 1 : 0),
-          resignations: (ps.resignations ?? 0) + (isResignLoss ? 1 : 0),
-          wins_by_opponent_resign: (ps.wins_by_opponent_resign ?? 0) + (isOppResignWin ? 1 : 0),
-        }
-
-        // Update overall elo to match the selected format (keeps "elo" consistent for now).
-        patch.elo = after
-
-        if (timeControlId === "blitz") {
-          patch.games_blitz = (ps.games_blitz ?? 0) + 1
-          patch.wins_blitz = (ps.wins_blitz ?? 0) + (humanWon ? 1 : 0)
-          patch.losses_blitz = (ps.losses_blitz ?? 0) + (!humanWon ? 1 : 0)
-        } else if (timeControlId === "rapid") {
-          patch.games_rapid = (ps.games_rapid ?? 0) + 1
-          patch.wins_rapid = (ps.wins_rapid ?? 0) + (humanWon ? 1 : 0)
-          patch.losses_rapid = (ps.losses_rapid ?? 0) + (!humanWon ? 1 : 0)
-        } else if (timeControlId === "daily") {
-          patch.games_daily = (ps.games_daily ?? 0) + 1
-          patch.wins_daily = (ps.wins_daily ?? 0) + (humanWon ? 1 : 0)
-          patch.losses_daily = (ps.losses_daily ?? 0) + (!humanWon ? 1 : 0)
-        } else {
-          patch.games_standard = (ps.games_standard ?? 0) + 1
-          patch.wins_standard = (ps.wins_standard ?? 0) + (humanWon ? 1 : 0)
-          patch.losses_standard = (ps.losses_standard ?? 0) + (!humanWon ? 1 : 0)
-        }
-
-        const { error: psUpErr } = await supabase.from("player_stats").update(patch).eq("user_id", myId)
-        if (psUpErr) throw psUpErr
+        await reportVsAiEloAndStats({
+          userId,
+          timeControlId,
+          aiRating: AI_RATING[aiDifficulty] ?? 600,
+          humanPlayer: human,
+          winner: g.gameOver.winner,
+          reason: g.gameOver.reason,
+          endedAt,
+        })
       } catch (err) {
         console.error("Result reporting / Elo failed:", err)
       }

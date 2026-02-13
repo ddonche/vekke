@@ -17,14 +17,14 @@ import {
   cancelEarlySwap,
 } from "./game"
 
-export type AiLevel = "novice" | "intermediate" | "advanced" | "master" | "senior_master" | "grandmaster"
+export type AiLevel = "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
 
 export function aiStep(state: GameState, aiPlayer: Player, level: AiLevel) {
 if (level === "grandmaster") return aiStepGrandmaster(state, aiPlayer)
 if (level === "senior_master") return aiStepSeniorMaster(state, aiPlayer)
 if (level === "master") return aiStepMaster(state, aiPlayer)
-if (level === "advanced") return aiStepAdvanced(state, aiPlayer)
-if (level === "intermediate") return aiStepIntermediate(state, aiPlayer)
+if (level === "expert") return aiStepExpert(state, aiPlayer)
+if (level === "adept") return aiStepAdept(state, aiPlayer)
 return aiStepNovice(state, aiPlayer)
 }
 
@@ -191,7 +191,7 @@ export function aiStepNovice(state: GameState, aiPlayer: Player) {
 }
 
 // ------------------------------------------------------------
-// Intermediate AI — 1-ply greedy + tactical heuristics
+// Adept AI — 1-ply greedy + tactical heuristics
 // ------------------------------------------------------------
 const ADJ8: Array<{ dx: number; dy: number }> = [
   { dx: 0, dy: 1 },
@@ -397,7 +397,7 @@ function bestSwapChoice(state: GameState, me: Player): { handId: string; qIdx: n
   return best
 }
 
-function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx: number } | null {
+function bestEarlySwapPlanBasic(state: GameState, me: Player): { handId: string; qIdx: number } | null {
   if (state.phase !== "ACTION") return null
   if (state.gameOver) return null
   if (state.earlySwapUsedThisTurn) return null
@@ -430,6 +430,121 @@ function bestEarlySwapPlan(state: GameState, me: Player): { handId: string; qIdx
 
   return null
 }
+
+
+// ------------------------------------------------------------
+// Brutal early-swap tactic (Senior Master / Grandmaster)
+// If we have no forcing tactics with current unused routes, and the queue
+// can give us a forcing line (lock/capture pressure), spend to swap NOW.
+// ------------------------------------------------------------
+type ForcingInfo = { score: number; isCapture: boolean; isLockOrBetter: boolean }
+
+function bestForcingOpportunity(state: GameState, me: Player): ForcingInfo {
+  if (state.phase !== "ACTION" || state.gameOver) return { score: 0, isCapture: false, isLockOrBetter: false }
+
+  const them = other(me)
+  const theirOnBefore = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+  const baseMyCap = state.captives[me]
+
+  let bestScore = 0
+  let bestCapture = false
+  let bestLock = false
+
+  const moves = enumerateLegalActionMoves(state, me)
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+
+    const theirOnAfter = c.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+    const capGained = (c.captives[me] > baseMyCap) || (theirOnAfter < theirOnBefore)
+
+    // After the move, measure best siege pressure we have on any enemy token.
+    let maxSides = 0
+    for (const e of c.tokens) {
+      if (e.in !== "BOARD" || e.owner !== them) continue
+      const sides = siegeSidesFor(c, me, e.pos.x, e.pos.y)
+      if (sides > maxSides) maxSides = sides
+      if (maxSides >= 8) break
+    }
+
+    // Heavily prefer immediate captures; otherwise prefer creating/advancing locks.
+    let sc = 0
+    if (capGained) sc += 1000
+    else if (maxSides >= 8) sc += 900
+    else if (maxSides == 7) sc += 260
+    else if (maxSides >= 4) sc += 140  // lock pressure (4+)
+    else if (maxSides == 3) sc += 60
+
+    // Small nudge from general evaluation (keeps it from doing stupid swaps).
+    sc += 0.05 * evalState(c, me)
+
+    const lockOrBetter = capGained || maxSides >= 4
+
+    if (sc > bestScore) {
+      bestScore = sc
+      bestCapture = capGained || maxSides >= 8
+      bestLock = lockOrBetter
+    }
+  }
+
+  return { score: bestScore, isCapture: bestCapture, isLockOrBetter: bestLock }
+}
+
+function bestEarlySwapPlanBrutal(state: GameState, me: Player): { handId: string; qIdx: number } | null {
+  if (state.phase !== "ACTION") return null
+  if (state.gameOver) return null
+  if (state.earlySwapUsedThisTurn) return null
+
+  // If we already have a forcing tactic available, don't pay to swap early.
+  const curForce = bestForcingOpportunity(state, me)
+
+  // If opponent is on life support, prioritize swaps that create lock/capture lines.
+  const them = other(me)
+  const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+  const endgameKill = theirOnBoard <= 1
+
+  const unusedHand = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
+  if (unusedHand.length === 0) return null
+
+  let best: { handId: string; qIdx: number } | null = null
+  let bestScore = -Infinity
+
+  for (const h of unusedHand) {
+    for (let qIdx = 0; qIdx < state.queue.length; qIdx++) {
+      const c: GameState = structuredClone(state)
+      armEarlySwap(c)
+      chooseSwapHandRoute(c, h.id)
+      chooseSwapQueueIndex(c, qIdx)
+      confirmEarlySwap(c)
+
+      const afterForce = bestForcingOpportunity(c, me)
+
+      // Our "brutal" rule: if we *gain* a forcing line we didn't have before, that's huge.
+      let sc = (afterForce.score - curForce.score)
+
+      // Prefer plans that create lock/capture pressure, especially in endgame.
+      if (!curForce.isLockOrBetter && afterForce.isLockOrBetter) sc += 600
+      if (!curForce.isCapture && afterForce.isCapture) sc += 900
+      if (endgameKill && afterForce.isLockOrBetter) sc += 500
+
+      // Also ensure it isn't positionally suicidal.
+      sc += 0.15 * (evalState(c, me) - evalState(state, me))
+
+      if (sc > bestScore) {
+        bestScore = sc
+        best = { handId: h.id, qIdx }
+      }
+    }
+  }
+
+  // Trigger swap if it meaningfully improves forcing chances.
+  // In "kill" endgames we accept smaller improvements.
+  const threshold = endgameKill ? 250 : 450
+
+  if (best && bestScore >= threshold) return best
+  return null
+}
+
 
 
 function bestActionMovesTopN(
@@ -500,7 +615,7 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
 
   if (state.phase === "ACTION") {
     if (state.earlySwapArmed) {
-      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      const plan = bestEarlySwapPlanBasic(state, aiPlayer) ?? null
       if (!plan) { cancelEarlySwap(state); return }
       if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
       if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
@@ -508,7 +623,7 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
       return
     }
 
-    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
@@ -524,12 +639,12 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
 }
 
 // Blue belt (approx): 1-ply greedy + 25% imperfection.
-export function aiStepIntermediate(state: GameState, aiPlayer: Player) {
+export function aiStepAdept(state: GameState, aiPlayer: Player) {
   return aiStepGreedy(state, aiPlayer, 0.25)
 }
 
 // Purple belt (approx): same greedy engine, but no intentional mistakes.
-export function aiStepAdvanced(state: GameState, aiPlayer: Player) {
+export function aiStepExpert(state: GameState, aiPlayer: Player) {
   return aiStepGreedy(state, aiPlayer, 0.0)
 }
 
@@ -563,7 +678,7 @@ export function aiStepMaster(state: GameState, aiPlayer: Player) {
 
   if (state.phase === "ACTION") {
     if (state.earlySwapArmed) {
-      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      const plan = bestEarlySwapPlanBasic(state, aiPlayer) ?? null
       if (!plan) { cancelEarlySwap(state); return }
       if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
       if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
@@ -571,7 +686,7 @@ export function aiStepMaster(state: GameState, aiPlayer: Player) {
       return
     }
 
-    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
@@ -592,7 +707,7 @@ function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player): num
 
   if (state.phase !== "ACTION") {
     const c: GameState = structuredClone(state)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
     return evalState(c, me)
   }
 
@@ -600,7 +715,7 @@ function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player): num
   if (moves.length === 0) {
     const c: GameState = structuredClone(state)
     yieldForcedIfNoUsableRoutes(c)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
     return evalState(c, me)
   }
 
@@ -609,7 +724,7 @@ function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player): num
   for (const mv of moves) {
     const c: GameState = structuredClone(state)
     applyRouteMove(c, mv.tokenId, mv.routeId)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
     const sc = evalState(c, me)
     if (sc < worstForMe) worstForMe = sc
   }
@@ -628,7 +743,7 @@ function bestMasterActionMove(state: GameState, me: Player): ActionMove | null {
     const c: GameState = structuredClone(state)
 
     applyRouteMove(c, mv.tokenId, mv.routeId)
-    playoutFullTurnWithIntermediate(c, me)
+    playoutFullTurn(c, me, aiStepExpert) // zero-mistake playout
 
     // 2-ply: opponent best reply only (no "me response" ply).
     const sc = opponentBestResponseMinimizingMe2ply(c, me)
@@ -650,7 +765,7 @@ function meBestResponseMaximizing(state: GameState, me: Player): number {
 
   if (state.phase !== "ACTION") {
     const c: GameState = structuredClone(state)
-    playoutFullTurnWithIntermediate(c, me)
+    playoutFullTurn(c, me, aiStepExpert) // zero-mistake playout
     return evalState(c, me)
   }
 
@@ -658,7 +773,7 @@ function meBestResponseMaximizing(state: GameState, me: Player): number {
   if (moves.length === 0) {
     const c: GameState = structuredClone(state)
     yieldForcedIfNoUsableRoutes(c)
-    playoutFullTurnWithIntermediate(c, me)
+    playoutFullTurn(c, me, aiStepExpert) // zero-mistake playout
     return evalState(c, me)
   }
 
@@ -667,7 +782,7 @@ function meBestResponseMaximizing(state: GameState, me: Player): number {
   for (const mv of moves) {
     const c: GameState = structuredClone(state)
     applyRouteMove(c, mv.tokenId, mv.routeId)
-    playoutFullTurnWithIntermediate(c, me)
+    playoutFullTurn(c, me, aiStepExpert) // zero-mistake playout
     const sc = evalState(c, me)
     if (sc > best) best = sc
   }
@@ -689,13 +804,17 @@ function enumerateLegalActionMoves(state: GameState, p: Player): ActionMove[] {
   return out
 }
 
-// Run the Intermediate policy until the active player changes (i.e., a full turn finishes),
+// Run the Adept policy until the active player changes (i.e., a full turn finishes),
 // or the game ends. This is intentionally deterministic so search is stable.
-function playoutFullTurnWithIntermediate(state: GameState, p: Player) {
+function playoutFullTurn(
+  state: GameState,
+  p: Player,
+  step: (s: GameState, ai: Player) => void
+) {
   const hardCap = 256
   let n = 0
   while (!state.gameOver && state.player === p && n < hardCap) {
-    aiStepIntermediate(state, p)
+    step(state, p)
     n += 1
   }
 }
@@ -710,7 +829,7 @@ function opponentBestResponseMinimizingMe(state: GameState, me: Player): number 
 
   if (state.phase !== "ACTION") {
     const c: GameState = structuredClone(state)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
     return meBestResponseMaximizing(c, me)  // 👈 3rd ply
   }
 
@@ -718,7 +837,7 @@ function opponentBestResponseMinimizingMe(state: GameState, me: Player): number 
   if (moves.length === 0) {
     const c: GameState = structuredClone(state)
     yieldForcedIfNoUsableRoutes(c)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
     return meBestResponseMaximizing(c, me)
   }
 
@@ -727,7 +846,7 @@ function opponentBestResponseMinimizingMe(state: GameState, me: Player): number 
   for (const mv of moves) {
     const c: GameState = structuredClone(state)
     applyRouteMove(c, mv.tokenId, mv.routeId)
-    playoutFullTurnWithIntermediate(c, opp)
+    playoutFullTurn(c, opp, aiStepExpert)
 
     const sc = meBestResponseMaximizing(c, me)  // 👈 third ply
     if (sc < worstForMe) worstForMe = sc
@@ -753,7 +872,7 @@ function bestGrandmasterActionMove(state: GameState, me: Player): ActionMove | n
     applyRouteMove(c, mv.tokenId, mv.routeId)
 
     // Finish out MY turn deterministically.
-    playoutFullTurnWithIntermediate(c, me)
+    playoutFullTurn(c, me, aiStepExpert) // zero-mistake playout
 
     // Opponent chooses a best reply (minimizes my eval).
     let sc: number
@@ -815,7 +934,7 @@ export function aiStepSeniorMaster(state: GameState, aiPlayer: Player) {
   if (state.phase === "ACTION") {
     // Same economy decisions as Master/Grandmaster.
     if (state.earlySwapArmed) {
-      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      const plan = bestEarlySwapPlanBrutal(state, aiPlayer) ?? null
       if (!plan) { cancelEarlySwap(state); return }
       if (!state.pendingSwap.handRouteId) { chooseSwapHandRoute(state, plan.handId); return }
       if (state.pendingSwap.queueIndex === null) { chooseSwapQueueIndex(state, plan.qIdx); return }
@@ -823,7 +942,7 @@ export function aiStepSeniorMaster(state: GameState, aiPlayer: Player) {
       return
     }
 
-    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    const earlyPlan = bestEarlySwapPlanBrutal(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
@@ -871,9 +990,9 @@ export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
   }
 
   if (state.phase === "ACTION") {
-    // Preserve the same economy decisions as Intermediate (early swap, buy extra reinforce).
+    // Preserve the same economy decisions as Adept (early swap, buy extra reinforce).
     if (state.earlySwapArmed) {
-      const plan = bestEarlySwapPlan(state, aiPlayer) ?? null
+      const plan = bestEarlySwapPlanBrutal(state, aiPlayer) ?? null
       if (!plan) {
         cancelEarlySwap(state)
         return
@@ -890,7 +1009,7 @@ export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
       return
     }
 
-    const earlyPlan = bestEarlySwapPlan(state, aiPlayer)
+    const earlyPlan = bestEarlySwapPlanBrutal(state, aiPlayer)
     if (earlyPlan) {
       armEarlySwap(state)
       return
@@ -943,8 +1062,8 @@ export type AiChatContext = {
 export function aiChatPickLine(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): string | null {
   const table = {
     novice: NOVICE_CHAT,
-    intermediate: INTERMEDIATE_CHAT,
-    advanced: ADVANCED_CHAT,
+    adept: ADEPT_CHAT,
+    expert: EXPERT_CHAT,
     master: MASTER_CHAT,
     senior_master: SENIOR_MASTER_CHAT,
     grandmaster: GRANDMASTER_CHAT,
@@ -962,7 +1081,7 @@ function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
       if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.95
       return Math.random() < 0.22
 
-    case "intermediate":
+    case "adept":
       if (ev === "HELLO") return Math.random() < 0.55
       if (ev === "OPENING_PLAY") return Math.random() < 0.18
       if (ev === "YOU_BLUNDERED") return Math.random() < 0.75
@@ -971,7 +1090,7 @@ function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
       if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.65
       return Math.random() < 0.12
 
-    case "advanced":
+    case "expert":
       if (ev === "HELLO") return Math.random() < 0.80
       if (ev === "YOU_BLUNDERED") return Math.random() < 0.85
       if (ev === "I_CAPTURED" || ev === "I_SIEGED" || ev === "I_LOCKED") return Math.random() < 0.55
@@ -1089,7 +1208,7 @@ const NOVICE_CHAT: ChatTable = {
 // ------------------------------------------------------------
 // INTERMEDIATE — smug, sharp, corrective
 // ------------------------------------------------------------
-const INTERMEDIATE_CHAT: ChatTable = {
+const ADEPT_CHAT: ChatTable = {
   HELLO: [
     "Alright. Let's see what you've got.",
     "Don't blink.",
@@ -1162,7 +1281,7 @@ const INTERMEDIATE_CHAT: ChatTable = {
 // ------------------------------------------------------------
 // ADVANCED — cocky, trash-talking, rubs it in
 // ------------------------------------------------------------
-const ADVANCED_CHAT: ChatTable = {
+const EXPERT_CHAT: ChatTable = {
   HELLO: [
     "I hope you warmed up.",
     "Let me know when you're ready to lose.",

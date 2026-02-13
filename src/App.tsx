@@ -11,7 +11,8 @@ import { AuthModal } from "./AuthModal"
 import { OnboardingModal } from "./OnboardingModal"
 import { ProfileModal } from "./ProfileModal"
 import { HelpModal } from "./HelpModal"
-import { supabase } from "./supabase"
+import { getCurrentUserId } from "./services/auth" //
+import { supabase } from "./services/supabase"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -94,6 +95,9 @@ function App() {
 
   const GHOST_MS = 1000
 
+  const [newGameOpen, setNewGameOpen] = useState(true)
+  const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
+
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
   const [showLogExpanded, setShowLogExpanded] = useState(false)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
@@ -118,6 +122,7 @@ function App() {
     elo_daily: number
   }
 
+  const [loginWarn, setLoginWarn] = useState<string>("")
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
 
   const eloForFormat = (ps: PlayerStats | null, tc: typeof timeControlId): number => {
@@ -548,7 +553,7 @@ useEffect(() => {
           .token-ghost { opacity: 0.3; }
         `}</style>
 
-        {!started && (
+        {newGameOpen && (
           <div
             style={{
               position: "fixed",
@@ -575,7 +580,10 @@ useEffect(() => {
             >
               {/* Close button */}
               <button
-                onClick={() => actions.setStarted(true)}
+                onClick={() => {
+                  setNewGameOpen(false)
+                  setNewGameMsg(null)
+                }}
                 style={{
                   position: "absolute",
                   top: "12px",
@@ -849,15 +857,15 @@ useEffect(() => {
                   </div>
                 </button>
 
-                {/* Intermediate */}
+                {/* Adept */}
                 <button
-                  onClick={() => actions.setAiDifficulty("intermediate")}
+                  onClick={() => actions.setAiDifficulty("adept")}
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "intermediate" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "intermediate" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "intermediate" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "adept" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "adept" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "adept" ? "#5de8f7" : "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -875,21 +883,21 @@ useEffect(() => {
                           display: "inline-block",
                         }}
                       />
-                      <div>Intermediate</div>
+                      <div>Adept</div>
                     </div>
                     <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>900</div>
                   </div>
                 </button>
 
-                {/* Advanced */}
+                {/* Expert */}
                 <button
-                  onClick={() => actions.setAiDifficulty("advanced")}
+                  onClick={() => actions.setAiDifficulty("expert")}
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "advanced" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "advanced" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "advanced" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "expert" ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    background: aiDifficulty === "expert" ? "#1f2937" : "#374151",
+                    color: aiDifficulty === "expert" ? "#5de8f7" : "#e5e7eb",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -907,7 +915,7 @@ useEffect(() => {
                           display: "inline-block",
                         }}
                       />
-                      <div>Advanced</div>
+                      <div>Expert</div>
                     </div>
                     <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1200</div>
                   </div>
@@ -1095,11 +1103,51 @@ useEffect(() => {
                   : "Go-style intersections for tournament play"}
               </div>
 
+              {loginWarn && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: "10px 12px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.06)",
+                    borderRadius: 10,
+                    fontSize: 13,
+                    opacity: 0.95,
+                  }}
+                >
+                  {loginWarn}
+                </div>
+              )}
+
+              {newGameMsg && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    textAlign: "center",
+                    color: "#ee484c",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {newGameMsg}
+                </div>
+              )}
+
               <button
                 onClick={async () => {
-                  await actions.unlockAudio()
-                  actions.newGame(timeControlId)
-                  actions.setStarted(true)
+                  await actions.unlockAudio?.()
+
+                  if (!currentUserId) {
+                    setNewGameMsg("You must be logged in to start a new game.")
+                    return
+                  }
+
+                  setNewGameMsg(null)
+
+                  // Reset state + clocks + human side, then flip started=true
+                  await actions.newGame?.(timeControlId) // or selectedTimeControlId from your modal
+                  actions.setStarted?.(true)
+
+                  setNewGameOpen(false)
                 }}
                 style={{
                   width: "100%",

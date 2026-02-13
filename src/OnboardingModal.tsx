@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { supabase } from "./supabase"
+import { supabase } from "./services/supabase"
 import { resizeImage } from "./imageUtils"
 
 type OnboardingModalProps = {
