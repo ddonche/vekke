@@ -69,6 +69,20 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, routeId: st
   return true
 }
 
+function isCaptureMove(state: GameState, me: Player, tokenId: string, routeId: string): boolean {
+  const them = other(me)
+  const theirOnBefore = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+  const myCapBefore = state.captives[me]
+
+  const c: GameState = structuredClone(state)
+  applyRouteMove(c, tokenId, routeId)
+
+  const theirOnAfter = c.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+  const myCapAfter = c.captives[me]
+
+  return theirOnAfter < theirOnBefore || myCapAfter > myCapBefore
+}
+
 function randomInt(n: number): number {
   return Math.floor(Math.random() * n)
 }
@@ -106,28 +120,72 @@ function safestReinforcementSquare(state: GameState, me: Player): Coord | null {
 
   const enemy = other(me)
 
+  // 1) HARD RULE: prefer safe squares (can't be invaded next turn) if any exist.
   const safe = empties.filter((c) => !canEnemyInvadeSquareNextTurn(state, enemy, c))
-  if (safe.length > 0) return safe[randomInt(safe.length)]
+  const candidates = safe.length > 0 ? safe : empties
 
-  let best = empties[0]
-  let bestThreat = Infinity
+  // Helper: adjacency check
+  function isAdj(a: Coord, b: Coord): boolean {
+    return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1 && !(a.x === b.x && a.y === b.y)
+  }
 
+  // Precompute siege status
+  const myTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
   const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === enemy)
-  const enemyRoutes = state.routes[enemy]
 
-  for (const c of empties) {
-    let threat = 0
-    for (const r of enemyRoutes) {
-      for (const t of enemyTokens) {
-        if (!canTokenUseRoute(state, enemy, t, r.id)) continue
-        const steps = traceByRoute(t.pos, r)
-        if (steps.length === 0) continue
-        const to = steps[steps.length - 1]
-        if (to.x === c.x && to.y === c.y) threat += 1
-      }
+  // Identify my tokens that are in trouble (enemy siege pressure).
+  // (Lock is 4-7 in your code’s movement rule; 8 is capture ring.)
+  const threatenedMine = myTokens
+    .map((t) => ({ t, enemySides: siegeSidesFor(state, enemy, t.pos.x, t.pos.y) }))
+    .filter((x) => x.enemySides >= 3) // “rescue window” starts at 3
+
+  let best = candidates[0]
+  let bestScore = -Infinity
+
+  for (const c of candidates) {
+    // Base: keep it sane using your general evaluator.
+    // (This alone won’t do “rescue”, so we add explicit rescue/siege bonuses below.)
+    const base = simulateAndScore(state, me, (s) => placeReinforcement(s, c))
+
+    let bonus = 0
+
+    // 2a) SIEGE INTENT: placing adjacent to an enemy token increases our siegeSides on it by +1.
+    // Big bumps for hitting lock/capture thresholds.
+    for (const e of enemyTokens) {
+      if (!isAdj(c, e.pos)) continue
+
+      const before = siegeSidesFor(state, me, e.pos.x, e.pos.y)
+      const after = before + 1
+
+      // Reward *crossing* important thresholds.
+      if (before < 4 && after >= 4) bonus += 80   // create a lock threat
+      if (before < 7 && after >= 7) bonus += 60   // near-complete ring pressure
+      if (before < 8 && after >= 8) bonus += 200  // completes capture ring
+
+      // Small reward for just increasing pressure at all.
+      bonus += 8
     }
-    if (threat < bestThreat) {
-      bestThreat = threat
+
+    // 2b) RESCUE INTENT: if one of our tokens is under siege pressure,
+    // prefer occupying an empty adjacent square (it blocks the enemy from taking that spot later).
+    // Heavier bonus when the token is closer to being locked/captured.
+    for (const m of threatenedMine) {
+      if (!isAdj(c, m.t.pos)) continue
+      if (m.enemySides >= 7) bonus += 140
+      else if (m.enemySides >= 4) bonus += 90
+      else bonus += 40 // enemySides == 3
+    }
+
+    // Slightly bias away from “same square every time” when scores tie:
+    // tiny center preference (NOT a hard opening rule; just a tie-breaker).
+    const cx = (SIZE - 1) / 2
+    const cy = (SIZE - 1) / 2
+    const dist = Math.abs(c.x - cx) + Math.abs(c.y - cy)
+    const tieBreak = -0.01 * dist
+
+    const sc = base + bonus + tieBreak
+    if (sc > bestScore) {
+      bestScore = sc
       best = c
     }
   }
@@ -154,6 +212,25 @@ export function aiStepNovice(state: GameState, aiPlayer: Player) {
     if (unused.length === 0) return
 
     const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === aiPlayer)
+
+    // 1) NEW: if any capture exists, take one (still "novice": picks randomly among captures).
+    const captureMoves: Array<{ tokenId: string; routeId: string }> = []
+    for (const r of unused) {
+      for (const t of tokens) {
+        if (!canTokenUseRoute(state, aiPlayer, t, r.id)) continue
+        if (isCaptureMove(state, aiPlayer, t.id, r.id)) {
+          captureMoves.push({ tokenId: t.id, routeId: r.id })
+        }
+      }
+    }
+
+    if (captureMoves.length > 0) {
+      const mv = captureMoves[randomInt(captureMoves.length)]
+      applyRouteMove(state, mv.tokenId, mv.routeId)
+      return
+    }
+
+    // 2) Otherwise: keep the old random-legal behavior.
     const routeOrder = [...unused].sort(() => Math.random() - 0.5)
 
     for (const r of routeOrder) {
@@ -403,9 +480,8 @@ function bestEarlySwapPlanBasic(state: GameState, me: Player): { handId: string;
   if (state.earlySwapUsedThisTurn) return null
 
   const remainingMoves = countUsableMoves(state, me)
-  const urgency = remainingMoves <= 1
-
-  if (!urgency && state.captives[me] < 4) return null
+  const urgency = remainingMoves <= 2
+  if (!urgency && state.captives[me] < 2) return null
 
   const unusedHand = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
   if (unusedHand.length === 0) return null
@@ -638,9 +714,9 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
   }
 }
 
-// Blue belt (approx): 1-ply greedy + 25% imperfection.
+// Blue belt (approx): 1-ply greedy + 0% imperfection.
 export function aiStepAdept(state: GameState, aiPlayer: Player) {
-  return aiStepGreedy(state, aiPlayer, 0.25)
+  return aiStepGreedy(state, aiPlayer, 0.0)
 }
 
 // Purple belt (approx): same greedy engine, but no intentional mistakes.
