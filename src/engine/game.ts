@@ -103,6 +103,7 @@ function endTurnCommon(state: GameState, reasonLog: string) {
   state.earlySwapArmed = false
   state.earlySwapUsedThisTurn = false
   state.extraReinforcementBoughtThisTurn = false
+  state.ransomUsedThisTurn = false
 }
 
 function endTurnNoSwap(state: GameState) {
@@ -840,6 +841,49 @@ export function confirmSwapAndEndTurn(state: GameState) {
 
   // End turn (common bookkeeping + resets)
   endTurnCommon(state, `== ${p} ends turn ==`)
+}
+
+// ------------------------------------------------------------
+// Ransom (once per turn: pay 2 captives to recover 1 from void)
+// ------------------------------------------------------------
+export const RANSOM_COST_CAPTIVES = 2
+
+export function useRansom(state: GameState) {
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Ransom only available during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+
+  const p = state.player
+
+  if (state.ransomUsedThisTurn) {
+    state.warning = "INVALID: Ransom already used this turn."
+    return
+  }
+
+  if (state.captives[p] < RANSOM_COST_CAPTIVES) {
+    state.warning = `INVALID: need ${RANSOM_COST_CAPTIVES} captives to ransom.`
+    return
+  }
+
+  if (state.void[p] < 1) {
+    state.warning = "INVALID: no tokens in void to recover."
+    return
+  }
+
+  state.warning = null
+
+  // Pay the cost
+  state.captives[p] -= RANSOM_COST_CAPTIVES
+  state.void[p] -= 1
+  state.reserves[p] += 1
+
+  state.ransomUsedThisTurn = true
+  state.log.unshift(`${p} RANSOM: paid ${RANSOM_COST_CAPTIVES} captives → recovered 1 token from Void to reserves.`)
 }
 
 // ------------------------------------------------------------

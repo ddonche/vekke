@@ -13,6 +13,9 @@ import { ProfileModal } from "./ProfileModal"
 import { HelpModal } from "./HelpModal"
 import { getCurrentUserId } from "./services/auth" //
 import { supabase } from "./services/supabase"
+import { Routes, Route } from "react-router-dom"
+import { DevInvitePage } from "./pages/DevInvitePage"
+import { InviteAcceptPage } from "./pages/InviteAcceptPage"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -55,7 +58,7 @@ class ErrBoundary extends React.Component<
   }
 }
 
-function App() {
+function GamePage() {
   const {
     g,
     selectedTokenId,
@@ -75,13 +78,14 @@ function App() {
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
+    canUseRansom,
     evasionArmed,
     canUseEvasion,
     pendingEvasion,
     evasionSourcePos,
     evasionPlayer,
     clockPlayer,
-    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, EVASION_COST_CAPTIVES, EVASION_COST_RESERVES },
+    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, RANSOM_COST_CAPTIVES, EVASION_COST_CAPTIVES, EVASION_COST_RESERVES },
     actions,
   } = useVekkeController({ sounds, aiDelayMs: 1200 })
 
@@ -99,9 +103,11 @@ function App() {
   const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
 
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
-  const [showLogExpanded, setShowLogExpanded] = useState(false)
+  const [showLogExpanded, setShowLogExpanded] = useState(true)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
+  const [showGameOverModal, setShowGameOverModal] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const authReturnToRef = useRef<string | null>(null)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState<"currentPlayer" | "evasion" | null>(null)
@@ -207,6 +213,11 @@ function App() {
       cancelled = true
     }
   }, [currentUserId])
+
+  // Show game over modal whenever a new game ends.
+  useEffect(() => {
+    if (g.gameOver) setShowGameOverModal(true)
+  }, [!!g.gameOver])
 
   // Refresh rating after a finished game (Elo is updated async in the controller).
   useEffect(() => {
@@ -388,11 +399,36 @@ useEffect(() => {
       }
     }
 
-    // Check current session
+    // Invite-auth redirect support (?openAuth=1&returnTo=/invite/<token>) (also supports ?auth=1)
+    const sp = new URLSearchParams(window.location.search)
+    const wantsAuth =
+      sp.get("openAuth") === "1" || sp.get("openAuth") === "true" ||
+      sp.get("auth") === "1" || sp.get("auth") === "true"
+    const returnTo = sp.get("returnTo")
+
+    if (returnTo) {
+      authReturnToRef.current = returnTo
+    }
+
+    if (wantsAuth) {
+      setShowAuthModal(true)
+
+      // Clean URL so refresh doesn't reopen modal
+      window.history.replaceState(null, "", window.location.pathname)
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setCurrentUserId(session.user.id)
         checkOnboarding(session.user.id)
+
+        // If we already have a session and we're returning to an invite, go now.
+        const rt = authReturnToRef.current
+        if (rt) {
+          authReturnToRef.current = null
+          setShowAuthModal(false)
+          window.location.assign(rt)
+        }
       }
     })
 
@@ -401,6 +437,13 @@ useEffect(() => {
       if (session?.user) {
         setCurrentUserId(session.user.id)
         checkOnboarding(session.user.id)
+
+        const rt = authReturnToRef.current
+        if (rt) {
+          authReturnToRef.current = null
+          setShowAuthModal(false)
+          window.location.assign(rt)
+        }
       } else {
         setCurrentUserId(null)
         setUserProfile(null)
@@ -2603,7 +2646,7 @@ useEffect(() => {
                 style={{
                   backgroundColor: "#374151",
                   borderTop: "1px solid #4b5563",
-                  flexGrow: 1,
+                  flexGrow: showLogExpanded ? 1 : 0,
                   display: "flex",
                   flexDirection: "column",
                   overflow: "hidden",
@@ -2834,6 +2877,59 @@ useEffect(() => {
 
                   {/* Special Actions */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === leftPlayer.avatar && (
+                      <button
+                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
+                        disabled={!canBuyExtraReinforcement}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#1f2937",
+                          border: "1px solid #6b7280",
+                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                          <path d="M9 12h6" />
+                          <path d="M12 9v6" />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Ransom - only show when it's this player's turn */}
+                    {g.player === leftPlayer.avatar && (
+                      <button
+                        onClick={() => canUseRansom && actions.useRansom()}
+                        disabled={!canUseRansom}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#1f2937",
+                          border: "1px solid #6b7280",
+                          cursor: canUseRansom ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseRansom ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                          <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === leftPlayer.avatar && (
                       <button
@@ -2861,33 +2957,6 @@ useEffect(() => {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #6b7280",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
-                        </svg>
-                      </button>
-                    )}
-
                     {/* Evasion - only show when it's opponent's turn */}
                     {g.player !== leftPlayer.avatar && (
                       <button
@@ -2907,7 +2976,7 @@ useEffect(() => {
                           opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 10h.01" />
                           <path d="M15 10h.01" />
                           <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
@@ -2995,7 +3064,7 @@ useEffect(() => {
                     backgroundColor: "#374151",
                     borderRadius: 8,
                     border: "1px solid #4b5563",
-                    flexGrow: 1,
+                    flexGrow: showChatExpanded ? 1 : 0,
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
@@ -3010,7 +3079,10 @@ useEffect(() => {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      cursor: "pointer",
+                      userSelect: "none",
                     }}
+                    onClick={() => setShowChatExpanded(!showChatExpanded)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 13, color: "#e5e7eb" }}>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" strokeWidth="2">
@@ -3018,40 +3090,55 @@ useEffect(() => {
                       </svg>
                       <span>Chat</span>
                     </div>
+                    <span style={{ fontSize: 14, opacity: 0.7 }}>{showChatExpanded ? "▲" : "▼"}</span>
                   </div>
-                  <div style={{ borderBottom: "1px solid #4b5563", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
-                    <input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
-                      placeholder="Type a message…"
-                      style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 10px", color: "#e5e7eb", outline: "none", fontSize: 12 }}
-                    />
-                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: 12, flexShrink: 0 }}>
-                      Send
-                    </button>
-                  </div>
-                  <div
-                    style={{
-                      padding: 12,
-                      fontSize: 12,
-                      color: "#d1d5db",
-                      overflowY: "auto",
-                      flexGrow: 1,
-                      minHeight: 0,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {[...chatMsgs].reverse().map((m) => {
-                      const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                      const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
-                      return (
-                        <div key={m.id} style={{ marginBottom: 8 }}>
-                          <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
-                        </div>
-                      )
-                    })}
-                  </div>
+                  {!showChatExpanded && chatMsgs.length > 0 && (() => {
+                    const m = chatMsgs[chatMsgs.length - 1]
+                    const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                    const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                    return (
+                      <div style={{ padding: "10px 12px", fontSize: 12, color: "#d1d5db", borderTop: "1px solid #4b5563" }}>
+                        <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
+                      </div>
+                    )
+                  })()}
+                  {showChatExpanded && (
+                    <div style={{ borderBottom: "1px solid #4b5563", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
+                      <input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
+                        placeholder="Type a message…"
+                        style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 10px", color: "#e5e7eb", outline: "none", fontSize: 12 }}
+                      />
+                      <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: 12, flexShrink: 0 }}>
+                        Send
+                      </button>
+                    </div>
+                  )}
+                  {showChatExpanded && (
+                    <div
+                      style={{
+                        padding: 12,
+                        fontSize: 12,
+                        color: "#d1d5db",
+                        overflowY: "auto",
+                        flexGrow: 1,
+                        minHeight: 0,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {[...chatMsgs].reverse().map((m) => {
+                        const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                        const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                        return (
+                          <div key={m.id} style={{ marginBottom: 8 }}>
+                            <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -3490,6 +3577,59 @@ useEffect(() => {
 
                   {/* Special Actions */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
+                    {/* Early Reinforcement - only show when it's this player's turn */}
+                    {g.player === rightPlayer.avatar && (
+                      <button
+                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
+                        disabled={!canBuyExtraReinforcement}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#1f2937",
+                          border: "1px solid #6b7280",
+                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                          <path d="M9 12h6" />
+                          <path d="M12 9v6" />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Ransom - only show when it's this player's turn */}
+                    {g.player === rightPlayer.avatar && (
+                      <button
+                        onClick={() => canUseRansom && actions.useRansom()}
+                        disabled={!canUseRansom}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#1f2937",
+                          border: "1px solid #6b7280",
+                          cursor: canUseRansom ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseRansom ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                          <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === rightPlayer.avatar && (
                       <button
@@ -3517,33 +3657,6 @@ useEffect(() => {
                       </button>
                     )}
 
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #6b7280",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
-                        </svg>
-                      </button>
-                    )}
-
                     {/* Evasion - only show when it's opponent's turn */}
                     {g.player !== rightPlayer.avatar && (
                       <button
@@ -3563,7 +3676,7 @@ useEffect(() => {
                           opacity: canUseEvasion ? 1 : 0.5,
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 10h.01" />
                           <path d="M15 10h.01" />
                           <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
@@ -3651,7 +3764,7 @@ useEffect(() => {
                     backgroundColor: "#374151",
                     borderRadius: 8,
                     border: "1px solid #4b5563",
-                    flexGrow: 1,
+                    flexGrow: showLogExpanded ? 1 : 0,
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
@@ -3709,7 +3822,7 @@ useEffect(() => {
         )}
 
         {/* Game Over Modal */}
-        {g.gameOver && (
+        {g.gameOver && showGameOverModal && (
           <div
             style={{
               position: "fixed",
@@ -3735,13 +3848,30 @@ useEffect(() => {
             >
               <div
                 style={{
-                  fontWeight: "bold",
-                  fontSize: "1.125rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   marginBottom: "12px",
-                  textAlign: "center",
                 }}
               >
-                GAME OVER
+                <div style={{ fontWeight: "bold", fontSize: "1.125rem", flex: 1, textAlign: "center" }}>
+                  GAME OVER
+                </div>
+                <button
+                  onClick={() => setShowGameOverModal(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#9ca3af",
+                    fontSize: "1.25rem",
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    padding: "4px",
+                    flexShrink: 0,
+                  }}
+                >
+                  ×
+                </button>
               </div>
 
               <div
@@ -3865,6 +3995,8 @@ useEffect(() => {
                 onClick={() => {
                   actions.newGame()
                   actions.setStarted(false)
+                  setShowGameOverModal(false)
+                  setNewGameOpen(true)
                 }}
                 style={{
                   width: "100%",
@@ -3933,6 +4065,24 @@ useEffect(() => {
         )}
       </div>
     </ErrBoundary>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<GamePage />} />
+      <Route path="/dev/invite" element={<DevInvitePage />} />
+      <Route path="/invite/:token" element={<InviteAcceptPage />} />
+      <Route
+        path="/pvp/:gameId"
+        element={
+          <div style={{ padding: 16, color: "white" }}>
+            PvP page coming next.
+          </div>
+        }
+      />
+    </Routes>
   )
 }
 

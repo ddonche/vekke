@@ -30,6 +30,8 @@ import {
   buyExtraReinforcement,
   EXTRA_REINFORCEMENT_COST,
   isTokenLockedBySiege,
+  useRansom,
+  RANSOM_COST_CAPTIVES,
   armEvasion,
   cancelEvasion,
   selectEvasionToken,
@@ -266,6 +268,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const canBuyExtraReinforcement =
     g.phase === "ACTION" && !g.gameOver && !extraReinfBought && g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST
 
+  const ransomUsed = Boolean((g as any).ransomUsedThisTurn)
+
+  const canUseRansom =
+    g.phase === "ACTION" &&
+    !g.gameOver &&
+    !ransomUsed &&
+    g.captives[g.player] >= RANSOM_COST_CAPTIVES &&
+    g.void[g.player] >= 1
+
   const evasionArmed = Boolean((g as any).evasionArmed)
   const evasionUsed = (g as any).evasionUsed as { W: boolean; B: boolean } | undefined
   const defender = other(g.player) // The player who is NOT currently moving
@@ -379,12 +390,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     if (g.gameOver) return
 
     if (clocks.W <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "B", reason: "timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "B", reason: "Timeout" } as any))
       warn("TIME: White ran out of time.")
       return
     }
     if (clocks.B <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "W", reason: "timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "W", reason: "Timeout" } as any))
       warn("TIME: Blue ran out of time.")
       return
     }
@@ -835,7 +846,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         if (g.gameOver) return
 
         update((s) => {
-          s.gameOver = { winner: other(s.player), reason: "resignation" }
+          s.gameOver = { winner: other(s.player), reason: "Resignation" }
         })
       },
 
@@ -991,6 +1002,37 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
         update((s) => buyExtraReinforcement(s))
       },
 
+      useRansom: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+
+        if (!canUseRansom) {
+          if (g.phase !== "ACTION") {
+            warn("INVALID: Ransom only available during ACTION.")
+            return
+          }
+          if (ransomUsed) {
+            warn("INVALID: Ransom already used this turn.")
+            return
+          }
+          if (g.captives[g.player] < RANSOM_COST_CAPTIVES) {
+            warn(`INVALID: Need ${RANSOM_COST_CAPTIVES} captives to ransom.`)
+            return
+          }
+          if (g.void[g.player] < 1) {
+            warn("INVALID: No tokens in void to recover.")
+            return
+          }
+          warn("INVALID: Can't use ransom right now.")
+          return
+        }
+
+        update((s) => useRansom(s))
+      },
+
       yieldForced: () => {
         if (!started) return
         if (g.gameOver) {
@@ -1079,6 +1121,8 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     canEarlySwap,
     canBuyExtraReinforcement,
     extraReinfBought,
+    canUseRansom,
+    ransomUsed,
     evasionArmed,
     hasUsedEvasion,
     canUseEvasion,
@@ -1109,6 +1153,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     canPickQueueForSwap,
     canEarlySwap,
     canBuyExtraReinforcement,
+    canUseRansom,
     evasionArmed,
     canUseEvasion,
     pendingEvasion,
@@ -1123,6 +1168,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     constants: {
       EARLY_SWAP_COST,
       EXTRA_REINFORCEMENT_COST,
+      RANSOM_COST_CAPTIVES,
       EVASION_COST_CAPTIVES,
       EVASION_COST_RESERVES,
     },

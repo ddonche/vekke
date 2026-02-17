@@ -180,6 +180,19 @@ export class VgnRecorder {
       this.lines.push(this.mkLine(t, `p=${p}|from=${from}|to=VOID|yield=${n}`))
     }
 
+    // ---- RANSOM: pay 2 captives to recover 1 from void ----
+    // Detect: captives -2, void -1, reserves +1 (all for same player)
+    for (const p of ["W", "B"] as Player[]) {
+      const captivesDelta = (next.captives[p] ?? 0) - (prev.captives[p] ?? 0)
+      const voidDelta = (next.void[p] ?? 0) - (prev.void[p] ?? 0)
+      const reservesDelta = (next.reserves[p] ?? 0) - (prev.reserves[p] ?? 0)
+
+      // Ransom pattern: exactly -2 captives, -1 void, +1 reserves
+      if (captivesDelta === -2 && voidDelta === -1 && reservesDelta === 1) {
+        this.lines.push(this.mkLine(t, `p=${p}|action=RANSOM|captives=-2|void=-1|reserves=+1`))
+      }
+    }
+
     // ---- ROUTES: diff hand/queue/deck ----
     // This assumes your state has:
     // - next.routes[Player] as HAND (array of route objects {id,dir,dist})
