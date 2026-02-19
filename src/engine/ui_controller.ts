@@ -96,10 +96,11 @@ export function useVekkeController(opts: {
   sounds: Sounds
   aiDelayMs?: number
   opponentType?: "ai" | "pvp"
-  onMoveComplete?: (state: GameState) => void
+  onMoveComplete?: (state: GameState, clocks: { W: number; B: number }) => void
   initialState?: GameState
   mySide?: Player
   initialTimeControlId?: TimeControlId
+  initialClocks?: { W: number; B: number }
 }) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
@@ -128,7 +129,7 @@ export function useVekkeController(opts: {
   // NEW: time controls + clocks
   const [timeControlId, setTimeControlId] = useState<TimeControlId>(opts.initialTimeControlId ?? "standard")
   const timeControl = TIME_CONTROLS[timeControlId]
-  const [clocks, setClocks] = useState<Clocks>(() => ({ W: timeControl.baseMs, B: timeControl.baseMs }))
+  const [clocks, setClocks] = useState<Clocks>(() => opts.initialClocks ?? ({ W: timeControl.baseMs, B: timeControl.baseMs }))
 
   // ------------------------------------------------------------
   // Online reporting / Elo wiring
@@ -342,8 +343,8 @@ export function useVekkeController(opts: {
     if (opponentType !== "pvp") return
     if (!onMoveComplete) return
     
-    onMoveComplete(g)
-  }, [g, started, opponentType, onMoveComplete])
+    onMoveComplete(g, clocks)
+  }, [g, clocks, started, opponentType, onMoveComplete])
 
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)

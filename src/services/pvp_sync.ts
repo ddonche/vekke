@@ -14,6 +14,9 @@ export type PvPGameData = {
   current_state: any | null
   format: string
   last_move_at: string
+  clocks_w_ms: number | null
+  clocks_b_ms: number | null
+  turn_started_at: string | null
 }
 
 export type GameEvent = {

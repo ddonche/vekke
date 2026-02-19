@@ -72,6 +72,7 @@ type GamePageProps = {
   opponentUserId?: string
   externalGameData?: any
   initialTimeControlId?: TimeControlId
+  initialClocks?: { W: number; B: number }
 }
 
 export function GamePage(props: GamePageProps = {}) {
@@ -113,6 +114,7 @@ export function GamePage(props: GamePageProps = {}) {
     initialState: props.initialState,
     onMoveComplete: props.onMoveComplete,
     initialTimeControlId: props.initialTimeControlId,
+    initialClocks: props.initialClocks,
   })
 
   const [ghost, setGhost] = useState<null | {
@@ -4055,7 +4057,7 @@ useEffect(() => {
                       </span>
                     )
                   }
-                  if (reason?.toLowerCase() === "resignation") {
+                  if (reason?.toLowerCase() === "siegemate") {
                     return (
                       <span style={{ color: winnerColor }}>
                         {winnerName} wins by Siegemate

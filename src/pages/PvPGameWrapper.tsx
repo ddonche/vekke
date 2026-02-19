@@ -18,8 +18,9 @@ export function PvPGameWrapper() {
   const [opponentName, setOpponentName] = useState<string>("Opponent")
   const [opponentElo, setOpponentElo] = useState<number>(1200)
   const lastSavedMoveRef = useRef<string | number>(-1)
-  // Track last state we received from DB so we don't echo it back
   const lastReceivedKeyRef = useRef<string | null>(null)
+  const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(undefined)
+  const prevPlayerRef = useRef<string | null>(null)
 
   // Load game data on mount
   useEffect(() => {
@@ -86,6 +87,18 @@ export function PvPGameWrapper() {
         setMyElo(myStats?.elo || 1200)
         setOpponentName(oppProfile?.username || "Opponent")
         setOpponentElo(oppStats?.elo || 1200)
+
+        // Restore clocks from DB
+        if (game.clocks_w_ms != null && game.clocks_b_ms != null && game.turn_started_at) {
+          const elapsed = Date.now() - new Date(game.turn_started_at).getTime()
+          const currentPlayer = game.current_state?.player ?? game.turn
+          const restoredClocks = {
+            W: currentPlayer === "W" ? Math.max(0, game.clocks_w_ms - elapsed) : game.clocks_w_ms,
+            B: currentPlayer === "B" ? Math.max(0, game.clocks_b_ms - elapsed) : game.clocks_b_ms,
+          }
+          setInitialClocks(restoredClocks)
+        }
+
         setLoading(false)
       } catch (e: any) {
         if (!mounted) return
@@ -143,7 +156,7 @@ export function PvPGameWrapper() {
     }
   }, [gameId, mySide])
 
-  const handleMoveComplete = useCallback(async (state: GameState) => {
+  const handleMoveComplete = useCallback(async (state: GameState, clocks: { W: number; B: number }) => {
     if (!gameId) return
 
     const stateKey = state.phase === "OPENING"
@@ -151,13 +164,27 @@ export function PvPGameWrapper() {
       : `${state.turn}-${state.phase}-${state.log.length}`
     if (stateKey === lastReceivedKeyRef.current) return
 
+    // Always write current clock values so refresh can restore them.
+    // Only update turn_started_at on turn flip (that's the anchor for elapsed calc).
+    const turnFlipped = prevPlayerRef.current !== null && prevPlayerRef.current !== state.player
+    prevPlayerRef.current = state.player
+
+    const now = new Date().toISOString()
+    const update: any = {
+      current_state: state,
+      last_move_at: now,
+      clocks_w_ms: Math.round(clocks.W),
+      clocks_b_ms: Math.round(clocks.B),
+    }
+
+    if (turnFlipped || state.gameOver) {
+      update.turn_started_at = now
+    }
+
     try {
       await supabase
         .from("games")
-        .update({
-          current_state: state,
-          last_move_at: new Date().toISOString(),
-        })
+        .update(update)
         .eq("id", gameId)
     } catch (e) {
       console.error("Failed to sync state:", e)
@@ -216,6 +243,7 @@ export function PvPGameWrapper() {
       opponentElo={opponentElo}
       externalGameData={gameData}
       initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
+      initialClocks={initialClocks}
       onMoveComplete={handleMoveComplete}
     />
   )
