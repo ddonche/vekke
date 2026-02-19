@@ -57,7 +57,7 @@ type Sounds = {
 export type TimeControlId = "standard" | "rapid" | "blitz" | "daily"
 export type TimeControl = { id: TimeControlId; label: string; baseMs: number; incMs: number }
 
-const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
+export const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
   standard: { id: "standard", label: "Standard (10+5)", baseMs: 10 * 60_000, incMs: 5_000 },
   rapid: { id: "rapid", label: "Rapid (5+3)", baseMs: 5 * 60_000, incMs: 3_000 },
   blitz: { id: "blitz", label: "Blitz (3+2)", baseMs: 3 * 60_000, incMs: 2_000 },
@@ -92,18 +92,32 @@ type Clocks = { W: number; B: number }
 
 const other = (p: Player): Player => (p === "W" ? "B" : "W")
 
-export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number }) {
+export function useVekkeController(opts: { 
+  sounds: Sounds
+  aiDelayMs?: number
+  opponentType?: "ai" | "pvp"
+  onMoveComplete?: (state: GameState) => void
+  initialState?: GameState
+  mySide?: Player
+  initialTimeControlId?: TimeControlId
+}) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
+  const opponentType = opts.opponentType ?? "ai"
+  const onMoveComplete = opts.onMoveComplete
+  const mySide = opts.mySide
 
   // ------------------------------------------------------------
   // Core game state
   // ------------------------------------------------------------
-  const [g, setG] = useState<GameState>(() => newGame())
+  const [g, setG] = useState<GameState>(() => opts.initialState ?? newGame())
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null)
 
   // IMPORTANT: human MUST reset each new game (you asked for this).
-  const [human, setHuman] = useState<Player>(() => (Math.random() < 0.5 ? "W" : "B"))
+  const [human, setHuman] = useState<Player>(() => {
+    if (opponentType === "pvp" && opts.mySide) return opts.mySide
+    return Math.random() < 0.5 ? "W" : "B"
+  })
   const ai: Player = human === "W" ? "B" : "W"
 
   const [aiDifficulty, setAiDifficulty] = useState<AiLevel>("novice")
@@ -112,7 +126,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   const [audioReady, setAudioReady] = useState(false)
 
   // NEW: time controls + clocks
-  const [timeControlId, setTimeControlId] = useState<TimeControlId>("standard")
+  const [timeControlId, setTimeControlId] = useState<TimeControlId>(opts.initialTimeControlId ?? "standard")
   const timeControl = TIME_CONTROLS[timeControlId]
   const [clocks, setClocks] = useState<Clocks>(() => ({ W: timeControl.baseMs, B: timeControl.baseMs }))
 
@@ -120,7 +134,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   // Online reporting / Elo wiring
   // (Add-only: does not affect gameplay logic)
   // ------------------------------------------------------------
-  const [vsAi, setVsAi] = useState<boolean>(true) // PvP not wired yet
+  const [vsAi, setVsAi] = useState<boolean>(opponentType === "ai")
   const [isRanked, setIsRanked] = useState<boolean>(true) // Elo always for now
   const [gameId, setGameId] = useState<string | null>(null)
   const reportedResultRef = useRef<string | null>(null)
@@ -322,6 +336,15 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     [update]
   )
 
+  // PvP: callback after any state change to sync to database
+  useEffect(() => {
+    if (!started) return
+    if (opponentType !== "pvp") return
+    if (!onMoveComplete) return
+    
+    onMoveComplete(g)
+  }, [g, started, opponentType, onMoveComplete])
+
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)
   useEffect(() => {
@@ -389,23 +412,32 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     if (!started) return
     if (g.gameOver) return
 
+    // In PvP, only trigger timeout for YOUR OWN clock running out.
+    // The opponent's timeout is their client's responsibility to report.
+    if (opponentType === "pvp" && mySide !== g.player) return
+
     if (clocks.W <= 0) {
       update((s) => ((s as any).gameOver = { winner: "B", reason: "Timeout" } as any))
-      warn("TIME: White ran out of time.")
+      warn("TIME: W ran out of time.")
       return
     }
     if (clocks.B <= 0) {
       update((s) => ((s as any).gameOver = { winner: "W", reason: "Timeout" } as any))
-      warn("TIME: Blue ran out of time.")
+      warn("TIME: B ran out of time.")
       return
     }
-  }, [started, g.gameOver, clocks.W, clocks.B, update, warn])
+  }, [started, g.gameOver, clocks.W, clocks.B, update, warn, opponentType, mySide])
 
   // ===== END TIMER CORE =====
 
   const onSquareClick = useCallback(
     (x: number, y: number) => {
       if (!started) return
+      // PvP: block input when it's not your turn (except during evasion which is defender's action)
+      if (opponentType === "pvp" && mySide) {
+        const activePlayer = evasionArmed ? other(g.player) : g.player
+        if (activePlayer !== mySide) return
+      }
       if ((g as any).warning) update((s) => ((s as any).warning = "" as any))
 
       const coord: Coord = { x, y }
@@ -511,6 +543,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
   useEffect(() => {
     if (!started) return
     if (g.gameOver) return
+    if (opponentType !== "ai") return // Skip AI in PvP mode
     if (g.player !== ai) return
     if (evasionArmed) return // Don't let AI move during evasion interrupt
 
@@ -547,6 +580,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
     update,
     AI_DELAY_MS,
     evasionArmed,
+    opponentType,
   ])
 
   useEffect(() => {
@@ -859,6 +893,12 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           return
         }
 
+        // PvP: only allow action on your own turn
+        if (opponentType === "pvp" && mySide && g.player !== mySide) {
+          warn("INVALID: It's not your turn.")
+          return
+        }
+
         // Block current player from playing routes during evasion interrupt
         if (evasionArmed && owner === g.player) {
           warn("INVALID: Opponent is currently in evasion.")
@@ -900,6 +940,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           warn("INVALID: Game is over.")
           return
         }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
 
         if (!canPickQueueForSwap) {
           warn("INVALID: You can only pick from the queue during a swap.")
@@ -915,6 +956,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           warn("INVALID: Game is over.")
           return
         }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
 
         if (!canPickQueueForSwap) {
           warn("INVALID: You can only confirm a swap during a swap.")
@@ -981,6 +1023,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           warn("INVALID: Game is over.")
           return
         }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
 
         if (!canBuyExtraReinforcement) {
           if (g.phase !== "ACTION") {
@@ -1008,6 +1051,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           warn("INVALID: Game is over.")
           return
         }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
 
         if (!canUseRansom) {
           if (g.phase !== "ACTION") {
@@ -1039,6 +1083,7 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           warn("INVALID: Game is over.")
           return
         }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
         update((s) => yieldForcedIfNoUsableRoutes(s))
       },
 
@@ -1104,6 +1149,10 @@ export function useVekkeController(opts: { sounds: Sounds; aiDelayMs?: number })
           return
         }
         update((s) => confirmEvasion(s))
+      },
+
+      loadState: (state: GameState) => {
+        setG(state)
       },
 
       setSelectedTokenId,

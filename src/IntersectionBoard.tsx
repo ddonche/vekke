@@ -22,6 +22,7 @@ interface IntersectionBoardProps {
   evasionSourcePos?: { x: number; y: number } | null
   evasionDestPos?: { x: number; y: number } | null
   evasionPlayer?: Player | null
+  tokenClass?: (side: "W" | "B") => string
 }
 
 export function IntersectionBoard({
@@ -36,6 +37,7 @@ export function IntersectionBoard({
   evasionSourcePos = null,
   evasionDestPos = null,
   evasionPlayer = null,
+  tokenClass = (side: "W" | "B") => side === "W" ? "token-w-skin" : "token-b-skin",
 }: IntersectionBoardProps) {
   // Mobile: match GridBoard flex proportions
   // Grid uses: gap 0.125rem (2px), padding 0.375rem (6px), 6 cells
@@ -299,7 +301,7 @@ export function IntersectionBoard({
                     }}
                   >
                     <div
-                      className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                      className={`${tokenClass(ghost.by)} token-ghost`}
                       style={{
                         width: tokenRadius * 2,
                         height: tokenRadius * 2,
@@ -330,7 +332,7 @@ export function IntersectionBoard({
                       }}
                     >
                       <div
-                        className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                        className={`${tokenClass(ghost.by)} token-ghost`}
                         style={{
                           width: tokenRadius * 2,
                           height: tokenRadius * 2,
@@ -385,7 +387,7 @@ export function IntersectionBoard({
                   >
                     {/* Token circle */}
                     <div
-                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                      className={tokenClass(t.owner as "W" | "B")}
                       style={{
                         width: tokenRadius * 2,
                         height: tokenRadius * 2,
@@ -421,7 +423,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer)}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,
@@ -443,7 +445,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer)}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,

@@ -82,13 +82,14 @@ Deno.serve(async (req) => {
       .from("games")
       .insert({
         created_by: inv.created_by,
-        wake_id: inv.created_by,   // was white_id
-        brake_id: userId,           // was blue_id
+        wake_id: inv.created_by,
+        brake_id: userId,
         status: "active",
-        turn: "W",
+        turn: "B",  // Brake places first
         vgn_version: inv.vgn_version ?? "1",
         is_ranked: !!inv.is_ranked,
         initial_state: inv.initial_state,
+        current_state: inv.initial_state,  // ADD THIS LINE
         format: inv.time_control ?? "standard",
         last_move_at: new Date().toISOString(),
       })

@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { newGame } from "../engine/state"
-import { createInvite } from "../services/pvp"
+import { createInvite, type TimeControlId } from "../services/pvp"
 
 export function DevInvitePage() {
   const [email, setEmail] = useState("")
+  const [timeControl, setTimeControl] = useState<TimeControlId>("standard")
   const [link, setLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -14,7 +15,7 @@ export function DevInvitePage() {
       const initialState = newGame()
       const r = await createInvite({
         inviteeEmail: email.trim() || null,
-        timeControlId: "standard",
+        timeControlId: timeControl,
         isRanked: false,
         initialState,
       })
@@ -32,6 +33,15 @@ export function DevInvitePage() {
       <div style={{ marginTop: 8 }}>
         <div>Email lock (optional)</div>
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="friend@example.com" />
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <div>Time control</div>
+        <select value={timeControl} onChange={(e) => setTimeControl(e.target.value as TimeControlId)}>
+          <option value="standard">Standard</option>
+          <option value="rapid">Rapid</option>
+          <option value="blitz">Blitz</option>
+          <option value="daily">Daily</option>
+        </select>
       </div>
       <button onClick={() => { console.log("CLICK"); go() }} disabled={busy} style={{ marginTop: 8 }}>
         Create invite

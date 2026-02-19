@@ -22,6 +22,7 @@ interface GridBoardProps {
   evasionSourcePos?: { x: number; y: number } | null
   evasionDestPos?: { x: number; y: number } | null
   evasionPlayer?: Player | null
+  tokenClass?: (side: "W" | "B") => string
 }
 
 export function GridBoard({
@@ -36,6 +37,7 @@ export function GridBoard({
   evasionSourcePos = null,
   evasionDestPos = null,
   evasionPlayer = null,
+  tokenClass = (side: "W" | "B") => side === "W" ? "token-w-skin" : "token-b-skin",
 }: GridBoardProps) {
   // Mobile: use same fixed sizing as IntersectionBoard
   // cellSize 58px spacing = 56px cell + 2px gap
@@ -129,7 +131,7 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer)}
                     style={{ width: tokenSize, height: tokenSize, borderRadius: "50%", opacity: 0.35 }}
                   />
                 </div>
@@ -147,7 +149,7 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer)}
                     style={{
                       width: tokenSize,
                       height: tokenSize,
@@ -193,7 +195,7 @@ export function GridBoard({
                     }}
                   >
                     <div
-                      className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                      className={`${tokenClass(ghost.by)} token-ghost`}
                       style={{
                         width: tokenSize,
                         height: tokenSize,
@@ -224,7 +226,7 @@ export function GridBoard({
                       }}
                     >
                       <div
-                        className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                        className={`${tokenClass(ghost.by)} token-ghost`}
                         style={{
                           width: tokenSize,
                           height: tokenSize,
@@ -271,7 +273,7 @@ export function GridBoard({
                   <div style={{ position: "relative", width: tokenSize, height: tokenSize }}>
                     {/* Token circle */}
                     <div
-                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                      className={tokenClass(t.owner as "W" | "B")}
                       style={{
                         width: tokenSize,
                         height: tokenSize,
