@@ -104,6 +104,7 @@ export function PvPGamePage() {
     opponentType: "pvp",
     mySide: mySide ?? undefined,
     initialState,
+    initialTimeControlId: timeControlId,
     onMoveComplete: async (state: GameState) => {
       if (!gameId || !mySide || !gameData) return
 
