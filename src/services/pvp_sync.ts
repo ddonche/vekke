@@ -198,7 +198,7 @@ export async function endGame(args: {
   const { error } = await supabase
     .from("games")
     .update({
-      status: "ended",
+      status: "completed",
       winner_id: winnerId,
       loser_id: loserId,
       end_reason: args.reason,
