@@ -1,24 +1,23 @@
 // src/pages/PvPGameWrapper.tsx
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { fetchGame, endGame, type PvPGameData } from "../services/pvp_sync"
 import { GamePage } from "../components/GamePage"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
 
-// ✅ One helper for ALL edge-function calls (fixes your 401s)
+// One helper for ALL edge-function calls.
+// getSession() refreshes the token if it's expired (autoRefreshToken),
+// then we let the Supabase client supply the Authorization header itself —
+// passing the token manually risks forwarding a stale cached value.
 async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
   const { data: sess, error: sessErr } = await supabase.auth.getSession()
   if (sessErr) throw sessErr
+  if (!sess.session) throw new Error("No session token (not logged in)")
 
-  const token = sess.session?.access_token
-  if (!token) throw new Error("No session token (not logged in)")
-
-  const { data, error } = await supabase.functions.invoke(fn, {
-    body,
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  // No manual Authorization header: the client uses its internally-refreshed token
+  const { data, error } = await supabase.functions.invoke(fn, { body })
 
   if (error) throw error
   return data as T
@@ -38,6 +37,7 @@ function makeStateKey(s: GameState) {
 
 export function PvPGameWrapper() {
   const { gameId } = useParams<{ gameId: string }>()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameData, setGameData] = useState<PvPGameData | null>(null)
@@ -428,6 +428,7 @@ export function PvPGameWrapper() {
         initialClocks={initialClocks}
         onMoveComplete={handleMoveComplete}
         onRequestRematch={requestRematch}
+        onPlayComputer={() => navigate("/")}
       />
     </>
   )
