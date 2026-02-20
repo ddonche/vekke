@@ -1,0 +1,104 @@
+/* src/styles/skins.css
+   DEFAULTS ONLY — everything else removed on purpose
+*/
+
+/* ── Shared token base ─────────────────────────────────────── */
+[class*="skin-token-"] {
+  position: relative;
+  display: block;
+  transform: translateZ(0);
+}
+
+/* ── DEFAULT TOKENS ────────────────────────────────────────── */
+
+.skin-token-default-w {
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%,
+    #ffffff,
+    #d4d4d4 40%,
+    #a3a3a3 65%,
+    #737373
+  );
+  box-shadow:
+    inset -0.12em -0.12em 0.5em rgba(0,0,0,0.3),
+    inset 0.12em 0.12em 0.5em rgba(255,255,255,0.8),
+    0 0.3em 0.8em rgba(0,0,0,0.6);
+  filter: drop-shadow(0 0.08em 0 rgba(0,0,0,0.22));
+}
+.skin-token-default-w::before {
+  content: '';
+  position: absolute;
+  inset: 0.08em;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0.04em 0.08em rgba(255,255,255,0.35),
+    inset 0 -0.12em 0.16em rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+.skin-token-default-w::after {
+  content: '';
+  position: absolute;
+  top: 14%; left: 18%;
+  width: 46%; height: 38%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%,
+    rgba(255,255,255,0.75) 0%,
+    rgba(255,255,255,0.28) 28%,
+    rgba(255,255,255,0.00) 70%
+  );
+  filter: blur(0.08em);
+  pointer-events: none;
+}
+
+.skin-token-default-b {
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%,
+    #ffffff,
+    #5de8f7 20%,
+    #26c6da 40%,
+    #00acc1 65%,
+    #006064
+  );
+  box-shadow:
+    inset -0.12em -0.12em 0.5em rgba(0,0,0,0.5),
+    inset 0.12em 0.12em 0.5em rgba(255,255,255,0.6),
+    inset 0 0 1em rgba(0,137,123,0.2),
+    0 0.3em 0.8em rgba(0,0,0,0.6);
+  filter: drop-shadow(0 0.08em 0 rgba(0,0,0,0.22));
+}
+.skin-token-default-b::before {
+  content: '';
+  position: absolute;
+  inset: 0.08em;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0.04em 0.08em rgba(255,255,255,0.35),
+    inset 0 -0.12em 0.16em rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+.skin-token-default-b::after {
+  content: '';
+  position: absolute;
+  top: 14%; left: 18%;
+  width: 46%; height: 38%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%,
+    rgba(255,255,255,0.75) 0%,
+    rgba(255,255,255,0.28) 28%,
+    rgba(255,255,255,0.00) 70%
+  );
+  filter: blur(0.08em);
+  pointer-events: none;
+}
+
+/* ── DEFAULT ROUTES ────────────────────────────────────────── */
+.skin-route-default {
+  --route-highlight: #ee484c;
+  --route-body: #26c6da;
+  --route-border: #ee484c;
+}
+
+/* ── GHOST ─────────────────────────────────────────────────── */
+.token-ghost {
+  opacity: 0.3;
+}

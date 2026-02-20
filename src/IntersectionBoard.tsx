@@ -22,8 +22,8 @@ interface IntersectionBoardProps {
   evasionSourcePos?: { x: number; y: number } | null
   evasionDestPos?: { x: number; y: number } | null
   evasionPlayer?: Player | null
-  highlightColor?: string
-  bodyColor?: string
+  tokenClass?: (side: "W" | "B") => string
+  routeClass?: string
 }
 
 export function IntersectionBoard({
@@ -38,8 +38,8 @@ export function IntersectionBoard({
   evasionSourcePos = null,
   evasionDestPos = null,
   evasionPlayer = null,
-  highlightColor = "#ee484c",
-  bodyColor = "#26c6da",
+  tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
+  routeClass = "skin-route-default",
 }: IntersectionBoardProps) {
   // Mobile: match GridBoard flex proportions
   // Grid uses: gap 0.125rem (2px), padding 0.375rem (6px), 6 cells
@@ -186,7 +186,7 @@ export function IntersectionBoard({
           cx={x}
           cy={y}
           r={mobile ? 4 : 5}
-          fill={isSelected ? "#5de8f7" : highlightColor}
+          fill={isSelected ? "#5de8f7" : "var(--route-highlight, #ee484c)"}
           pointerEvents="none"
         />
       )
@@ -303,7 +303,7 @@ export function IntersectionBoard({
                     }}
                   >
                     <div
-                      className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                      className={`${ghost.by === "B" ? tokenClass("B") : tokenClass("W")} token-ghost`}
                       style={{
                         width: tokenRadius * 2,
                         height: tokenRadius * 2,
@@ -334,7 +334,7 @@ export function IntersectionBoard({
                       }}
                     >
                       <div
-                        className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
+                        className={`${ghost.by === "B" ? tokenClass("B") : tokenClass("W")} token-ghost`}
                         style={{
                           width: tokenRadius * 2,
                           height: tokenRadius * 2,
@@ -389,7 +389,7 @@ export function IntersectionBoard({
                   >
                     {/* Token circle */}
                     <div
-                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
+                      className={tokenClass(t.owner === "B" ? "B" : "W")}
                       style={{
                         width: tokenRadius * 2,
                         height: tokenRadius * 2,
@@ -405,7 +405,7 @@ export function IntersectionBoard({
                           position: "absolute",
                           inset: mobile ? "-3px" : "-4px",
                           borderRadius: "50%",
-                          border: `${mobile ? "2px" : "2px"} dashed ${highlightColor}`,
+                          border: `${mobile ? "2px" : "2px"} dashed var(--route-border, #ee484c)`,
                           pointerEvents: "none",
                         }}
                       />
@@ -425,7 +425,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,
@@ -447,7 +447,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
+                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,
@@ -468,11 +468,11 @@ export function IntersectionBoard({
   
   if (mobile) {
     return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className={routeClass} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {board}
       </div>
     )
   }
   
-  return board
+  return <div className={routeClass} style={{ display: "contents" }}>{board}</div>
 }

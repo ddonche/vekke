@@ -1,4 +1,5 @@
 // src/components/GamePage.tsx
+import "../styles/skins.css"
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import { SIZE, toSq, type Coord } from "../engine/coords"
 import type { GameState, Player, Token } from "../engine/state"
@@ -15,7 +16,7 @@ import { ProfileModal } from "../ProfileModal"
 import { HelpModal } from "../HelpModal"
 import { getCurrentUserId } from "../services/auth" //
 import { supabase } from "../services/supabase"
-import { getResolvedLoadout, type ResolvedLoadout, type TokenStyle, type RouteStyle } from "../services/skinService"
+import { getResolvedLoadout, type ResolvedLoadout, DEFAULT_RESOLVED } from "../services/skinService"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -637,21 +638,7 @@ useEffect(() => {
   // ------------------------------------------------------------
 
   // Default styles (mirror DB seeds, used until loadout resolves or when suppressed)
-  const DEFAULT_WAKE_STYLE: TokenStyle = {
-    gradient: "radial-gradient(circle at 30% 30%, #ffffff, #f5f5f5 15%, #c8c8c8 40%, #8e8e8e 65%, #5a5a5a)",
-    boxShadow: "inset -0.15em -0.15em 0.5em rgba(0,0,0,0.45), inset 0.15em 0.15em 0.5em rgba(255,255,255,1), inset 0 0 1em rgba(0,0,0,0.15), 0 0.3em 0.8em rgba(0,0,0,0.6), 0 0.15em 0.3em rgba(0,0,0,0.4)",
-    previewColor: "#e5e7eb",
-  }
-  const DEFAULT_BRAKE_STYLE: TokenStyle = {
-    gradient: "radial-gradient(circle at 30% 30%, #ffffff, #5de8f7 20%, #26c6da 40%, #00acc1 65%, #006064)",
-    boxShadow: "inset -0.12em -0.12em 0.5em rgba(0,0,0,0.5), inset 0.12em 0.12em 0.5em rgba(255,255,255,0.6), inset 0 0 1em rgba(0,137,123,0.2), 0 0.3em 0.8em rgba(0,0,0,0.6), 0 0.15em 0.3em rgba(0,0,0,0.4)",
-    previewColor: "#5de8f7",
-  }
-  const DEFAULT_ROUTE_STYLE: RouteStyle = {
-    highlightColor: "#ee484c",
-    bodyColor: "#26c6da",
-    previewColor: "#26c6da",
-  }
+  // Skin styles live in skins.css
 
   // Who is on which side?
   const mySide: "W" | "B" = props.mySide ?? human ?? "W"
@@ -660,19 +647,18 @@ useEffect(() => {
   // W tokens use whoever-is-W's wake skin, B tokens use whoever-is-B's brake skin
   const effectiveOpponentLoadout = suppressOpponentSkin ? null : opponentLoadout
 
-  const wTokenStyle: TokenStyle = mySide === "W"
-    ? (myLoadout?.wakeToken ?? DEFAULT_WAKE_STYLE)
-    : (effectiveOpponentLoadout?.wakeToken ?? DEFAULT_WAKE_STYLE)
+  const wTokenClass = mySide === "W"
+    ? (myLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
+    : (effectiveOpponentLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
 
-  const bTokenStyle: TokenStyle = mySide === "B"
-    ? (myLoadout?.brakeToken ?? DEFAULT_BRAKE_STYLE)
-    : (effectiveOpponentLoadout?.brakeToken ?? DEFAULT_BRAKE_STYLE)
+  const bTokenClass = mySide === "B"
+    ? (myLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
+    : (effectiveOpponentLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
 
-  // Route style — each player's routes show in their own skin
-  const myRouteStyle: RouteStyle = myLoadout?.route ?? DEFAULT_ROUTE_STYLE
+  const myRouteClass = myLoadout?.routeClass ?? DEFAULT_RESOLVED.routeClass
 
   // Helper: given a game side ("W" or "B"), return the CSS class for that token
-  const tokenClass = (side: "W" | "B") => side === "W" ? "token-w-skin" : "token-b-skin"
+  const tokenClass = (side: "W" | "B") => side === "W" ? wTokenClass : bTokenClass
 
   return (
     <ErrBoundary>
@@ -696,60 +682,9 @@ useEffect(() => {
         <style>{`
           * { box-sizing: border-box; }
           body { margin: 0; background: #1f2937; }
-
-          .token-w-skin {
-            background: ${wTokenStyle.gradient};
-            box-shadow: ${wTokenStyle.boxShadow};
-            transform: translateZ(0);
-            filter: drop-shadow(0 0.08em 0 rgba(0,0,0,0.22));
-          }
-
-          .token-b-skin {
-            background: ${bTokenStyle.gradient};
-            box-shadow: ${bTokenStyle.boxShadow};
-            transform: translateZ(0);
-            filter: drop-shadow(0 0.08em 0 rgba(0,0,0,0.22));
-          }
-
-          .token-w-skin::before,
-          .token-b-skin::before {
-            content: '';
-            position: absolute;
-            inset: 0.08em;
-            border-radius: 50%;
-            box-shadow:
-              inset 0 0.04em 0.08em rgba(255,255,255,0.35),
-              inset 0 -0.12em 0.16em rgba(0,0,0,0.45);
-            pointer-events: none;
-          }
-
-          .token-w-skin::after,
-          .token-b-skin::after {
-            content: '';
-            position: absolute;
-            top: 14%;
-            left: 18%;
-            width: 46%;
-            height: 38%;
-            border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%,
-              rgba(255,255,255,0.75) 0%,
-              rgba(255,255,255,0.28) 28%,
-              rgba(255,255,255,0.00) 70%
-            );
-            filter: blur(0.08em);
-            pointer-events: none;
-          }
-
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .hide-scrollbar {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-
           .token-ghost { opacity: 0.3; }
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
         `}</style>
 
         {newGameOpen && (
@@ -1980,7 +1915,7 @@ useEffect(() => {
                           route={r}
                           onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
-                          highlightColor={myRouteStyle.highlightColor}
+                          routeClass={myRouteClass}
                           style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -2180,7 +2115,7 @@ useEffect(() => {
                       route={r}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
-                      highlightColor={myRouteStyle.highlightColor}
+                      routeClass={myRouteClass}
                       style={{
                         ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                         alignSelf: "center",
@@ -2679,7 +2614,7 @@ useEffect(() => {
                           route={r}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
-                          highlightColor={myRouteStyle.highlightColor}
+                          routeClass={myRouteClass}
                           style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -3213,7 +3148,7 @@ useEffect(() => {
                             route={r}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
-                            highlightColor={myRouteStyle.highlightColor}
+                            routeClass={myRouteClass}
                             style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -3337,7 +3272,7 @@ useEffect(() => {
                     route={r}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
-                    highlightColor={myRouteStyle.highlightColor}
+                    routeClass={myRouteClass}
                     style={{
                       ...(routeDominoW
                         ? { flex: "0 0 auto", width: routeDominoW }
@@ -3929,7 +3864,7 @@ useEffect(() => {
                             route={r}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
-                            highlightColor={myRouteStyle.highlightColor}
+                            routeClass={myRouteClass}
                             style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
