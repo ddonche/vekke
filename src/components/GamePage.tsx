@@ -1,4 +1,5 @@
 // src/components/GamePage.tsx
+import { useNavigate } from "react-router-dom"
 import "../styles/skins.css"
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import { SIZE, toSq, type Coord } from "../engine/coords"
@@ -129,7 +130,12 @@ export function GamePage(props: GamePageProps = {}) {
 
   const GHOST_MS = 1000
 
-  const [newGameOpen, setNewGameOpen] = useState(props.opponentType === "pvp" ? false : true)
+  const [newGameOpen, setNewGameOpen] = useState(() => {
+    if (props.opponentType === "pvp") return false
+    // If we already have a DB-backed game loaded (wrapper), don't show "new game" modal.
+    if (props.externalGameData) return false
+    return true
+  })
   const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
 
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
@@ -189,6 +195,39 @@ export function GamePage(props: GamePageProps = {}) {
     timeControlId === "daily" ? "Daily" :
     "Standard"
 
+  const navigate = useNavigate()
+
+  async function createAiGameAndGo() {
+    await actions.unlockAudio?.()
+
+    if (!currentUserId) {
+      setNewGameMsg("You must be logged in to start a new game.")
+      return
+    }
+
+    setNewGameMsg(null)
+
+    // NOTE: your controller already knows the selected AI + time control:
+    // - aiDifficulty
+    // - timeControlId
+    const { data: sess, error: sessErr } = await supabase.auth.getSession()
+    const token = sess.session?.access_token
+
+    if (sessErr || !token) {
+      setShowAuthModal(true)
+      return
+    }
+
+    const { data, error } = await supabase.functions.invoke("create_ai_game", {
+      body: { aiLevel: aiDifficulty, timeControl: timeControlId },
+    })
+
+    if (error) throw error
+    if (!data?.gameId) throw new Error("create_ai_game did not return gameId")
+
+    navigate(`/ai/${data.gameId}`)
+  }
+
   // Fetch player_stats for ratings display.
   useEffect(() => {
     let cancelled = false
@@ -220,11 +259,11 @@ export function GamePage(props: GamePageProps = {}) {
           .from("player_stats")
           .insert({
             user_id: currentUserId,
-            elo: 1200,
-            elo_blitz: 1200,
-            elo_rapid: 1200,
-            elo_standard: 1200,
-            elo_daily: 1200,
+            elo: 600,
+            elo_blitz: 600,
+            elo_rapid: 600,
+            elo_standard: 600,
+            elo_daily: 600,
           })
           .select(sel)
           .single()
@@ -1268,20 +1307,41 @@ useEffect(() => {
 
               <button
                 onClick={async () => {
-                  await actions.unlockAudio?.()
+                  try {
+                    await actions.unlockAudio?.()
 
-                  if (!currentUserId) {
-                    setNewGameMsg("You must be logged in to start a new game.")
-                    return
+                    if (!currentUserId) {
+                      setNewGameMsg("You must be logged in to start a new game.")
+                      return
+                    }
+
+                    setNewGameMsg(null)
+
+                    await createAiGameAndGo()
+                  } catch (err) {
+                    console.error("Failed to create AI game:", err)
+
+                    // Supabase edge function errors often include a Response in `context`.
+                    const resp =
+                      err && typeof err === "object" && "context" in err
+                        ? ((err as any).context as Response | undefined)
+                        : undefined
+
+                    if (resp) {
+                      try {
+                        const bodyText = await resp.text()
+                        if (bodyText) {
+                          console.error("create_ai_game error body:", bodyText)
+                          setNewGameMsg(bodyText)
+                          return
+                        }
+                      } catch {
+                        // ignore
+                      }
+                    }
+
+                    setNewGameMsg(err instanceof Error ? err.message : "Failed to create AI game.")
                   }
-
-                  setNewGameMsg(null)
-
-                  // Reset state + clocks + human side, then flip started=true
-                  await actions.newGame?.(timeControlId) // or selectedTimeControlId from your modal
-                  actions.setStarted?.(true)
-
-                  setNewGameOpen(false)
                 }}
                 style={{
                   width: "100%",
@@ -4118,12 +4178,13 @@ useEffect(() => {
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     onClick={() => {
+                      // PvP: "Play Computer" must be LOCAL-ONLY.
+                      // Do not call actions.newGame()/setStarted(false) here, because that can
+                      // mutate shared PvP state and dismiss the other player's game-over modal.
                       if (props.onPlayComputer) {
                         props.onPlayComputer()
                         return
                       }
-                      actions.newGame()
-                      actions.setStarted(false)
                       setShowGameOverModal(false)
                       setNewGameOpen(true)
                     }}
@@ -4162,11 +4223,9 @@ useEffect(() => {
                 </div>
               ) : (
                 <button
-                  onClick={() => {
-                    actions.newGame()
-                    actions.setStarted(false)
+                  onClick={async () => {
                     setShowGameOverModal(false)
-                    setNewGameOpen(true)
+                    await createAiGameAndGo()
                   }}
                   style={{
                     width: "100%",
