@@ -8,16 +8,18 @@ import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
 
 // One helper for ALL edge-function calls.
-// getSession() refreshes the token if it's expired (autoRefreshToken),
-// then we let the Supabase client supply the Authorization header itself —
-// passing the token manually risks forwarding a stale cached value.
+// getSession() refreshes the token if near-expiry before returning it.
+// We pass it explicitly because supabase.functions.invoke() does not
+// reliably auto-attach the Authorization header in all environments.
 async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
   const { data: sess, error: sessErr } = await supabase.auth.getSession()
   if (sessErr) throw sessErr
   if (!sess.session) throw new Error("No session token (not logged in)")
 
-  // No manual Authorization header: the client uses its internally-refreshed token
-  const { data, error } = await supabase.functions.invoke(fn, { body })
+  const { data, error } = await supabase.functions.invoke(fn, {
+    body,
+    headers: { Authorization: `Bearer ${sess.session.access_token}` },
+  })
 
   if (error) throw error
   return data as T

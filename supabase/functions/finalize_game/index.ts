@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     const loserId = body.winner === "W" ? g.brake_id : g.wake_id
 
     // If already ended, just return (idempotent)
-    if (g.status === "ended" && g.winner_id && g.loser_id) {
+    if (g.status === "completed" && g.winner_id && g.loser_id) {
       return json(200, { ok: true, alreadyEnded: true })
     }
 
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     const { error: endErr } = await admin
       .from("games")
       .update({
-        status: "ended",
+        status: "completed",
         winner_id: winnerId,
         loser_id: loserId,
         end_reason: body.reason,
