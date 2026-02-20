@@ -7,58 +7,19 @@ import { GamePage } from "../components/GamePage"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
 
-// ✅ One helper for ALL edge-function calls (actually fixes 401 Invalid JWT)
+// One helper for ALL edge-function calls.
+// getSession() refreshes the token if it's expired (autoRefreshToken),
+// then we let the Supabase client supply the Authorization header itself —
+// passing the token manually risks forwarding a stale cached value.
 async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
-  // pull current session
-  let { data: sess, error: sessErr } = await supabase.auth.getSession()
+  const { data: sess, error: sessErr } = await supabase.auth.getSession()
   if (sessErr) throw sessErr
+  if (!sess.session) throw new Error("No session token (not logged in)")
 
-  // if no session, you're not logged in
-  if (!sess.session) throw new Error("Not logged in")
+  // No manual Authorization header: the client uses its internally-refreshed token
+  const { data, error } = await supabase.functions.invoke(fn, { body })
 
-  // check token exp directly (source of truth)
-  const getTokenExpMs = (token: string) => {
-    const payloadB64 = token.split(".")[1]
-    const payloadJson = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")))
-    return (payloadJson.exp ?? 0) * 1000
-  }
-
-  let token = sess.session.access_token
-  let expMs = 0
-
-  try {
-    expMs = getTokenExpMs(token)
-  } catch {
-    // if decode fails, force refresh anyway
-    expMs = 0
-  }
-
-  const needsRefresh = !expMs || expMs <= Date.now() + 120_000
-
-  if (needsRefresh) {
-    const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
-    if (refreshErr) throw refreshErr
-    if (!refreshed.session?.access_token) throw new Error("Refresh returned no session")
-
-    sess = refreshed
-    token = refreshed.session.access_token
-  }
-
-  const { data, error } = await supabase.functions.invoke(fn, {
-    body,
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-  if (error) {
-    const resp = (error as any)?.context as Response | undefined
-    if (resp) {
-      try {
-        console.error(`${fn} error body:`, await resp.text())
-      } catch {}
-    }
-    throw error
-  }
-
+  if (error) throw error
   return data as T
 }
 
@@ -77,7 +38,6 @@ function makeStateKey(s: GameState) {
 export function PvPGameWrapper() {
   const { gameId } = useParams<{ gameId: string }>()
   const navigate = useNavigate()
-
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameData, setGameData] = useState<PvPGameData | null>(null)
@@ -116,12 +76,8 @@ export function PvPGameWrapper() {
     ;(async () => {
       try {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-
-        // If not logged in, bounce to "/" and let GamePage open auth modal.
-        if (sessionError || !sessionData.session) {
-          navigate(`/auth?openAuth=1&returnTo=${encodeURIComponent(`/pvp/${gameId}`)}`, { replace: true })
-          return
-        }
+        if (sessionError) throw new Error(`Auth error: ${sessionError.message}`)
+        if (!sessionData.session) throw new Error("Not logged in")
 
         const userId = sessionData.session.user.id
         setMyUserId(userId)
@@ -201,7 +157,7 @@ export function PvPGameWrapper() {
     return () => {
       mounted = false
     }
-  }, [gameId, navigate])
+  }, [gameId])
 
   // Subscribe to game updates so game-over shows immediately for both players
   useEffect(() => {
@@ -311,8 +267,7 @@ export function PvPGameWrapper() {
       if (stateKey === lastReceivedKeyRef.current) return
 
       // Turn flip detection (controls turn_started_at)
-      const turnFlipped =
-        prevPlayerRef.current === null || prevPlayerRef.current !== (state as any).player
+      const turnFlipped = prevPlayerRef.current === null || prevPlayerRef.current !== (state as any).player
       prevPlayerRef.current = (state as any).player
 
       const nowIso = new Date().toISOString()
@@ -473,6 +428,7 @@ export function PvPGameWrapper() {
         initialClocks={initialClocks}
         onMoveComplete={handleMoveComplete}
         onRequestRematch={requestRematch}
+        onPlayComputer={() => navigate("/")}
       />
     </>
   )
