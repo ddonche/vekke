@@ -4,6 +4,7 @@ import { GamePage } from "./components/GamePage"
 import { DevInvitePage } from "./pages/DevInvitePage"
 import { InviteAcceptPage } from "./pages/InviteAcceptPage"
 import { PvPGameWrapper } from "./pages/PvPGameWrapper"
+import { SkinsPage } from "./pages/SkinsPage"
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       {/* Invite system */}
       <Route path="/dev/invite" element={<DevInvitePage />} />
       <Route path="/invite/:token" element={<InviteAcceptPage />} />
+      <Route path="/skins" element={<SkinsPage />} />
     </Routes>
   )
 }

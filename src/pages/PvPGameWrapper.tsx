@@ -7,20 +7,42 @@ import { GamePage } from "../components/GamePage"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
 
+function makeStateKey(s: GameState) {
+  if ((s as any).gameOver) {
+    const go: any = (s as any).gameOver
+    return `gameover-${go.winner}-${go.reason}-${(s as any).log?.length ?? 0}`
+  }
+  if ((s as any).phase === "OPENING") {
+    const op: any = (s as any).openingPlaced
+    return `opening-${op?.B ?? 0}-${op?.W ?? 0}`
+  }
+  return `${(s as any).player}-${(s as any).phase}-${(s as any).log?.length ?? 0}`
+}
+
 export function PvPGameWrapper() {
   const { gameId } = useParams<{ gameId: string }>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gameData, setGameData] = useState<PvPGameData | null>(null)
+
   const [mySide, setMySide] = useState<Player | null>(null)
   const [myName, setMyName] = useState<string>("You")
   const [myElo, setMyElo] = useState<number>(1200)
+
   const [opponentName, setOpponentName] = useState<string>("Opponent")
   const [opponentElo, setOpponentElo] = useState<number>(1200)
+
+  const [myUserId, setMyUserId] = useState<string | null>(null)
+
+  const [rematchInviteToken, setRematchInviteToken] = useState<string | null>(null)
+  const [rematchFromName, setRematchFromName] = useState<string>("Opponent")
+  const seenInviteRef = useRef<string | null>(null)
+
   const lastSavedMoveRef = useRef<string | number>(-1)
   const lastReceivedKeyRef = useRef<string | null>(null)
-  const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(undefined)
   const prevPlayerRef = useRef<string | null>(null)
+
+  const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(undefined)
 
   // Load game data on mount
   useEffect(() => {
@@ -39,6 +61,7 @@ export function PvPGameWrapper() {
         if (!sessionData.session) throw new Error("Not logged in")
 
         const userId = sessionData.session.user.id
+        setMyUserId(userId)
 
         const game = await fetchGame(gameId)
         if (!game) throw new Error("Game not found")
@@ -83,20 +106,25 @@ export function PvPGameWrapper() {
 
         setMySide(side)
         setGameData(game)
+
+        prevPlayerRef.current = (game.current_state as any)?.player ?? null
+
         setMyName(myProfile?.username || "You")
         setMyElo(myStats?.elo || 1200)
+
         setOpponentName(oppProfile?.username || "Opponent")
         setOpponentElo(oppStats?.elo || 1200)
 
-        // Restore clocks from DB
+        setRematchFromName(oppProfile?.username || "Opponent")
+
+        // Restore clocks from DB so refresh does NOT reset the clock
         if (game.clocks_w_ms != null && game.clocks_b_ms != null && game.turn_started_at) {
           const elapsed = Date.now() - new Date(game.turn_started_at).getTime()
           const currentPlayer = game.current_state?.player ?? game.turn
-          const restoredClocks = {
+          setInitialClocks({
             W: currentPlayer === "W" ? Math.max(0, game.clocks_w_ms - elapsed) : game.clocks_w_ms,
             B: currentPlayer === "B" ? Math.max(0, game.clocks_b_ms - elapsed) : game.clocks_b_ms,
-          }
-          setInitialClocks(restoredClocks)
+          })
         }
 
         setLoading(false)
@@ -112,7 +140,7 @@ export function PvPGameWrapper() {
     }
   }, [gameId])
 
-  // Subscribe to opponent moves via games table Realtime
+  // Subscribe to game updates so game-over shows immediately for both players
   useEffect(() => {
     if (!gameId || !mySide) return
 
@@ -131,24 +159,27 @@ export function PvPGameWrapper() {
           const snap = updated.current_state as GameState | null
           if (!snap) return
 
-          const key = snap.phase === "OPENING"
-            ? `opening-${snap.openingPlaced.B}-${snap.openingPlaced.W}`
-            : `${snap.turn}-${snap.phase}-${snap.log.length}`
+          lastReceivedKeyRef.current = makeStateKey(snap)
 
-          // Stamp what we received so onMoveComplete won't echo it back
-          lastReceivedKeyRef.current = key
-
-          setGameData(prev => ({
+          setGameData((prev) => ({
             ...prev!,
+            status: updated.status,
+            winner_id: (updated as any).winner_id,
+            loser_id: (updated as any).loser_id,
+            end_reason: (updated as any).end_reason,
+            ended_at: (updated as any).ended_at,
             current_state: snap,
             turn: snap.player,
             last_move_at: updated.last_move_at,
+            clocks_w_ms: (updated as any).clocks_w_ms,
+            clocks_b_ms: (updated as any).clocks_b_ms,
+            turn_started_at: (updated as any).turn_started_at,
           }))
         }
       )
       .subscribe((status, err) => {
-        console.log('PvP: Subscription status:', status)
-        if (err) console.error('PvP: Subscription error:', err)
+        console.log("PvP: Subscription status:", status)
+        if (err) console.error("PvP: Subscription error:", err)
       })
 
     return () => {
@@ -156,95 +187,208 @@ export function PvPGameWrapper() {
     }
   }, [gameId, mySide])
 
-  const handleMoveComplete = useCallback(async (state: GameState, clocks: { W: number; B: number }) => {
-    if (!gameId) return
+  // Subscribe to rematch invites targeted at this user
+  useEffect(() => {
+    if (!myUserId) return
 
-    const stateKey = state.phase === "OPENING"
-      ? `opening-${state.openingPlaced.B}-${state.openingPlaced.W}`
-      : `${state.turn}-${state.phase}-${state.log.length}`
-    if (stateKey === lastReceivedKeyRef.current) return
+    const chan = supabase
+      .channel(`rematch:${myUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "game_invites",
+          filter: `invited_user_id=eq.${myUserId}`,
+        },
+        (payload) => {
+          const inv = payload.new as any
+          if ((inv.invite_type ?? "pvp") !== "rematch") return
 
-    // Always write current clock values so refresh can restore them.
-    // Only update turn_started_at on turn flip (that's the anchor for elapsed calc).
-    const turnFlipped = prevPlayerRef.current !== null && prevPlayerRef.current !== state.player
-    prevPlayerRef.current = state.player
+          const token = String(inv.invite_token)
+          if (seenInviteRef.current === token) return
+          seenInviteRef.current = token
 
-    const now = new Date().toISOString()
-    const update: any = {
-      current_state: state,
-      last_move_at: now,
-      clocks_w_ms: Math.round(clocks.W),
-      clocks_b_ms: Math.round(clocks.B),
+          const exp = new Date(inv.expires_at).getTime()
+          if (!Number.isFinite(exp) || exp < Date.now()) return
+
+          setRematchInviteToken(token)
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "game_invites",
+          filter: `invited_user_id=eq.${myUserId}`,
+        },
+        (payload) => {
+          const inv = payload.new as any
+          if ((inv.invite_type ?? "pvp") !== "rematch") return
+
+          const token = String(inv.invite_token)
+          if (rematchInviteToken && token === rematchInviteToken) {
+            if (inv.accepted_at || inv.declined_at) {
+              setRematchInviteToken(null)
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(chan)
     }
+  }, [myUserId, rematchInviteToken])
 
-    if (turnFlipped || state.gameOver) {
-      update.turn_started_at = now
-    }
+  const handleMoveComplete = useCallback(
+    async (state: GameState, clocks: { W: number; B: number }) => {
+      if (!gameId) return
 
-    try {
-      await supabase
-        .from("games")
-        .update(update)
-        .eq("id", gameId)
-    } catch (e) {
-      console.error("Failed to sync state:", e)
-      return
-    }
+      const stateKey = makeStateKey(state)
+      if (stateKey === lastReceivedKeyRef.current) return
 
-    if (state.gameOver) {
-      const saveKey = `gameover-${state.gameOver.winner}`
-      if (saveKey !== lastSavedMoveRef.current) {
-        lastSavedMoveRef.current = saveKey
-        try {
-          await endGame({
-            gameId,
-            winner: state.gameOver.winner,
-            reason: state.gameOver.reason,
-          })
-        } catch (e) {
-          console.error("Failed to end game:", e)
+      // Only update turn_started_at when the turn flips (anchor for elapsed clock calc)
+      const turnFlipped = prevPlayerRef.current === null || prevPlayerRef.current !== state.player
+      prevPlayerRef.current = state.player
+
+      const now = new Date().toISOString()
+      const update: any = {
+        current_state: state,
+        last_move_at: now,
+        clocks_w_ms: Math.round(clocks.W),
+        clocks_b_ms: Math.round(clocks.B),
+      }
+
+      if (turnFlipped || (state as any).gameOver) {
+        update.turn_started_at = now
+      }
+
+      try {
+        await supabase.from("games").update(update).eq("id", gameId)
+      } catch (e) {
+        console.error("Failed to sync state:", e)
+        return
+      }
+
+      if ((state as any).gameOver) {
+        const go = (state as any).gameOver
+        const saveKey = `gameover-${go.winner}`
+        if (saveKey !== lastSavedMoveRef.current) {
+          lastSavedMoveRef.current = saveKey
+          try {
+            await endGame({
+              gameId,
+              winner: go.winner,
+              reason: go.reason,
+            })
+          } catch (e) {
+            console.error("Failed to end game:", e)
+          }
         }
       }
+    },
+    [gameId]
+  )
+
+  const requestRematch = useCallback(async () => {
+    if (!gameId) return
+    const { data, error } = await supabase.functions.invoke("create_rematch_invite", {
+      body: { sourceGameId: gameId },
+    })
+    if (error) {
+      console.error("create_rematch_invite failed:", error)
+      return
     }
+    console.log("Rematch invite:", data)
   }, [gameId])
 
+  const acceptRematch = useCallback(async () => {
+    if (!rematchInviteToken) return
+    const { data, error } = await supabase.functions.invoke("accept_invite", {
+      body: { inviteToken: rematchInviteToken },
+    })
+    if (error) {
+      console.error("accept_invite failed:", error)
+      return
+    }
+    const newGameId = (data as any)?.gameId
+    if (newGameId) window.location.href = `/pvp/${newGameId}`
+  }, [rematchInviteToken])
+
+  const declineRematch = useCallback(async () => {
+    if (!rematchInviteToken) return
+    const { error } = await supabase.functions.invoke("decline_invite", {
+      body: { inviteToken: rematchInviteToken },
+    })
+    if (error) {
+      console.error("decline_invite failed:", error)
+      return
+    }
+    setRematchInviteToken(null)
+  }, [rematchInviteToken])
+
   if (loading) {
-    return (
-      <div style={{ padding: 16, color: "white", background: "#111", minHeight: "100vh" }}>
-        Loading game...
-      </div>
-    )
+    return <div style={{ padding: 16, color: "white", background: "#111", minHeight: "100vh" }}>Loading game...</div>
   }
 
   if (error) {
-    return (
-      <div style={{ padding: 16, color: "red", background: "#111", minHeight: "100vh" }}>
-        Error: {error}
-      </div>
-    )
+    return <div style={{ padding: 16, color: "red", background: "#111", minHeight: "100vh" }}>Error: {error}</div>
   }
 
   if (!gameData || !mySide) {
-    return (
-      <div style={{ padding: 16, color: "white", background: "#111", minHeight: "100vh" }}>
-        Unable to load game
-      </div>
-    )
+    return <div style={{ padding: 16, color: "white", background: "#111", minHeight: "100vh" }}>Unable to load game</div>
   }
 
   return (
-    <GamePage
-      opponentType="pvp"
-      mySide={mySide}
-      initialState={gameData.current_state ?? gameData.initial_state}
-      myName={myName}
-      myElo={myElo}
-      opponentName={opponentName}
-      opponentElo={opponentElo}
-      externalGameData={gameData}
-      initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
-      initialClocks={initialClocks}
-      onMoveComplete={handleMoveComplete}
-    />
+    <>
+      {rematchInviteToken && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: "#111",
+              border: "1px solid #333",
+              borderRadius: 12,
+              padding: 16,
+              width: 360,
+              color: "white",
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Rematch request</div>
+            <div style={{ opacity: 0.9, marginBottom: 12 }}>{rematchFromName} would like a rematch.</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={declineRematch}>Decline</button>
+              <button onClick={acceptRematch}>Accept</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <GamePage
+        opponentType="pvp"
+        mySide={mySide}
+        initialState={gameData.current_state ?? gameData.initial_state}
+        myName={myName}
+        myElo={myElo}
+        opponentName={opponentName}
+        opponentElo={opponentElo}
+        externalGameData={gameData}
+        initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
+        initialClocks={initialClocks}
+        onMoveComplete={handleMoveComplete}
+        onRequestRematch={requestRematch}
+      />
+    </>
   )
 }

@@ -22,7 +22,8 @@ interface GridBoardProps {
   evasionSourcePos?: { x: number; y: number } | null
   evasionDestPos?: { x: number; y: number } | null
   evasionPlayer?: Player | null
-  tokenClass?: (side: "W" | "B") => string
+  highlightColor?: string
+  bodyColor?: string
 }
 
 export function GridBoard({
@@ -37,7 +38,8 @@ export function GridBoard({
   evasionSourcePos = null,
   evasionDestPos = null,
   evasionPlayer = null,
-  tokenClass = (side: "W" | "B") => side === "W" ? "token-w-skin" : "token-b-skin",
+  highlightColor = "#ee484c",
+  bodyColor = "#26c6da",
 }: GridBoardProps) {
   // Mobile: use same fixed sizing as IntersectionBoard
   // cellSize 58px spacing = 56px cell + 2px gap
@@ -131,7 +133,7 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer)}
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
                     style={{ width: tokenSize, height: tokenSize, borderRadius: "50%", opacity: 0.35 }}
                   />
                 </div>
@@ -149,7 +151,7 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer)}
+                    className={`token-${evasionPlayer === "B" ? "teal" : "white"}`}
                     style={{
                       width: tokenSize,
                       height: tokenSize,
@@ -195,7 +197,7 @@ export function GridBoard({
                     }}
                   >
                     <div
-                      className={`${tokenClass(ghost.by)} token-ghost`}
+                      className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
                       style={{
                         width: tokenSize,
                         height: tokenSize,
@@ -226,7 +228,7 @@ export function GridBoard({
                       }}
                     >
                       <div
-                        className={`${tokenClass(ghost.by)} token-ghost`}
+                        className={`token-${ghost.by === "B" ? "teal" : "white"} token-ghost`}
                         style={{
                           width: tokenSize,
                           height: tokenSize,
@@ -273,7 +275,7 @@ export function GridBoard({
                   <div style={{ position: "relative", width: tokenSize, height: tokenSize }}>
                     {/* Token circle */}
                     <div
-                      className={tokenClass(t.owner as "W" | "B")}
+                      className={`token-${t.owner === "B" ? "teal" : "white"}`}
                       style={{
                         width: tokenSize,
                         height: tokenSize,
@@ -289,7 +291,7 @@ export function GridBoard({
                           position: "absolute",
                           inset: mobile ? "-3px" : "-4px",
                           borderRadius: "50%",
-                          border: `${mobile ? "2px" : "2px"} dashed #ee484c`,
+                          border: `${mobile ? "2px" : "2px"} dashed ${highlightColor}`,
                           pointerEvents: "none",
                         }}
                       />

@@ -1,11 +1,12 @@
 // src/components/GamePage.tsx
-import React, { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import { SIZE, toSq, type Coord } from "../engine/coords"
 import type { GameState, Player, Token } from "../engine/state"
 import type { Direction } from "../engine/directions"
 import { sounds } from "../sounds"
 import { RouteIcon } from "../RouteIcon"
 import { useVekkeController, AI_RATING, TIME_CONTROLS, type TimeControlId } from "../engine/ui_controller"
+import { SkinsModal } from "./SkinsModal"
 import { GridBoard } from "../GridBoard"
 import { IntersectionBoard } from "../IntersectionBoard"
 import { AuthModal } from "../AuthModal"
@@ -15,9 +16,6 @@ import { HelpModal } from "../HelpModal"
 import { getCurrentUserId } from "../services/auth" //
 import { supabase } from "../services/supabase"
 import { getResolvedLoadout, type ResolvedLoadout, type TokenStyle, type RouteStyle } from "../services/skinService"
-
-
-
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -73,10 +71,13 @@ type GamePageProps = {
   externalGameData?: any
   initialTimeControlId?: TimeControlId
   initialClocks?: { W: number; B: number }
+  onPlayComputer?: () => void
+  onRequestRematch?: () => void
 }
 
 export function GamePage(props: GamePageProps = {}) {
   const lastProcessedMoveRef = useRef<string | number>(-1)
+  const [skinsOpen, setSkinsOpen] = useState(false)
   
   const {
     g,
@@ -253,6 +254,12 @@ export function GamePage(props: GamePageProps = {}) {
   }, [!!g.gameOver])
 
   // Load skin loadouts for both players
+  const reloadMyLoadout = useCallback(async () => {
+    if (!currentUserId) return
+    const mine = await getResolvedLoadout(currentUserId)
+    setMyLoadout(mine)
+  }, [currentUserId])
+
   useEffect(() => {
     let cancelled = false
 
@@ -560,7 +567,7 @@ useEffect(() => {
     username: props.opponentType === "pvp"
       ? (props.mySide === "W" ? (props.myName || "You") : (props.opponentName || "Opponent"))
       : (human === "W" 
-        ? (userProfile?.username || "White Player")
+        ? (userProfile?.username || "Wake Player")
         : "Computer"),
     elo: props.opponentType === "pvp"
       ? (props.mySide === "W" ? (props.myElo || 1200) : (props.opponentElo || 1200))
@@ -582,7 +589,7 @@ useEffect(() => {
     username: props.opponentType === "pvp"
       ? (props.mySide === "B" ? (props.myName || "You") : (props.opponentName || "Opponent"))
       : (human === "B" 
-        ? (userProfile?.username || "Blue Player")
+        ? (userProfile?.username || "Brake Player")
         : "Computer"),
     elo: props.opponentType === "pvp"
       ? (props.mySide === "B" ? (props.myElo || 1200) : (props.opponentElo || 1200))
@@ -669,6 +676,7 @@ useEffect(() => {
 
   return (
     <ErrBoundary>
+      <SkinsModal isOpen={skinsOpen} onClose={() => setSkinsOpen(false)} onLoadoutChange={reloadMyLoadout} />
       <div
         style={{
           // FORCE full viewport, regardless of any global centering/max-width rules.
@@ -1691,7 +1699,7 @@ useEffect(() => {
                             position: "relative",
                           }}
                         ></div>
-                        <span>{topPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        <span>{topPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         {topPlayer.country === "US" ? (
                           <svg
                             width="16"
@@ -2362,6 +2370,20 @@ useEffect(() => {
                         >
                           ({bottomPlayer.elo})
                         </span>
+                        <button
+                          onClick={() => setSkinsOpen(true)}
+                          title="Customize appearance"
+                          style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "#6b7280", padding: "2px 4px",
+                            display: "flex", alignItems: "center",
+                            opacity: 0.7, transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </button>
                       </div>
                       <div
                         style={{
@@ -2381,7 +2403,7 @@ useEffect(() => {
                             position: "relative",
                           }}
                         ></div>
-                        <span>{bottomPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        <span>{bottomPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         {bottomPlayer.country === "US" ? (
                           <svg
                             width="16"
@@ -3005,7 +3027,7 @@ useEffect(() => {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
                         <div className={tokenClass(leftPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>{leftPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        <span>{leftPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         {leftPlayer.country === "US" ? (
                           <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
                             <rect width="16" height="12" fill="#B22234" />
@@ -3699,15 +3721,29 @@ useEffect(() => {
                       )}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
                           {rightPlayer.username}
                         </span>
                         <span style={{ fontSize: 13, color: "#9ca3af" }}>({rightPlayer.elo})</span>
+                        <button
+                          onClick={() => setSkinsOpen(true)}
+                          title="Customize appearance"
+                          style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "#6b7280", padding: "2px 4px",
+                            display: "flex", alignItems: "center",
+                            opacity: 0.7, transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </button>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
                         <div className={tokenClass(rightPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>{rightPlayer.avatar === "W" ? "White" : "Blue"}</span>
+                        <span>{rightPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         {rightPlayer.country === "US" ? (
                           <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
                             <rect width="16" height="12" fill="#B22234" />
@@ -4143,26 +4179,74 @@ useEffect(() => {
                 ))}
               </div>
 
-              <button
-                onClick={() => {
-                  actions.newGame()
-                  actions.setStarted(false)
-                  setShowGameOverModal(false)
-                  setNewGameOpen(true)
-                }}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "0.625rem",
-                  border: "2px solid #111",
-                  backgroundColor: "white",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  fontSize: "0.875rem",
-                }}
-              >
-                New Game
-              </button>
+              {props.opponentType === "pvp" ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      if (props.onPlayComputer) {
+                        props.onPlayComputer()
+                        return
+                      }
+                      actions.newGame()
+                      actions.setStarted(false)
+                      setShowGameOverModal(false)
+                      setNewGameOpen(true)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "0.625rem",
+                      border: "2px solid #111",
+                      backgroundColor: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Play Computer
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowGameOverModal(false)
+                      props.onRequestRematch?.()
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "0.625rem",
+                      border: "2px solid #111",
+                      backgroundColor: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Rematch
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    actions.newGame()
+                    actions.setStarted(false)
+                    setShowGameOverModal(false)
+                    setNewGameOpen(true)
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "0.625rem",
+                    border: "2px solid #111",
+                    backgroundColor: "white",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  New Game
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -4219,4 +4303,3 @@ useEffect(() => {
     </ErrBoundary>
   )
 }
-

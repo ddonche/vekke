@@ -123,7 +123,7 @@ export function useVekkeController(opts: {
 
   const [aiDifficulty, setAiDifficulty] = useState<AiLevel>("novice")
 
-  const [started, setStarted] = useState(false)
+  const [started, setStarted] = useState(() => opponentType === "pvp")
   const [audioReady, setAudioReady] = useState(false)
 
   // NEW: time controls + clocks
@@ -136,7 +136,6 @@ export function useVekkeController(opts: {
   // (Add-only: does not affect gameplay logic)
   // ------------------------------------------------------------
   const [vsAi, setVsAi] = useState<boolean>(opponentType === "ai")
-  const [isRanked, setIsRanked] = useState<boolean>(true) // Elo always for now
   const [gameId, setGameId] = useState<string | null>(null)
   const reportedResultRef = useRef<string | null>(null)
 
@@ -365,8 +364,9 @@ export function useVekkeController(opts: {
 
   useEffect(() => {
     if (started) return
+    if (opts.initialClocks) return
     setClocks({ W: timeControl.baseMs, B: timeControl.baseMs })
-  }, [timeControl.baseMs, started])
+  }, [timeControl.baseMs, started, opts.initialClocks])
 
   useEffect(() => {
     if (!started) return
@@ -801,7 +801,6 @@ export function useVekkeController(opts: {
   const actions = useMemo(() => {
     return {
       setVsAi,
-      setIsRanked,
       setGameId: (id: string | null) => {
         setGameId(id)
         reportedResultRef.current = null
@@ -1186,7 +1185,6 @@ export function useVekkeController(opts: {
   return {
     g,
     vsAi,
-    isRanked,
     gameId,
 
     selectedTokenId,

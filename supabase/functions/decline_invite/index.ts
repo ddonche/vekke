@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-type AcceptInviteBody = { inviteToken: string }
+type Body = { inviteToken: string }
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +20,6 @@ function json(status: number, body: unknown) {
 }
 
 Deno.serve(async (req) => {
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
@@ -48,75 +47,45 @@ Deno.serve(async (req) => {
     if (uerr || !u?.user) return json(401, { error: "Invalid auth" })
 
     const userId = u.user.id
-    const userEmail = (u.user.email ?? "").toLowerCase()
 
-    const body = (await req.json()) as AcceptInviteBody
+    const body = (await req.json()) as Body
     if (!body?.inviteToken) return json(400, { error: "inviteToken is required" })
 
     const admin = createClient(URL, SRV)
 
     const { data: inv, error: invErr } = await admin
       .from("game_invites")
-      .select("*")
+      .select("invite_type, invited_user_id, accepted_at, declined_at, expires_at")
       .eq("invite_token", body.inviteToken)
       .maybeSingle()
 
     if (invErr) return json(500, { error: invErr.message })
     if (!inv) return json(404, { error: "Invite not found" })
-    if (inv.accepted_at || inv.accepted_by) return json(409, { error: "Invite already accepted" })
-    if (inv.declined_at || inv.declined_by) return json(409, { error: "Invite was declined" })
+
+    if ((inv.invite_type ?? "pvp") !== "rematch") {
+      return json(400, { error: "Not a rematch invite" })
+    }
+
+    if (inv.accepted_at || inv.declined_at) {
+      return json(409, { error: "Invite already resolved" })
+    }
 
     const exp = new Date(inv.expires_at).getTime()
     if (!Number.isFinite(exp) || exp < Date.now()) return json(410, { error: "Invite expired" })
 
-    const inviteType = (inv.invite_type ?? "pvp") as string
-
-    if (inviteType === "rematch") {
-      // Rematch invites are user-targeted, not email-targeted.
-      if (!inv.invited_user_id) return json(500, { error: "Rematch invite missing invited_user_id" })
-      if (String(inv.invited_user_id) !== String(userId)) {
-        return json(403, { error: "This rematch invite is for a different user" })
-      }
-    } else {
-      // Legacy pvp/email invite behavior
-      if (inv.invitee_email) {
-        const required = String(inv.invitee_email).toLowerCase()
-        if (!userEmail || userEmail !== required) {
-          return json(403, { error: "This invite is restricted to a different email" })
-        }
-      }
+    if (!inv.invited_user_id) return json(500, { error: "Invite missing invited_user_id" })
+    if (String(inv.invited_user_id) !== String(userId)) {
+      return json(403, { error: "Not invited user" })
     }
-
-    if (!inv.initial_state) return json(500, { error: "Invite missing initial_state" })
-
-    // Create the game ONLY upon accept
-    const { data: gameRow, error: gameErr } = await admin
-      .from("games")
-      .insert({
-        created_by: inv.created_by,
-        wake_id: inv.created_by,
-        brake_id: userId,
-        status: "active",
-        turn: "B", // Brake places first
-        vgn_version: inv.vgn_version ?? "1",
-        initial_state: inv.initial_state,
-        current_state: inv.initial_state,
-        format: inv.time_control ?? "standard",
-        last_move_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single()
-
-    if (gameErr) return json(500, { error: gameErr.message })
 
     const { error: updErr } = await admin
       .from("game_invites")
-      .update({ accepted_by: userId, accepted_at: new Date().toISOString() })
+      .update({ declined_by: userId, declined_at: new Date().toISOString() })
       .eq("invite_token", body.inviteToken)
 
     if (updErr) return json(500, { error: updErr.message })
 
-    return json(200, { gameId: gameRow.id })
+    return json(200, { ok: true })
   } catch (e) {
     return json(500, { error: String(e) })
   }
