@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
-import { fetchGame, endGame, type PvPGameData } from "../services/pvp_sync"
+import { fetchGame, type PvPGameData } from "../services/pvp_sync"
 import { GamePage } from "../components/GamePage"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
@@ -60,6 +60,7 @@ export function PvPGameWrapper() {
   const lastSavedMoveRef = useRef<string | number>(-1)
   const lastReceivedKeyRef = useRef<string | null>(null)
   const prevPlayerRef = useRef<string | null>(null)
+  const gameDataRef = useRef<PvPGameData | null>(null)
 
   const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(
     undefined
@@ -127,6 +128,7 @@ export function PvPGameWrapper() {
 
         setMySide(side)
         setGameData(game)
+        gameDataRef.current = game
 
         prevPlayerRef.current = (game.current_state as any)?.player ?? null
 
@@ -182,20 +184,24 @@ export function PvPGameWrapper() {
 
           lastReceivedKeyRef.current = makeStateKey(snap)
 
-          setGameData((prev) => ({
-            ...prev!,
-            status: updated.status,
-            winner_id: (updated as any).winner_id,
-            loser_id: (updated as any).loser_id,
-            end_reason: (updated as any).end_reason,
-            ended_at: (updated as any).ended_at,
-            current_state: snap,
-            turn: (snap as any).player,
-            last_move_at: updated.last_move_at,
-            clocks_w_ms: (updated as any).clocks_w_ms,
-            clocks_b_ms: (updated as any).clocks_b_ms,
-            turn_started_at: (updated as any).turn_started_at,
-          }))
+          setGameData((prev) => {
+            const next = {
+              ...prev!,
+              status: updated.status,
+              winner_id: (updated as any).winner_id,
+              loser_id: (updated as any).loser_id,
+              end_reason: (updated as any).end_reason,
+              ended_at: (updated as any).ended_at,
+              current_state: snap,
+              turn: (snap as any).player,
+              last_move_at: updated.last_move_at,
+              clocks_w_ms: (updated as any).clocks_w_ms,
+              clocks_b_ms: (updated as any).clocks_b_ms,
+              turn_started_at: (updated as any).turn_started_at,
+            }
+            gameDataRef.current = next
+            return next
+          })
         }
       )
       .subscribe()
@@ -291,31 +297,23 @@ export function PvPGameWrapper() {
         return
       }
 
-      // If gameOver, finalize on the server (rating + stats should be done server-side)
+      // If gameOver, finalize on the server (updates player_stats + rating_applied)
       if ((state as any).gameOver) {
         const go: any = (state as any).gameOver
 
-        // Dedup
+        // Skip if game is already ended in the DB (e.g. on refresh)
+        if (gameDataRef.current?.status === "ended") return
+
+        // Dedup within the same session
         const saveKey = `gameover-${go.winner}-${go.reason}`
         if (saveKey === lastSavedMoveRef.current) return
         lastSavedMoveRef.current = saveKey
 
-        // Preferred: finalize_game edge function (idempotent, should update player_stats + rating_applied)
-        try {
-          await invokeAuthed("finalize_game", {
-            gameId,
-            winner: go.winner,
-            reason: go.reason,
-          })
-        } catch (e) {
-          console.error("finalize_game failed (falling back to endGame):", e)
-          // Fallback: whatever your old service does (may not update stats reliably)
-          try {
-            await endGame({ gameId, winner: go.winner, reason: go.reason })
-          } catch (e2) {
-            console.error("endGame fallback failed:", e2)
-          }
-        }
+        await invokeAuthed("finalize_game", {
+          gameId,
+          winner: go.winner,
+          reason: go.reason,
+        }).catch((e) => console.error("finalize_game failed:", e))
       }
     },
     [gameId]
