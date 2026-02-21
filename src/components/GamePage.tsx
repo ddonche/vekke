@@ -254,7 +254,7 @@ export function GamePage(props: GamePageProps = {}) {
         timeControl: timeControlId,
         initialState,
         vgnVersion: "1",
-        humanSide: "B",
+        humanSide: Math.random() < 0.5 ? "W" : "B",
       },
       headers: { Authorization: `Bearer ${token}` },
     })
