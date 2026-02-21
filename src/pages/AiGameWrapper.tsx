@@ -8,6 +8,19 @@ import type { Player, GameState } from "../engine/state"
 import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
 import type { AiLevel } from "../engine/ai"
 
+// Same helper as PvPGameWrapper — refreshes token before calling edge functions
+async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
+  const { data: sess, error: sessErr } = await supabase.auth.getSession()
+  if (sessErr) throw sessErr
+  if (!sess.session) throw new Error("No session token (not logged in)")
+  const { data, error } = await supabase.functions.invoke(fn, {
+    body,
+    headers: { Authorization: `Bearer ${sess.session.access_token}` },
+  })
+  if (error) throw error
+  return data as T
+}
+
 function makeStateKey(s: GameState) {
   if ((s as any).gameOver) {
     const go: any = (s as any).gameOver
@@ -149,7 +162,6 @@ export function AiGameWrapper() {
       const nextTurn = (state as any)?.player ?? null
       const isOver = Boolean((state as any)?.gameOver)
 
-      // Only reset the clock anchor when the turn flips (mirrors PvP wrapper behavior)
       const turnFlipped =
         prevPlayerRef.current === null || prevPlayerRef.current !== nextTurn
       prevPlayerRef.current = nextTurn
@@ -164,11 +176,22 @@ export function AiGameWrapper() {
         patch.clocks_b_ms = Math.round(clocks.B)
       }
       if (nextTurn) patch.turn = nextTurn
-      if (isOver) patch.status = "completed"
 
       const { error } = await supabase.from("games").update(patch).eq("id", gameId)
       if (error) {
         console.error("Failed to save AI game state:", error)
+        return
+      }
+
+      // Finalize game — updates status to "ended", writes Elo + stats
+      // finalize_game skips Elo changes when an AI player is involved (AI_IDS check)
+      if (isOver) {
+        const go = (state as any).gameOver
+        await invokeAuthed("finalize_game", {
+          gameId,
+          winner: go.winner,
+          reason: go.reason,
+        }).catch((e) => console.error("finalize_game failed:", e))
       }
     },
     [gameId]

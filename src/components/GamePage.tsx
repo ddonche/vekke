@@ -155,6 +155,12 @@ export function GamePage(props: GamePageProps = {}) {
     country_name: string | null
     avatar_url: string | null
   } | null>(null)
+  const [opponentProfile, setOpponentProfile] = useState<{
+    username: string
+    country_code: string | null
+    country_name: string | null
+    avatar_url: string | null
+  } | null>(null)
 
   type PlayerStats = {
     user_id: string
@@ -654,48 +660,72 @@ if (wantsNewGame) {
     }
   }, [])
 
+  // Fetch opponent profile from DB (works for AI characters and PvP opponents)
+  useEffect(() => {
+    if (!props.opponentUserId) return
+    let cancelled = false
+    supabase
+      .from("profiles")
+      .select("username, country_code, country_name, avatar_url")
+      .eq("id", props.opponentUserId)
+      .single()
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setOpponentProfile(data)
+      })
+    return () => { cancelled = true }
+  }, [props.opponentUserId])
+
+  // Flag image component using flagcdn.com (cross-platform, works on Windows)
+  const FlagImg = ({ cc, size = 16 }: { cc: string | null | undefined; size?: number }) => {
+      const s = (cc ?? "").trim().toLowerCase()
+      if (!s || !/^[a-z]{2}$/.test(s)) return null
+      return (
+        <img
+          src={`https://flagicons.lipis.dev/flags/4x3/${s}.svg`}
+          width={size}
+          height={Math.round(size * 0.75)}
+          alt={s.toUpperCase()}
+          style={{ display: "inline-block", verticalAlign: "middle", borderRadius: 2 }}
+          onError={(e) => { e.currentTarget.style.display = "none" }}
+        />
+      )
+    }
+
   const whitePlayer = {
     username: props.opponentType === "pvp"
-      ? (props.mySide === "W" ? (props.myName || "You") : (props.opponentName || "Opponent"))
-      : (human === "W" 
+      ? (props.mySide === "W" ? (props.myName || "You") : (props.opponentName || opponentProfile?.username || "Opponent"))
+      : (human === "W"
         ? (userProfile?.username || "Wake Player")
-        : "Computer"),
+        : (opponentProfile?.username || "Computer")),
     elo: props.opponentType === "pvp"
       ? (props.mySide === "W" ? (props.myElo || 1200) : (props.opponentElo || 1200))
       : (human === "W" ? myElo : aiElo),
     avatar: "W",
-    avatar_url: props.opponentType === "pvp"
-      ? null
-      : (human === "W" && userProfile?.avatar_url 
-        ? `${userProfile.avatar_url}?t=${Date.now()}` 
-        : null),
-    country: props.opponentType === "pvp"
-      ? "US"
-      : (human === "W" 
-        ? (userProfile?.country_code || "US")
-        : "US"),
+    avatar_url: human === "W"
+      ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
+      : (opponentProfile?.avatar_url ?? null),
+    country: human === "W"
+      ? (userProfile?.country_code ?? null)
+      : (opponentProfile?.country_code ?? null),
   }
 
   const bluePlayer = {
     username: props.opponentType === "pvp"
-      ? (props.mySide === "B" ? (props.myName || "You") : (props.opponentName || "Opponent"))
-      : (human === "B" 
+      ? (props.mySide === "B" ? (props.myName || "You") : (props.opponentName || opponentProfile?.username || "Opponent"))
+      : (human === "B"
         ? (userProfile?.username || "Brake Player")
-        : "Computer"),
+        : (opponentProfile?.username || "Computer")),
     elo: props.opponentType === "pvp"
       ? (props.mySide === "B" ? (props.myElo || 1200) : (props.opponentElo || 1200))
       : (human === "B" ? myElo : aiElo),
     avatar: "B",
-    avatar_url: props.opponentType === "pvp"
-      ? null
-      : (human === "B" && userProfile?.avatar_url 
-        ? `${userProfile.avatar_url}?t=${Date.now()}` 
-        : null),
-    country: props.opponentType === "pvp"
-      ? "JP"
-      : (human === "B" 
-        ? (userProfile?.country_code || "JP")
-        : "JP"),
+    avatar_url: human === "B"
+      ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
+      : (opponentProfile?.avatar_url ?? null),
+    country: human === "B"
+      ? (userProfile?.country_code ?? null)
+      : (opponentProfile?.country_code ?? null),
   }
 
   // Display positioning: human always right/bottom, opponent always left/top
@@ -1684,37 +1714,8 @@ if (wantsNewGame) {
                           }}
                         ></div>
                         <span>{topPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        {topPlayer.country === "US" ? (
-                          <svg
-                            width="16"
-                            height="12"
-                            viewBox="0 0 16 12"
-                            style={{ marginLeft: "6px" }}
-                          >
-                            <rect width="16" height="12" fill="#B22234" />
-                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                            <rect width="6.4" height="6" fill="#3C3B6E" />
-                          </svg>
-                        ) : (
-                          <svg
-                            width="16"
-                            height="12"
-                            viewBox="0 0 16 12"
-                            style={{ marginLeft: "6px" }}
-                          >
-                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
-                          </svg>
-                        )}
-                        <span
-                          style={{
-                            fontSize: "0.625rem",
-                            color: "#9ca3af",
-                            fontWeight: "bold",
-                          }}
-                        >
+                        <FlagImg cc={topPlayer.country} size={16} />
+                        <span style={{ fontSize: "0.625rem", color: "#9ca3af", fontWeight: "bold" }}>
                           {topPlayer.country}
                         </span>
                       </div>
@@ -2388,37 +2389,8 @@ if (wantsNewGame) {
                           }}
                         ></div>
                         <span>{bottomPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        {bottomPlayer.country === "US" ? (
-                          <svg
-                            width="16"
-                            height="12"
-                            viewBox="0 0 16 12"
-                            style={{ marginLeft: "6px" }}
-                          >
-                            <rect width="16" height="12" fill="#B22234" />
-                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                            <rect width="6.4" height="6" fill="#3C3B6E" />
-                          </svg>
-                        ) : (
-                          <svg
-                            width="16"
-                            height="12"
-                            viewBox="0 0 16 12"
-                            style={{ marginLeft: "6px" }}
-                          >
-                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
-                          </svg>
-                        )}
-                        <span
-                          style={{
-                            fontSize: "0.625rem",
-                            color: "#9ca3af",
-                            fontWeight: "bold",
-                          }}
-                        >
+                        <FlagImg cc={bottomPlayer.country} size={16} />
+                        <span style={{ fontSize: "0.625rem", color: "#9ca3af", fontWeight: "bold" }}>
                           {bottomPlayer.country}
                         </span>
                       </div>
@@ -2931,20 +2903,7 @@ if (wantsNewGame) {
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
                         <div className={tokenClass(leftPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
                         <span>{leftPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        {leftPlayer.country === "US" ? (
-                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                            <rect width="16" height="12" fill="#B22234" />
-                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                            <rect width="6.4" height="6" fill="#3C3B6E" />
-                          </svg>
-                        ) : (
-                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
-                          </svg>
-                        )}
+                        <FlagImg cc={leftPlayer.country} size={18} />
                         <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{leftPlayer.country}</span>
                       </div>
                     </div>
@@ -3647,20 +3606,7 @@ if (wantsNewGame) {
                       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
                         <div className={tokenClass(rightPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
                         <span>{rightPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        {rightPlayer.country === "US" ? (
-                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                            <rect width="16" height="12" fill="#B22234" />
-                            <rect y="1.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="4.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="7.5" width="16" height="1.5" fill="#fff" />
-                            <rect y="10.5" width="16" height="1.5" fill="#fff" />
-                            <rect width="6.4" height="6" fill="#3C3B6E" />
-                          </svg>
-                        ) : (
-                          <svg width="18" height="14" viewBox="0 0 16 12" style={{ marginLeft: 6 }}>
-                            <circle cx="8" cy="6" r="4" fill="#BC002D" />
-                          </svg>
-                        )}
+                        <FlagImg cc={rightPlayer.country} size={18} />
                         <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{rightPlayer.country}</span>
                       </div>
                     </div>
