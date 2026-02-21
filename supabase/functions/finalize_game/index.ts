@@ -27,6 +27,16 @@ function eloUpdate(rA: number, rB: number, aWon: boolean, k = 24) {
   return { newA, newB }
 }
 
+// ✅ Your real AI auth user IDs
+const AI_IDS = new Set<string>([
+  "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen (novice)
+  "9d6503a7-1b18-46d4-878d-09367d6ac833", // Priya (adept)
+  "69174323-2b15-4b83-b1d7-96a324bce0a4", // Vladimir (expert)
+  "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe", // Yui (master)
+  "92c903e8-aa7d-4571-9905-0611b4a07a1d", // Haoran (senior_master)
+  "492a8702-9470-4f43-85e0-d6b44ec5c562", // Chioma (grandmaster)
+])
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
@@ -57,12 +67,13 @@ Deno.serve(async (req) => {
 
     const admin = createClient(URL, SRV)
 
-    // Load game
+    // Load game (include flags)
     const { data: g, error: gerr } = await admin
       .from("games")
-      .select("id, wake_id, brake_id, status, rating_applied, winner_id, loser_id")
+      .select("id, wake_id, brake_id, status, rating_applied, winner_id, loser_id, is_vs_ai, ai_level")
       .eq("id", body.gameId)
       .single()
+
     if (gerr) return json(500, { error: gerr.message })
     if (!g) return json(404, { error: "Game not found" })
 
@@ -73,51 +84,63 @@ Deno.serve(async (req) => {
     const winnerId = body.winner === "W" ? g.wake_id : g.brake_id
     const loserId = body.winner === "W" ? g.brake_id : g.wake_id
 
-    // If already ended, just return (idempotent)
-    if (g.status === "ended" && g.winner_id && g.loser_id) {
-      return json(200, { ok: true, alreadyEnded: true })
+    // If not ended yet, end it (idempotent)
+    if (!(g.status === "ended" && g.winner_id && g.loser_id)) {
+      const endedAt = new Date().toISOString()
+      const { error: endErr } = await admin
+        .from("games")
+        .update({
+          status: "ended",
+          winner_id: winnerId,
+          loser_id: loserId,
+          end_reason: body.reason,
+          ended_at: endedAt,
+        })
+        .eq("id", body.gameId)
+
+      if (endErr) return json(500, { error: endErr.message })
     }
 
-    // End the game
-    const endedAt = new Date().toISOString()
-    const { error: endErr } = await admin
-      .from("games")
-      .update({
-        status: "ended",
-        winner_id: winnerId,
-        loser_id: loserId,
-        end_reason: body.reason,
-        ended_at: endedAt,
-      })
-      .eq("id", body.gameId)
-
-    if (endErr) return json(500, { error: endErr.message })
-
-    // Apply rating once
+    // Reload rating_applied (idempotent)
     const { data: g2, error: g2err } = await admin
       .from("games")
-      .select("rating_applied")
+      .select("rating_applied, is_vs_ai, wake_id, brake_id")
       .eq("id", body.gameId)
       .single()
-    if (g2err) return json(500, { error: g2err.message })
 
-    if (g2.rating_applied) {
-      return json(200, { ok: true, ratingAlreadyApplied: true })
-    }
+    if (g2err) return json(500, { error: g2err.message })
+    if (g2?.rating_applied) return json(200, { ok: true, ratingAlreadyApplied: true })
+
+    const involvesAi =
+      !!g2?.is_vs_ai || AI_IDS.has(String(g2?.wake_id)) || AI_IDS.has(String(g2?.brake_id))
 
     // Get current ratings
-    const { data: ws } = await admin.from("player_stats").select("*").eq("user_id", winnerId).maybeSingle()
-    const { data: ls } = await admin.from("player_stats").select("*").eq("user_id", loserId).maybeSingle()
+    const { data: ws, error: wsErr } = await admin
+      .from("player_stats")
+      .select("*")
+      .eq("user_id", winnerId)
+      .maybeSingle()
+
+    if (wsErr) return json(500, { error: `winner stats: ${wsErr.message}` })
+
+    const { data: ls, error: lsErr } = await admin
+      .from("player_stats")
+      .select("*")
+      .eq("user_id", loserId)
+      .maybeSingle()
+
+    if (lsErr) return json(500, { error: `loser stats: ${lsErr.message}` })
 
     const wElo = ws?.elo ?? 1200
     const lElo = ls?.elo ?? 1200
 
-    const { newA: newWinnerElo, newB: newLoserElo } = eloUpdate(wElo, lElo, true, 24)
+    // ✅ Skip Elo changes if AI involved; still update GP/W/L
+    const newWinnerElo = involvesAi ? wElo : eloUpdate(wElo, lElo, true, 24).newA
+    const newLoserElo = involvesAi ? lElo : eloUpdate(wElo, lElo, true, 24).newB
 
-    // Upsert stats (increment GP/W/L)
     const now = new Date().toISOString()
 
-    await admin.from("player_stats").upsert({
+    const { error: up1 } = await admin.from("player_stats").upsert({
       user_id: winnerId,
       elo: clamp(newWinnerElo, 100, 5000),
       games_played: (ws?.games_played ?? 0) + 1,
@@ -125,8 +148,9 @@ Deno.serve(async (req) => {
       losses: ws?.losses ?? 0,
       updated_at: now,
     })
+    if (up1) return json(500, { error: `upsert winner: ${up1.message}` })
 
-    await admin.from("player_stats").upsert({
+    const { error: up2 } = await admin.from("player_stats").upsert({
       user_id: loserId,
       elo: clamp(newLoserElo, 100, 5000),
       games_played: (ls?.games_played ?? 0) + 1,
@@ -134,8 +158,8 @@ Deno.serve(async (req) => {
       losses: (ls?.losses ?? 0) + 1,
       updated_at: now,
     })
+    if (up2) return json(500, { error: `upsert loser: ${up2.message}` })
 
-    // Mark applied
     const { error: markErr } = await admin
       .from("games")
       .update({ rating_applied: true })
@@ -147,6 +171,7 @@ Deno.serve(async (req) => {
       ok: true,
       winnerId,
       loserId,
+      involvesAi,
       newWinnerElo,
       newLoserElo,
     })

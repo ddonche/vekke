@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import "../styles/skins.css"
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import { SIZE, toSq, type Coord } from "../engine/coords"
-import type { GameState, Player, Token } from "../engine/state"
+import { newGame, type GameState, type Player, type Token } from "../engine/state"
 import type { Direction } from "../engine/directions"
 import { sounds } from "../sounds"
 import { RouteIcon } from "../RouteIcon"
@@ -12,6 +12,7 @@ import { SkinsModal } from "./SkinsModal"
 import { GridBoard } from "../GridBoard"
 import { IntersectionBoard } from "../IntersectionBoard"
 import { AuthModal } from "../AuthModal"
+import { Header } from "./Header"
 import { OnboardingModal } from "../OnboardingModal"
 import { ProfileModal } from "../ProfileModal"
 import { HelpModal } from "../HelpModal"
@@ -207,24 +208,55 @@ export function GamePage(props: GamePageProps = {}) {
 
     setNewGameMsg(null)
 
-    // NOTE: your controller already knows the selected AI + time control:
-    // - aiDifficulty
-    // - timeControlId
-    const { data: sess, error: sessErr } = await supabase.auth.getSession()
-    const token = sess.session?.access_token
+    // Build the initial state snapshot for the DB row (authoritative starting position).
+    const initialState = newGame()
 
-    if (sessErr || !token) {
+    // Always send a non-expired JWT to edge functions.
+    const decodeExpMs = (jwt: string) => {
+      const payloadB64 = jwt.split(".")[1]
+      const payloadJson = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")))
+      return (payloadJson.exp ?? 0) * 1000
+    }
+
+    const { data: sess0, error: sessErr } = await supabase.auth.getSession()
+    if (sessErr || !sess0.session?.access_token) {
       setShowAuthModal(true)
       return
     }
 
+    let token = sess0.session.access_token
+    let expMs = 0
+    try {
+      expMs = decodeExpMs(token)
+    } catch {
+      expMs = 0
+    }
+
+    // Refresh if missing/invalid exp, or within 2 minutes of expiry.
+    if (!expMs || expMs <= Date.now() + 120_000) {
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
+      if (refreshErr || !refreshed.session?.access_token) {
+        setShowAuthModal(true)
+        return
+      }
+      token = refreshed.session.access_token
+    }
+
     const { data, error } = await supabase.functions.invoke("create_ai_game", {
-      body: { aiLevel: aiDifficulty, timeControl: timeControlId },
+      body: {
+        aiLevel: aiDifficulty,
+        timeControl: timeControlId,
+        initialState,
+        vgnVersion: "1",
+        humanSide: "B",
+      },
+      headers: { Authorization: `Bearer ${token}` },
     })
 
     if (error) throw error
     if (!data?.gameId) throw new Error("create_ai_game did not return gameId")
 
+    // KEEP AI NAVIGATION: go to the AI game route.
     navigate(`/ai/${data.gameId}`)
   }
 
@@ -564,6 +596,18 @@ useEffect(() => {
       window.history.replaceState(null, "", window.location.pathname)
     }
 
+// New-game modal deep-link support (?openNewGame=1)
+const wantsNewGame =
+  sp.get("openNewGame") === "1" || sp.get("openNewGame") === "true" ||
+  sp.get("newGame") === "1" || sp.get("newGame") === "true"
+
+if (wantsNewGame) {
+  setNewGameOpen(true)
+  setNewGameMsg(null)
+  // Clean URL so refresh doesn't keep reopening the modal
+  window.history.replaceState(null, "", window.location.pathname)
+}
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setCurrentUserId(session.user.id)
@@ -725,6 +769,26 @@ useEffect(() => {
           .hide-scrollbar::-webkit-scrollbar { display: none; }
           .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
         `}</style>
+
+        <Header
+          isLoggedIn={!!currentUserId}
+          username={userProfile?.username}
+          avatarUrl={userProfile?.avatar_url ?? null}
+          titleLabel={formatLabel}
+          elo={myElo}
+          activePage="play"
+          myGamesTurnCount={0}
+          onSignIn={() => setShowAuthModal(true)}
+          onOpenProfile={() => setShowProfileModal(true)}
+          onOpenSkins={() => setSkinsOpen(true)}
+          onSignOut={async () => { await supabase.auth.signOut() }}
+          onPlay={() => navigate("/")}
+          onMyGames={() => navigate("/my-games")}
+          onLeaderboard={() => navigate("/leaderboard")}
+          onChallenges={() => navigate("/challenges")}
+          onRules={() => navigate("/rules")}
+          onTutorial={() => navigate("/tutorial")}
+        />
 
         {newGameOpen && (
           <div
@@ -1404,88 +1468,6 @@ useEffect(() => {
         {isMobile ? (
           /* ===== MOBILE LAYOUT ===== */
           <>
-            {/* Menu Bar */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "0.375rem 0.5rem",
-                backgroundColor: "#374151",
-                borderBottom: "1px solid #4b5563",
-                height: "2.25rem",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}
-              >
-                <img 
-                  src="/logo.png" 
-                  alt="Vekke" 
-                  style={{ height: "1.5rem", width: "auto" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                {userProfile ? (
-                  <>
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setShowProfileModal(true)
-                      }}
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "#e5e7eb",
-                        fontWeight: "bold",
-                        maxWidth: "120px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textDecoration: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {userProfile.username}
-                    </a>
-                    <button
-                      onClick={async () => {
-                        await supabase.auth.signOut()
-                      }}
-                      style={{
-                        fontSize: "0.75rem",
-                        background: "none",
-                        border: "1px solid #4b5563",
-                        color: "#e5e7eb",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    style={{
-                      fontSize: "0.75rem",
-                      background: "none",
-                      border: "1px solid #4b5563",
-                      color: "#e5e7eb",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Login
-                  </button>
-                )}
-              </div>
-            </div>
-
             {/* Chat Section */}
             <div
               style={{
@@ -2879,87 +2861,6 @@ useEffect(() => {
         ) : (
           /* ===== WEB LAYOUT ===== */
           <>
-            {/* Menu Bar */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "12px 20px",
-                backgroundColor: "#374151",
-                borderBottom: "1px solid #4b5563",
-                height: "60px",
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <img 
-                  src="/logo.png" 
-                  alt="Vekke" 
-                  style={{ height: "36px", width: "auto" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                {userProfile ? (
-                  <>
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setShowProfileModal(true)
-                      }}
-                      style={{
-                        fontSize: "0.875rem",
-                        color: "#e5e7eb",
-                        fontWeight: "bold",
-                        maxWidth: "150px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textDecoration: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {userProfile.username}
-                    </a>
-                    <button
-                      onClick={async () => {
-                        await supabase.auth.signOut()
-                      }}
-                      style={{
-                        fontSize: "0.875rem",
-                        background: "none",
-                        border: "1px solid #4b5563",
-                        color: "#e5e7eb",
-                        padding: "8px 16px",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    style={{
-                      fontSize: "0.875rem",
-                      background: "none",
-                      border: "1px solid #4b5563",
-                      color: "#e5e7eb",
-                      padding: "8px 16px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Login
-                  </button>
-                )}
-              </div>
-            </div>
-
             {/* Main Content Area */}
             <div
               style={{

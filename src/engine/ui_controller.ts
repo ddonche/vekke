@@ -80,12 +80,12 @@ export const AI_RATING: Record<AiLevel, number> = {
 // Stable UUIDs to represent AI opponents in the games table.
 // These do NOT need to correspond to auth.users (and are never updated in player_stats).
 const AI_UUID: Record<AiLevel, string> = {
-  novice: "00000000-0000-4000-8000-000000000600",
-  adept: "00000000-0000-4000-8000-000000000900",
-  expert: "00000000-0000-4000-8000-000000001200",
-  master: "00000000-0000-4000-8000-000000001500",
-  senior_master: "00000000-0000-4000-8000-000000001750",
-  grandmaster: "00000000-0000-4000-8000-000000002000",
+  novice: "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen
+  adept: "9d6503a7-1b18-46d4-878d-09367d6ac833", // Priya
+  expert: "69174323-2b15-4b83-b1d7-96a324bce0a4", // Vladimir
+  master: "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe", // Yui
+  senior_master: "92c903e8-aa7d-4571-9905-0611b4a07a1d", // Haoran
+  grandmaster: "492a8702-9470-4f43-85e0-d6b44ec5c562", // Chioma
 }
 
 type Clocks = { W: number; B: number }
