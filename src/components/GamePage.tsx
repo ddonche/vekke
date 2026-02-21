@@ -4111,24 +4111,45 @@ if (wantsNewGame) {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={async () => {
-                    setShowGameOverModal(false)
-                    await createAiGameAndGo()
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "0.625rem",
-                    border: "2px solid #111",
-                    backgroundColor: "white",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  New Game
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      setShowGameOverModal(false)
+                      setNewGameOpen(true)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "0.625rem",
+                      border: "2px solid #111",
+                      backgroundColor: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Play Computer
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      setShowGameOverModal(false)
+                      await createAiGameAndGo()
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "0.625rem",
+                      border: "2px solid #111",
+                      backgroundColor: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Rematch
+                  </button>
+                </div>
               )}
             </div>
           </div>
