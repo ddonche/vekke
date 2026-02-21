@@ -8,18 +8,6 @@ import type { Player, GameState } from "../engine/state"
 import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
 import type { AiLevel } from "../engine/ai"
 
-// Same helper as PvPGameWrapper — refreshes token before calling edge functions
-async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
-  const { data: sess, error: sessErr } = await supabase.auth.getSession()
-  if (sessErr) throw sessErr
-  if (!sess.session) throw new Error("No session token (not logged in)")
-  const { data, error } = await supabase.functions.invoke(fn, {
-    body,
-    headers: { Authorization: `Bearer ${sess.session.access_token}` },
-  })
-  if (error) throw error
-  return data as T
-}
 
 function makeStateKey(s: GameState) {
   if ((s as any).gameOver) {
@@ -193,22 +181,22 @@ export function AiGameWrapper() {
       }
       if (nextTurn) patch.turn = nextTurn
 
+      // Write game-result fields directly when the game ends.
+      // We do this in the same UPDATE as current_state so it's atomic and doesn't
+      // depend on the edge function (which has proven unreliable for this path).
+      if (isOver && gd) {
+        const go = (state as any).gameOver
+        patch.status = "ended"
+        patch.winner_id = go.winner === "W" ? gd.wake_id : gd.brake_id
+        patch.loser_id = go.winner === "W" ? gd.brake_id : gd.wake_id
+        patch.end_reason = go.reason
+        patch.ended_at = nowIso
+      }
+
       const { error } = await supabase.from("games").update(patch).eq("id", gameId)
       if (error) {
         console.error("Failed to save AI game state:", error)
-        // Don't block finalization on a failed final state save.
         if (!isOver) return
-      }
-
-      // Finalize game — updates status to "ended", writes Elo + stats
-      // finalize_game skips Elo changes when an AI player is involved (AI_IDS check)
-      if (isOver) {
-        const go = (state as any).gameOver
-        await invokeAuthed("finalize_game", {
-          gameId,
-          winner: go.winner,
-          reason: go.reason,
-        }).catch((e) => console.error("finalize_game failed:", e))
       }
     },
     [gameId]
