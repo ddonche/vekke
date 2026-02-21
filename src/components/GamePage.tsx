@@ -460,9 +460,9 @@ export function GamePage(props: GamePageProps = {}) {
     actions,
   ])
 
-  // PvP: Auto-start the game when loaded
+  // Auto-start the game when loaded via a wrapper (both PvP and AI)
   useEffect(() => {
-    if (props.opponentType !== "pvp") return
+    if (props.opponentType !== "pvp" && props.opponentType !== "ai") return
     if (started) return
 
     // Start if we were given an initial snapshot OR if we already have remote state.
@@ -477,6 +477,13 @@ export function GamePage(props: GamePageProps = {}) {
     started,
     actions,
   ])
+
+  // Set AI difficulty from DB when loading an existing AI game via wrapper
+  useEffect(() => {
+    if (props.opponentType !== "ai") return
+    const lvl = props.externalGameData?.ai_level
+    if (lvl) actions.setAiDifficulty(lvl as any)
+  }, [props.opponentType, props.externalGameData?.ai_level, actions])
 
   // ===== TWO MODES ONLY: WEB vs MOBILE =====
   // Wider breakpoint so shrinking the browser reliably flips to mobile.

@@ -5,7 +5,8 @@ import { supabase } from "../services/supabase"
 import { fetchGame, type PvPGameData } from "../services/pvp_sync"
 import { GamePage } from "../components/GamePage"
 import type { Player, GameState } from "../engine/state"
-import type { TimeControlId } from "../engine/ui_controller"
+import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
+import type { AiLevel } from "../engine/ai"
 
 function makeStateKey(s: GameState) {
   if ((s as any).gameOver) {
@@ -38,6 +39,7 @@ export function AiGameWrapper() {
   )
 
   const lastSavedKeyRef = useRef<string | null>(null)
+  const prevPlayerRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!gameId) {
@@ -72,7 +74,7 @@ export function AiGameWrapper() {
           throw new Error("You are not a player in this game")
         }
 
-        // Profile + Elo (safe even if AI user has no profile)
+        // Profile + Elo for the human player
         const { data: myProfile } = await supabase
           .from("profiles")
           .select("username")
@@ -85,9 +87,16 @@ export function AiGameWrapper() {
           .eq("user_id", userId)
           .maybeSingle()
 
-        // Opponent naming: use ai_level if present
-        const lvl = (game as any).ai_level as string | undefined
-        const pretty =
+        // Fetch AI player profile from DB (AI players now have profile rows)
+        const { data: oppProfile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", opponentId)
+          .maybeSingle()
+
+        // Fallback opponent name from ai_level if no DB profile
+        const lvl = (game as any).ai_level as AiLevel | undefined
+        const fallbackName =
           lvl === "senior_master"
             ? "Senior Master AI"
             : lvl
@@ -102,8 +111,8 @@ export function AiGameWrapper() {
         setMyName(myProfile?.username || "You")
         setMyElo(myStats?.elo || 1200)
 
-        setOpponentName(pretty)
-        setOpponentElo(1200)
+        setOpponentName(oppProfile?.username || fallbackName)
+        setOpponentElo(lvl ? (AI_RATING[lvl] ?? 1200) : 1200)
 
         // Initial clocks (same logic as PvP wrapper)
         if (game.clocks_w_ms != null && game.clocks_b_ms != null && game.turn_started_at) {
@@ -128,9 +137,9 @@ export function AiGameWrapper() {
     }
   }, [gameId])
 
-  // Minimal persistence: update current_state + turn/status
+  // Persist state to DB after each move (both human and AI turns)
   const handleMoveComplete = useCallback(
-    async (state: GameState) => {
+    async (state: GameState, clocks?: { W: number; B: number }) => {
       if (!gameId) return
       const key = makeStateKey(state)
       if (lastSavedKeyRef.current === key) return
@@ -140,17 +149,25 @@ export function AiGameWrapper() {
       const nextTurn = (state as any)?.player ?? null
       const isOver = Boolean((state as any)?.gameOver)
 
+      // Only reset the clock anchor when the turn flips (mirrors PvP wrapper behavior)
+      const turnFlipped =
+        prevPlayerRef.current === null || prevPlayerRef.current !== nextTurn
+      prevPlayerRef.current = nextTurn
+
       const patch: any = {
         current_state: state,
         last_move_at: nowIso,
-        turn_started_at: nowIso,
+      }
+      if (turnFlipped || isOver) patch.turn_started_at = nowIso
+      if (clocks) {
+        patch.clocks_w_ms = Math.round(clocks.W)
+        patch.clocks_b_ms = Math.round(clocks.B)
       }
       if (nextTurn) patch.turn = nextTurn
       if (isOver) patch.status = "completed"
 
       const { error } = await supabase.from("games").update(patch).eq("id", gameId)
       if (error) {
-        // Don’t hard-crash the UI; just surface something useful in console for now
         console.error("Failed to save AI game state:", error)
       }
     },

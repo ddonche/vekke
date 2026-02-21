@@ -116,7 +116,7 @@ export function useVekkeController(opts: {
 
   // IMPORTANT: human MUST reset each new game (you asked for this).
   const [human, setHuman] = useState<Player>(() => {
-    if (opponentType === "pvp" && opts.mySide) return opts.mySide
+    if (opts.mySide) return opts.mySide
     return Math.random() < 0.5 ? "W" : "B"
   })
   const ai: Player = human === "W" ? "B" : "W"
@@ -336,14 +336,12 @@ export function useVekkeController(opts: {
     [update]
   )
 
-  // PvP: callback after any state change to sync to database
+  // Sync state to database after any state change (both PvP and DB-backed AI games)
   useEffect(() => {
     if (!started) return
-    if (opponentType !== "pvp") return
     if (!onMoveComplete) return
-    
     onMoveComplete(g, clocks)
-  }, [g, clocks, started, opponentType, onMoveComplete])
+  }, [g, clocks, started, onMoveComplete])
 
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)
