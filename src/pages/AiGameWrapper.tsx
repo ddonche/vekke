@@ -62,6 +62,14 @@ export function AiGameWrapper() {
       return
     }
 
+    // Reset to loading state whenever gameId changes (e.g. navigating to a new game
+    // from the endgame screen). Without this, GamePage keeps rendering with stale
+    // props because loading is still false and gameData still holds the old game.
+    setLoading(true)
+    setError(null)
+    setGameData(null)
+    setMySide(null)
+
     let mounted = true
 
     ;(async () => {
