@@ -37,16 +37,6 @@ function isTimeout(reason: string) {
     .startsWith("timeout")
 }
 
-// Default AI ratings (used only for Elo math; AI Elo itself never changes)
-const AI_ELO_BY_LEVEL: Record<string, number> = {
-  novice: 600,
-  adept: 900,
-  expert: 1200,
-  master: 1500,
-  senior_master: 1800,
-  grandmaster: 2100,
-}
-
 // ✅ Your real AI auth user IDs
 const AI_IDS = new Set<string>([
   "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen (novice)
@@ -87,10 +77,10 @@ Deno.serve(async (req) => {
 
     const admin = createClient(URL, SRV)
 
-    // Load game (include flags)
+    // Load game — intentionally omit `rating_applied` (column may not exist in all envs)
     const { data: g, error: gerr } = await admin
       .from("games")
-      .select("id, wake_id, brake_id, status, rating_applied, winner_id, loser_id, is_vs_ai, ai_level")
+      .select("id, wake_id, brake_id, status, winner_id, loser_id, is_vs_ai, ai_level")
       .eq("id", body.gameId)
       .single()
 
@@ -104,7 +94,7 @@ Deno.serve(async (req) => {
     const winnerId = body.winner === "W" ? g.wake_id : g.brake_id
     const loserId = body.winner === "W" ? g.brake_id : g.wake_id
 
-    // If not ended yet, end it (idempotent)
+    // Update games row to ended (idempotent — skip if already done)
     if (!(g.status === "ended" && g.winner_id && g.loser_id)) {
       const endedAt = new Date().toISOString()
       const { error: endErr } = await admin
@@ -121,94 +111,19 @@ Deno.serve(async (req) => {
       if (endErr) return json(500, { error: endErr.message })
     }
 
-    // Reload rating_applied (idempotent)
-    const { data: g2, error: g2err } = await admin
-      .from("games")
-      .select("rating_applied, is_vs_ai, wake_id, brake_id")
-      .eq("id", body.gameId)
-      .single()
-
-    if (g2err) return json(500, { error: g2err.message })
-    if (g2?.rating_applied) return json(200, { ok: true, ratingAlreadyApplied: true })
-
-    const wakeId = String(g2?.wake_id)
-    const brakeId = String(g2?.brake_id)
+    const wakeId = String(g.wake_id)
+    const brakeId = String(g.brake_id)
     const wakeIsAi = AI_IDS.has(wakeId)
     const brakeIsAi = AI_IDS.has(brakeId)
-    const involvesAi = !!g2?.is_vs_ai || wakeIsAi || brakeIsAi
+    const involvesAi = !!g?.is_vs_ai || wakeIsAi || brakeIsAi
 
-    const now = new Date().toISOString()
-    const timeout = isTimeout(body.reason)
-
-    // Exactly one AI participant: update ONLY the human's Elo/stats. AI Elo never changes.
+    // AI games: player stats are handled client-side by reportVsAiEloAndStats.
+    // finalize_game only needs to mark the game row as ended (done above).
     if (involvesAi && wakeIsAi !== brakeIsAi) {
-      const aiId = wakeIsAi ? wakeId : brakeId
-      const humanId = wakeIsAi ? brakeId : wakeId
-      const humanWon = String(winnerId) === humanId
-
-      const { data: hs, error: hsErr } = await admin
-        .from("player_stats")
-        .select("*")
-        .eq("user_id", humanId)
-        .maybeSingle()
-      if (hsErr) return json(500, { error: `human stats: ${hsErr.message}` })
-
-      const hElo = hs?.elo ?? 1200
-
-      // Reference AI rating for Elo math: prefer fixed by ai_level, fallback to any stored AI stats.
-      const aiLevelKey = String((g as any)?.ai_level ?? "").toLowerCase()
-      const aiEloFixed = AI_ELO_BY_LEVEL[aiLevelKey] ?? 1200
-
-      const { data: ais, error: aisErr } = await admin
-        .from("player_stats")
-        .select("elo")
-        .eq("user_id", aiId)
-        .maybeSingle()
-      if (aisErr) return json(500, { error: `ai stats: ${aisErr.message}` })
-
-      const aiElo = typeof ais?.elo === "number" ? ais.elo : aiEloFixed
-
-      // Compute full Elo result for the human (as player A). AI is just reference rB.
-      const full = eloUpdate(hElo, aiElo, humanWon, 24)
-
-      // Timeout policy: loser loses normal; winner gains reduced.
-      let newHumanElo = full.newA
-      if (timeout && humanWon) {
-        const delta = full.newA - hElo
-        newHumanElo = Math.round(hElo + delta * TIMEOUT_WIN_GAIN_MULTIPLIER)
-      }
-
-      const { error: upH } = await admin.from("player_stats").upsert({
-        user_id: humanId,
-        elo: clamp(newHumanElo, 100, 5000),
-        games_played: (hs?.games_played ?? 0) + 1,
-        wins: (hs?.wins ?? 0) + (humanWon ? 1 : 0),
-        losses: (hs?.losses ?? 0) + (humanWon ? 0 : 1),
-        updated_at: now,
-      })
-      if (upH) return json(500, { error: `upsert human: ${upH.message}` })
-
-      const { error: markErr } = await admin
-        .from("games")
-        .update({ rating_applied: true })
-        .eq("id", body.gameId)
-      if (markErr) return json(500, { error: markErr.message })
-
-      return json(200, {
-        ok: true,
-        winnerId,
-        loserId,
-        involvesAi,
-        timeout,
-        aiId,
-        humanId,
-        aiElo,
-        oldHumanElo: hElo,
-        newHumanElo,
-      })
+      return json(200, { ok: true, involvesAi: true, winnerId, loserId })
     }
 
-    // PvP (no AI): update both players normally.
+    // PvP (no AI): update both players' stats.
     const { data: ws, error: wsErr } = await admin
       .from("player_stats")
       .select("*")
@@ -225,10 +140,11 @@ Deno.serve(async (req) => {
 
     const wElo = ws?.elo ?? 1200
     const lElo = ls?.elo ?? 1200
+    const timeout = isTimeout(body.reason)
 
     const full = eloUpdate(wElo, lElo, true, 24)
     let newWinnerElo = full.newA
-    const newLoserElo = full.newB // loser always takes full loss
+    const newLoserElo = full.newB
 
     if (timeout) {
       const delta = full.newA - wElo
@@ -241,7 +157,6 @@ Deno.serve(async (req) => {
       games_played: (ws?.games_played ?? 0) + 1,
       wins: (ws?.wins ?? 0) + 1,
       losses: ws?.losses ?? 0,
-      updated_at: now,
     })
     if (up1) return json(500, { error: `upsert winner: ${up1.message}` })
 
@@ -251,16 +166,8 @@ Deno.serve(async (req) => {
       games_played: (ls?.games_played ?? 0) + 1,
       wins: ls?.wins ?? 0,
       losses: (ls?.losses ?? 0) + 1,
-      updated_at: now,
     })
     if (up2) return json(500, { error: `upsert loser: ${up2.message}` })
-
-    const { error: markErr } = await admin
-      .from("games")
-      .update({ rating_applied: true })
-      .eq("id", body.gameId)
-
-    if (markErr) return json(500, { error: markErr.message })
 
     return json(200, {
       ok: true,
