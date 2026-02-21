@@ -540,47 +540,93 @@ export function useVekkeController(opts: {
   }, [g.player, g.phase, g.tokens, evasionArmed, g.lastMove, defender, update, selectedTokenId])
 
   useEffect(() => {
-    if (!started) return
-    if (g.gameOver) return
-    if (opponentType !== "ai") return // Skip AI in PvP mode
-    if (g.player !== ai) return
-    if (evasionArmed) return // Don't let AI move during evasion interrupt
+      if (!started) return
+      if (g.gameOver) return
+      if (opponentType !== "ai") return // Skip AI in PvP mode
+      if (g.player !== ai) return
+      if (evasionArmed) return // Don't let AI move during evasion interrupt
 
-    const t = window.setTimeout(() => {
-      update((s) => {
-        const stepMap: Record<AiLevel, typeof aiStepNovice> = {
-          novice: aiStepNovice,
-          adept: aiStepAdept,
-          expert: aiStepExpert,
-          master: aiStepMaster,
-          senior_master: aiStepSeniorMaster,
-          grandmaster: aiStepGrandmaster,
+      // --- AI "thinking" delay (pacing so AI can realistically flag in blitz) ---
+      const delayMs = (() => {
+        // Respect explicit override if provided
+        if (opts.aiDelayMs != null) return AI_DELAY_MS
+
+        // Baseline ranges by level (ms)
+        // GM already does real compute; keep it snappy.
+        const byLevel: Record<AiLevel, [number, number]> = {
+          novice: [700, 1800],
+          adept: [800, 2000],
+          expert: [900, 2200],
+          master: [1000, 2400],
+          senior_master: [1100, 2600],
+          grandmaster: [120, 420],
         }
-        const step = stepMap[aiDifficulty] ?? aiStepNovice
-        step(s, ai)
-      })
-    }, AI_DELAY_MS)
 
-    return () => window.clearTimeout(t)
-  }, [
-    started,
-    g.player,
-    g.phase,
-    g.usedRoutes.length,
-    g.pendingSwap.handRouteId,
-    g.pendingSwap.queueIndex,
-    g.reinforcementsToPlace,
-    g.openingPlaced.B,
-    g.openingPlaced.W,
-    g.gameOver,
-    g.log.length,
-    ai,
-    aiDifficulty,
-    update,
-    AI_DELAY_MS,
-    evasionArmed,
-    opponentType,
-  ])
+        const [min0, max0] = byLevel[aiDifficulty] ?? byLevel.novice
+
+        // Time control scaling: blitz should consume more clock; daily should feel instant-ish.
+        const tcMult =
+          timeControlId === "blitz" ? 1.35 :
+          timeControlId === "rapid" ? 1.15 :
+          timeControlId === "standard" ? 1.0 :
+          /* daily */ 0.10
+
+        // Phase scaling: action is where "thinking" lives.
+        const phaseMult =
+          g.phase === "ACTION" ? 1.0 :
+          g.phase === "SWAP" ? 0.55 :
+          g.phase === "REINFORCE" ? 0.45 :
+          g.phase === "OPENING" ? 0.35 :
+          0.6
+
+        const min = min0 * tcMult * phaseMult
+        const max = max0 * tcMult * phaseMult
+
+        // Uniform jitter inside range
+        const ms = min + Math.random() * Math.max(0, max - min)
+
+        // Clamp so it never becomes absurd
+        return Math.max(40, Math.round(ms))
+      })()
+      // --- end delay ---
+
+      const t = window.setTimeout(() => {
+        update((s) => {
+          const stepMap: Record<AiLevel, typeof aiStepNovice> = {
+            novice: aiStepNovice,
+            adept: aiStepAdept,
+            expert: aiStepExpert,
+            master: aiStepMaster,
+            senior_master: aiStepSeniorMaster,
+            grandmaster: aiStepGrandmaster,
+          }
+          const step = stepMap[aiDifficulty] ?? aiStepNovice
+          step(s, ai)
+        })
+      }, delayMs)
+
+      return () => window.clearTimeout(t)
+    }, [
+      started,
+      g.player,
+      g.phase,
+      g.usedRoutes.length,
+      g.pendingSwap.handRouteId,
+      g.pendingSwap.queueIndex,
+      g.reinforcementsToPlace,
+      g.openingPlaced.B,
+      g.openingPlaced.W,
+      g.gameOver,
+      g.log.length,
+      ai,
+      aiDifficulty,
+      update,
+      AI_DELAY_MS,
+      evasionArmed,
+      opponentType,
+      timeControlId,
+      opts.aiDelayMs,
+    ])
 
   useEffect(() => {
     if (!started) return

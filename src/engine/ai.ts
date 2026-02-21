@@ -15,6 +15,8 @@ import {
   armEarlySwap,
   confirmEarlySwap,
   cancelEarlySwap,
+  useRansom,
+  RANSOM_COST_CAPTIVES,
 } from "./game"
 
 export type AiLevel = "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
@@ -67,6 +69,30 @@ function canTokenUseRoute(state: GameState, p: Player, token: Token, routeId: st
   if (occ && occ.owner === p && occ.id !== token.id) return false
 
   return true
+}
+
+
+function shouldRansom(state: GameState, me: Player, level: AiLevel): boolean {
+  if (state.phase !== "ACTION") return false
+  if (state.ransomUsedThisTurn) return false
+  if (state.captives[me] < RANSOM_COST_CAPTIVES) return false
+  if (state.void[me] < 1) return false
+
+  // Novice: sometimes notices.
+  if (level === "novice") return Math.random() < 0.3
+
+  // Adept: moderate randomness.
+  if (level === "adept") return Math.random() < 0.5
+
+  // Expert: prefers ransom when low on reserves.
+  if (level === "expert") {
+    if (state.reserves[me] <= 1) return true
+    return Math.random() < 0.5
+  }
+
+  // Master+: generally smart, but not perfectly deterministic.
+  if (state.reserves[me] <= 2) return true
+  return Math.random() < 0.4
 }
 
 function isCaptureMove(state: GameState, me: Player, tokenId: string, routeId: string): boolean {
@@ -213,7 +239,13 @@ export function aiStepNovice(state: GameState, aiPlayer: Player) {
 
     const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === aiPlayer)
 
-    // 1) NEW: if any capture exists, take one (still "novice": picks randomly among captures).
+
+    if (shouldRansom(state, aiPlayer, "novice")) {
+      useRansom(state)
+      return
+    }
+
+    // 1) Look for capture moves
     const captureMoves: Array<{ tokenId: string; routeId: string }> = []
     for (const r of unused) {
       for (const t of tokens) {
@@ -224,13 +256,14 @@ export function aiStepNovice(state: GameState, aiPlayer: Player) {
       }
     }
 
-    if (captureMoves.length > 0) {
+    // 🔥 Change: novice only takes captures 60% of the time
+    if (captureMoves.length > 0 && Math.random() < 0.6) {
       const mv = captureMoves[randomInt(captureMoves.length)]
       applyRouteMove(state, mv.tokenId, mv.routeId)
       return
     }
 
-    // 2) Otherwise: keep the old random-legal behavior.
+    // 2) Otherwise: random legal move (original behavior)
     const routeOrder = [...unused].sort(() => Math.random() - 0.5)
 
     for (const r of routeOrder) {
@@ -441,15 +474,61 @@ function bestReinforcementPlacement(state: GameState, me: Player): Coord | null 
   const empties = allEmptySquares(state)
   if (empties.length === 0) return null
 
-  let best = empties[0]
-  let bestScore = -Infinity
+  const enemy = other(me)
+  const enemyTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === enemy)
+  const myTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === me)
 
-  for (const c of empties) {
-    const sc = simulateAndScore(state, me, (s) => placeReinforcement(s, c))
-    if (sc > bestScore) { bestScore = sc; best = c }
+  function isAdj(a: Coord, b: Coord): boolean {
+    return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1 && !(a.x === b.x && a.y === b.y)
   }
 
-  return best
+  // tokens that are close to being locked/captured by enemy
+  const threatenedMine = myTokens
+    .map((t) => ({ t, enemySides: siegeSidesFor(state, enemy, t.pos.x, t.pos.y) }))
+    .filter((x) => x.enemySides >= 3)
+
+  let bestScore = -Infinity
+  let bests: Coord[] = []
+
+  for (const c of empties) {
+    const base = simulateAndScore(state, me, (s) => placeReinforcement(s, c))
+    let bonus = 0
+
+    // SIEGE INTENT: prefer placements that increase siege pressure, especially crossing lock/capture thresholds
+    for (const e of enemyTokens) {
+      if (!isAdj(c, e.pos)) continue
+      const before = siegeSidesFor(state, me, e.pos.x, e.pos.y)
+      const after = before + 1
+
+      if (before < 4 && after >= 4) bonus += 80   // creates lock threat
+      if (before < 7 && after >= 7) bonus += 60   // near ring
+      if (before < 8 && after >= 8) bonus += 200  // completes ring
+
+      bonus += 8 // any pressure increase
+    }
+
+    // RESCUE INTENT: if our token is under siege pressure, occupying adjacent empty squares helps defend
+    for (const tm of threatenedMine) {
+      if (!isAdj(c, tm.t.pos)) continue
+      // stronger rescue bonus the closer it is to lock/capture
+      if (tm.enemySides >= 7) bonus += 160
+      else if (tm.enemySides >= 4) bonus += 90
+      else bonus += 40
+    }
+
+    const sc = base + bonus
+
+    // Randomize ties: keep a bucket of best-ish squares instead of defaulting to empties[0] (A1)
+    const EPS = 1e-6
+    if (sc > bestScore + EPS) {
+      bestScore = sc
+      bests = [c]
+    } else if (Math.abs(sc - bestScore) <= EPS) {
+      bests.push(c)
+    }
+  }
+
+  return bests.length ? bests[randomInt(bests.length)] : empties[randomInt(empties.length)]
 }
 
 function bestSwapChoice(state: GameState, me: Player): { handId: string; qIdx: number } | null {
@@ -662,7 +741,7 @@ function pickBlueBeltMove(
   return { tokenId: top[0].tokenId, routeId: top[0].routeId }
 }
 
-function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number) {
+function aiStepGreedy(state: GameState, aiPlayer: Player, level: AiLevel, mistakeChance: number) {
   if (state.gameOver) return
   if (state.player !== aiPlayer) return
 
@@ -702,6 +781,11 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
     const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
+    if (shouldRansom(state, aiPlayer, "master")) {
+      useRansom(state)
+      return
+    }
+
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
 
     // Blue belt separation lives here: same greedy evaluator, but occasional intentional imperfection.
@@ -716,12 +800,12 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, mistakeChance: number)
 
 // Blue belt (approx): 1-ply greedy + 0% imperfection.
 export function aiStepAdept(state: GameState, aiPlayer: Player) {
-  return aiStepGreedy(state, aiPlayer, 0.0)
+  return aiStepGreedy(state, aiPlayer, "adept", 0.0)
 }
 
 // Purple belt (approx): same greedy engine, but no intentional mistakes.
 export function aiStepExpert(state: GameState, aiPlayer: Player) {
-  return aiStepGreedy(state, aiPlayer, 0.0)
+  return aiStepGreedy(state, aiPlayer, "expert", 0.0)
 }
 
 // Brown belt (approx): 2-ply minimax (me → opponent) on ACTION, otherwise strong-but-normal policy.
@@ -764,6 +848,11 @@ export function aiStepMaster(state: GameState, aiPlayer: Player) {
 
     const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
+
+    if (shouldRansom(state, aiPlayer, level)) {
+      useRansom(state)
+      return
+    }
 
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
 
@@ -1021,6 +1110,11 @@ export function aiStepSeniorMaster(state: GameState, aiPlayer: Player) {
     const earlyPlan = bestEarlySwapPlanBrutal(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
+    if (shouldRansom(state, aiPlayer, "senior_master")) {
+      useRansom(state)
+      return
+    }
+
     if (shouldBuyExtraReinforcement(state, aiPlayer)) { buyExtraReinforcement(state); return }
 
     const mv = bestMasterActionMove(state, aiPlayer)
@@ -1088,6 +1182,11 @@ export function aiStepGrandmaster(state: GameState, aiPlayer: Player) {
     const earlyPlan = bestEarlySwapPlanBrutal(state, aiPlayer)
     if (earlyPlan) {
       armEarlySwap(state)
+      return
+    }
+
+    if (shouldRansom(state, aiPlayer, "grandmaster")) {
+      useRansom(state)
       return
     }
 

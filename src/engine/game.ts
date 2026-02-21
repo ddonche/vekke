@@ -214,7 +214,14 @@ function resolveFullSieges(state: GameState, siegers: Player): number {
 // ------------------------------------------------------------
 
 function hasAnyLegalMove(state: GameState, p: Player): boolean {
-  // Check if player p would have any legal moves on their next turn.
+  // Check if player p would have any legal continuation on their next turn.
+  // Evaluated as-if it were the start of p's turn (no routes used yet).
+  //
+  // If p has no usable routes, they may "burn" (mark used) routes by paying the
+  // unusable-route tax from reserves, and then proceed to reinforcements.
+  // If p cannot pay enough to complete mandatory route usage, they lose:
+  //   - if all tokens are sieged: SIEGEMATE
+  //   - otherwise: COLLAPSE
   const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
 
   if (tokens.length === 0) {
@@ -222,12 +229,8 @@ function hasAnyLegalMove(state: GameState, p: Player): boolean {
     return state.reserves[p] > 0
   }
 
-  const routes = state.routes[p].filter((r) => !state.usedRoutes.includes(r.id))
-
-  // If all tokens are sieged, forced yield burns 1 reserve per route.
-  // Escape via reinforcement only survives if reserves > routes.length (net > 0 after burn).
-  const allSieged = tokens.every((t) => isTokenLockedBySiege(state, t))
-  if (allSieged) return state.reserves[p] > routes.length
+  // At the start of p's turn, none of p's routes are used yet.
+  const routes = state.routes[p]
 
   for (const t of tokens) {
     for (const r of routes) {
@@ -235,7 +238,32 @@ function hasAnyLegalMove(state: GameState, p: Player): boolean {
     }
   }
 
+  // No token can use any required route.
+  // If they can burn all routes (tax) AND still have at least one reserve token
+  // left to reinforce, they can continue.
+  if (state.reserves[p] > routes.length) return true
+
   return false
+}
+
+function noMoveReasonAtTurnStart(state: GameState, p: Player): "siegemate" | "collapse" | null {
+  const tokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+  if (tokens.length === 0) return null
+
+  const routes = state.routes[p]
+
+  // Any usable route => not over.
+  for (const t of tokens) {
+    for (const r of routes) {
+      if (canTokenUseRoute(state, p, t, r)) return null
+    }
+  }
+
+  // No usable routes. If they can burn routes and still reinforce, they survive.
+  if (state.reserves[p] > routes.length) return null
+
+  const allSieged = tokens.every((t) => isTokenLockedBySiege(state, t))
+  return allSieged ? "siegemate" : "collapse"
 }
 
 function finishActionIfDone(state: GameState) {
@@ -265,13 +293,18 @@ function finishActionIfDone(state: GameState) {
     )
   }
 
-  // CHECKMATE: opponent has no legal moves
+  // Opponent may already be dead-on-arrival for their next turn:
+  // - SIEGEMATE: all tokens sieged and cannot reinforce
+  // - COLLAPSE: cannot fulfill mandatory route usage and cannot pay the unusable-route tax
   const opp = other(p)
-  if (!hasAnyLegalMove(state, opp)) {
-    state.gameOver = { winner: p, reason: "siegemate" }
-    state.log.unshift(
-      `== SIEGEMATE: ${p} wins by complete siege (no legal moves) ==`
-    )
+  const deadReason = noMoveReasonAtTurnStart(state, opp)
+  if (deadReason) {
+    state.gameOver = { winner: p, reason: deadReason }
+    if (deadReason === "siegemate") {
+      state.log.unshift(`== SIEGEMATE: ${p} wins (opponent has no legal continuation) ==`)
+    } else {
+      state.log.unshift(`== COLLAPSE: ${p} wins (opponent cannot pay unusable-route tax) ==`)
+    }
     return
   }
 
@@ -467,11 +500,16 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
     return
   }
 
-  // Immediate siegemate check — don't wait until end of turn
+  // Opponent may already be dead-on-arrival for their next turn.
   const opp = other(p)
-  if (!hasAnyLegalMove(state, opp)) {
-    state.gameOver = { winner: p, reason: "siegemate" }
-    state.log.unshift(`== SIEGEMATE: ${p} wins by complete siege (no legal moves) ==`)
+  const deadReason = noMoveReasonAtTurnStart(state, opp)
+  if (deadReason) {
+    state.gameOver = { winner: p, reason: deadReason }
+    if (deadReason === "siegemate") {
+      state.log.unshift(`== SIEGEMATE: ${p} wins (opponent has no legal continuation) ==`)
+    } else {
+      state.log.unshift(`== COLLAPSE: ${p} wins (opponent cannot pay unusable-route tax) ==`)
+    }
     return
   }
 
@@ -511,7 +549,23 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
 
   // Forced yield: 1 reserve token per remaining route that cannot be used
   const need = remaining.length
-  const pay = Math.min(need, state.reserves[p])
+  // If you cannot pay the unusable-route tax AND still have at least one reserve token
+  // left to reinforce, you lose immediately.
+  // - If ALL your tokens are sieged: SIEGEMATE
+  // - Otherwise: COLLAPSE
+  if (state.reserves[p] <= need) {
+    const allSieged = friendly.length > 0 && friendly.every((t) => isTokenLockedBySiege(state, t))
+    const winner = other(p)
+    state.gameOver = { winner, reason: allSieged ? "siegemate" : "collapse" }
+    if (allSieged) {
+      state.log.unshift(`== SIEGEMATE: ${winner} wins (opponent cannot move and cannot reinforce) ==`)
+    } else {
+      state.log.unshift(`== COLLAPSE: ${winner} wins (opponent cannot pay unusable-route tax) ==`)
+    }
+    return
+  }
+
+  const pay = need
 
   state.reserves[p] -= pay
   state.void[p] += pay

@@ -661,20 +661,36 @@ if (wantsNewGame) {
   }, [])
 
   // Fetch opponent profile from DB (works for AI characters and PvP opponents)
+  // Fetch opponent profile from DB (AI and PvP)
   useEffect(() => {
-    if (!props.opponentUserId) return
+    const resolvedOpponentUserId =
+      props.opponentUserId ??
+      (props.externalGameData && props.mySide
+        ? (props.mySide === "W"
+            ? props.externalGameData.brake_id
+            : props.externalGameData.wake_id)
+        : null)
+
+    if (!resolvedOpponentUserId) return
+
     let cancelled = false
     supabase
       .from("profiles")
       .select("username, country_code, country_name, avatar_url")
-      .eq("id", props.opponentUserId)
+      .eq("id", resolvedOpponentUserId)
       .single()
-      .then(({ data }) => {
-        if (cancelled || !data) return
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.error("Failed to load opponent profile:", error)
+          return
+        }
+        if (!data) return
         setOpponentProfile(data)
       })
+
     return () => { cancelled = true }
-  }, [props.opponentUserId])
+  }, [props.opponentUserId, props.externalGameData, props.mySide])
 
   // Flag image component using flagcdn.com (cross-platform, works on Windows)
   const FlagImg = ({ cc, size = 16 }: { cc: string | null | undefined; size?: number }) => {
@@ -693,39 +709,51 @@ if (wantsNewGame) {
     }
 
   const whitePlayer = {
-    username: props.opponentType === "pvp"
-      ? (props.mySide === "W" ? (props.myName || "You") : (props.opponentName || opponentProfile?.username || "Opponent"))
-      : (human === "W"
-        ? (userProfile?.username || "Wake Player")
-        : (opponentProfile?.username || "Computer")),
-    elo: props.opponentType === "pvp"
-      ? (props.mySide === "W" ? (props.myElo || 1200) : (props.opponentElo || 1200))
-      : (human === "W" ? myElo : aiElo),
+    username:
+      props.opponentType === "pvp"
+        ? (props.mySide === "W"
+            ? (props.myName || "You")
+            : (props.opponentName || opponentProfile?.username || "Opponent"))
+        : (human === "W"
+            ? (userProfile?.username || "Wake Player")
+            : (opponentProfile?.username || props.opponentName || "Computer")),
+    elo:
+      props.opponentType === "pvp"
+        ? (props.mySide === "W" ? (props.myElo || 1200) : (props.opponentElo || 1200))
+        : (human === "W" ? myElo : (props.opponentElo ?? aiElo)),
     avatar: "W",
-    avatar_url: human === "W"
-      ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
-      : (opponentProfile?.avatar_url ?? null),
-    country: human === "W"
-      ? (userProfile?.country_code ?? null)
-      : (opponentProfile?.country_code ?? null),
+    avatar_url:
+      human === "W"
+        ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
+        : (opponentProfile?.avatar_url ?? null),
+    country:
+      human === "W"
+        ? (userProfile?.country_code ?? null)
+        : (opponentProfile?.country_code ?? null),
   }
 
   const bluePlayer = {
-    username: props.opponentType === "pvp"
-      ? (props.mySide === "B" ? (props.myName || "You") : (props.opponentName || opponentProfile?.username || "Opponent"))
-      : (human === "B"
-        ? (userProfile?.username || "Brake Player")
-        : (opponentProfile?.username || "Computer")),
-    elo: props.opponentType === "pvp"
-      ? (props.mySide === "B" ? (props.myElo || 1200) : (props.opponentElo || 1200))
-      : (human === "B" ? myElo : aiElo),
+    username:
+      props.opponentType === "pvp"
+        ? (props.mySide === "B"
+            ? (props.myName || "You")
+            : (props.opponentName || opponentProfile?.username || "Opponent"))
+        : (human === "B"
+            ? (userProfile?.username || "Brake Player")
+            : (opponentProfile?.username || props.opponentName || "Computer")),
+    elo:
+      props.opponentType === "pvp"
+        ? (props.mySide === "B" ? (props.myElo || 1200) : (props.opponentElo || 1200))
+        : (human === "B" ? myElo : (props.opponentElo ?? aiElo)),
     avatar: "B",
-    avatar_url: human === "B"
-      ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
-      : (opponentProfile?.avatar_url ?? null),
-    country: human === "B"
-      ? (userProfile?.country_code ?? null)
-      : (opponentProfile?.country_code ?? null),
+    avatar_url:
+      human === "B"
+        ? (userProfile?.avatar_url ? `${userProfile.avatar_url}?t=${Date.now()}` : null)
+        : (opponentProfile?.avatar_url ?? null),
+    country:
+      human === "B"
+        ? (userProfile?.country_code ?? null)
+        : (opponentProfile?.country_code ?? null),
   }
 
   // Display positioning: human always right/bottom, opponent always left/top
@@ -3931,7 +3959,7 @@ if (wantsNewGame) {
                   if (reason?.toLowerCase() === "timeout") {
                     return (
                       <span style={{ color: loserColor }}>
-                        {loserName} loses by Timeout
+                        {winnerName} wins by Timeout
                       </span>
                     )
                   }
@@ -3946,6 +3974,13 @@ if (wantsNewGame) {
                     return (
                       <span style={{ color: winnerColor }}>
                         {winnerName} wins by Siegemate
+                      </span>
+                    )
+                  }
+                  if (reason?.toLowerCase() === "collapse") {
+                    return (
+                      <span style={{ color: winnerColor }}>
+                        {winnerName} wins by Collapse
                       </span>
                     )
                   }

@@ -188,6 +188,7 @@ export function PvPGameWrapper() {
             const next = {
               ...prev!,
               status: updated.status,
+              rating_applied: (updated as any).rating_applied,
               winner_id: (updated as any).winner_id,
               loser_id: (updated as any).loser_id,
               end_reason: (updated as any).end_reason,
@@ -270,6 +271,13 @@ export function PvPGameWrapper() {
     async (state: GameState, clocks: { W: number; B: number }) => {
       if (!gameId) return
 
+      // Refresh safety: if the DB already shows this game ended, never write/finalize again.
+      const gd = gameDataRef.current
+      const isOver = Boolean((state as any)?.gameOver)
+      const alreadyEnded =
+        gd?.status === "ended" || Boolean((gd as any)?.winner_id) || Boolean((gd as any)?.rating_applied)
+      if (alreadyEnded && isOver) return
+
       // If this state came from the DB subscription, don't echo it back
       const stateKey = makeStateKey(state)
       if (stateKey === lastReceivedKeyRef.current) return
@@ -294,15 +302,16 @@ export function PvPGameWrapper() {
       const { error: upErr } = await supabase.from("games").update(update).eq("id", gameId)
       if (upErr) {
         console.error("Failed to sync state to games:", upErr)
-        return
+        // Don't block finalization on a failed final state save.
+        if (!isOver) return
       }
 
       // If gameOver, finalize on the server (updates player_stats + rating_applied)
-      if ((state as any).gameOver) {
+      if (isOver) {
         const go: any = (state as any).gameOver
 
         // Skip if game is already ended in the DB (e.g. on refresh)
-        if (gameDataRef.current?.status === "ended") return
+        if (alreadyEnded) return
 
         // Dedup within the same session
         const saveKey = `gameover-${go.winner}-${go.reason}`

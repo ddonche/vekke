@@ -53,6 +53,7 @@ export function AiGameWrapper() {
 
   const lastSavedKeyRef = useRef<string | null>(null)
   const prevPlayerRef = useRef<string | null>(null)
+  const gameDataRef = useRef<PvPGameData | null>(null)
 
   useEffect(() => {
     if (!gameId) {
@@ -120,6 +121,7 @@ export function AiGameWrapper() {
 
         setMySide(side)
         setGameData(game)
+        gameDataRef.current = game
 
         setMyName(myProfile?.username || "You")
         setMyElo(myStats?.elo || 1200)
@@ -154,14 +156,20 @@ export function AiGameWrapper() {
   const handleMoveComplete = useCallback(
     async (state: GameState, clocks?: { W: number; B: number }) => {
       if (!gameId) return
+
+      // Refresh safety: if the DB already shows this game ended, never write/finalize again.
+      const gd = gameDataRef.current
+      const isOver = Boolean((state as any)?.gameOver)
+      const alreadyEnded =
+        gd?.status === "ended" || Boolean((gd as any)?.winner_id) || Boolean((gd as any)?.rating_applied)
+      if (alreadyEnded && isOver) return
+
       const key = makeStateKey(state)
       if (lastSavedKeyRef.current === key) return
       lastSavedKeyRef.current = key
 
       const nowIso = new Date().toISOString()
       const nextTurn = (state as any)?.player ?? null
-      const isOver = Boolean((state as any)?.gameOver)
-
       const turnFlipped =
         prevPlayerRef.current === null || prevPlayerRef.current !== nextTurn
       prevPlayerRef.current = nextTurn
@@ -180,7 +188,8 @@ export function AiGameWrapper() {
       const { error } = await supabase.from("games").update(patch).eq("id", gameId)
       if (error) {
         console.error("Failed to save AI game state:", error)
-        return
+        // Don't block finalization on a failed final state save.
+        if (!isOver) return
       }
 
       // Finalize game — updates status to "ended", writes Elo + stats
