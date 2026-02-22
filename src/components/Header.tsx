@@ -43,12 +43,16 @@ function VekkeLogo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}>
       {/* Token icon */}
-      <div style={{
-        width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-        background: "radial-gradient(circle at 30% 30%, #ffffff, #5de8f7 20%, #26c6da 40%, #00acc1 65%, #006064)",
-        border: "1px solid rgba(255,255,255,0.14)",
-        boxShadow: "0 6px 16px rgba(0,0,0,0.4), 0 0 12px rgba(93,232,247,0.2)",
-      }} />
+      <img
+        src="/logo.png"
+        alt="Vekke"
+        style={{
+          width: 50,
+          height: 50,
+          objectFit: "contain",
+          flexShrink: 0,
+        }}
+      />
       <div style={{ lineHeight: 1.05 }}>
         <div style={{
           fontSize: 20, fontWeight: 1000, letterSpacing: "0.06em",
@@ -58,7 +62,7 @@ function VekkeLogo() {
           VEKKE
         </div>
         <div style={{ fontSize: 10, opacity: 0.5, letterSpacing: "0.08em", color: "#9ca3af", fontWeight: 600 }}>
-          competitive portal
+          the game of routes
         </div>
       </div>
     </div>

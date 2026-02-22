@@ -14,6 +14,7 @@ export type Skin = {
   description: string | null
   style: { cssClass: string } | Record<string, any>
   price_coins: number | null
+  image_url: string | null
 }
 
 export type PlayerLoadout = {
@@ -24,12 +25,17 @@ export type PlayerLoadout = {
   board_skin_id: string
 }
 
-// Resolved loadout — CSS class names only
+// Resolved loadout — classes + optional image URLs (for PNG skins)
 export type ResolvedLoadout = {
   wakeTokenClass: string
   brakeTokenClass: string
   routeClass: string
   boardClass: string
+
+  wakeTokenImageUrl?: string | null
+  brakeTokenImageUrl?: string | null
+  routeImageUrl?: string | null
+  boardImageUrl?: string | null
 }
 
 export const DEFAULT_LOADOUT: PlayerLoadout = {
@@ -45,6 +51,11 @@ export const DEFAULT_RESOLVED: ResolvedLoadout = {
   brakeTokenClass: "skin-token-default-b",
   routeClass: "skin-route-default",
   boardClass: "skin-board-default",
+
+  wakeTokenImageUrl: null,
+  brakeTokenImageUrl: null,
+  routeImageUrl: null,
+  boardImageUrl: null,
 }
 
 const SKIN_CLASS_MAP: Record<string, string> = {
@@ -81,11 +92,48 @@ export async function getSkinById(skinId: string): Promise<Skin | null> {
 }
 
 export async function resolveLoadout(loadout: PlayerLoadout): Promise<ResolvedLoadout> {
+  const ids = [
+    loadout.wake_token_skin_id,
+    loadout.brake_token_skin_id,
+    loadout.route_skin_id,
+    loadout.board_skin_id,
+  ].filter(Boolean)
+
+  // Fetch equipped skins in one query so we can detect PNG skins via image_url
+  const { data } = await supabase
+    .from("skins")
+    .select("id, type, image_url")
+    .in("id", ids)
+
+  const byId = new Map<string, { id: string; type: SkinType; image_url: string | null }>(
+    (data ?? []).map((s: any) => [s.id, { id: s.id, type: s.type as SkinType, image_url: s.image_url ?? null }])
+  )
+
+  const wakeSkin = byId.get(loadout.wake_token_skin_id)
+  const brakeSkin = byId.get(loadout.brake_token_skin_id)
+  const routeSkin = byId.get(loadout.route_skin_id)
+  const boardSkin = byId.get(loadout.board_skin_id)
+
+  const wakePngUrl = wakeSkin?.type === "token" ? wakeSkin.image_url : null
+  const brakePngUrl = brakeSkin?.type === "token" ? brakeSkin.image_url : null
+
   return {
-    wakeTokenClass:  skinIdToClass(loadout.wake_token_skin_id,  DEFAULT_RESOLVED.wakeTokenClass),
-    brakeTokenClass: skinIdToClass(loadout.brake_token_skin_id, DEFAULT_RESOLVED.brakeTokenClass),
-    routeClass:      skinIdToClass(loadout.route_skin_id,       DEFAULT_RESOLVED.routeClass),
-    boardClass:      skinIdToClass(loadout.board_skin_id,       DEFAULT_RESOLVED.boardClass),
+    // If image_url exists, use the PNG token classes
+    wakeTokenClass: wakePngUrl
+      ? "skin-token-png-w"
+      : skinIdToClass(loadout.wake_token_skin_id, DEFAULT_RESOLVED.wakeTokenClass),
+
+    brakeTokenClass: brakePngUrl
+      ? "skin-token-png-b"
+      : skinIdToClass(loadout.brake_token_skin_id, DEFAULT_RESOLVED.brakeTokenClass),
+
+    routeClass: skinIdToClass(loadout.route_skin_id, DEFAULT_RESOLVED.routeClass),
+    boardClass: skinIdToClass(loadout.board_skin_id, DEFAULT_RESOLVED.boardClass),
+
+    wakeTokenImageUrl: wakePngUrl,
+    brakeTokenImageUrl: brakePngUrl,
+    routeImageUrl: routeSkin?.type === "route" ? (routeSkin.image_url ?? null) : null,
+    boardImageUrl: boardSkin?.type === "board" ? (boardSkin.image_url ?? null) : null,
   }
 }
 

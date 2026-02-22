@@ -91,6 +91,31 @@
   pointer-events: none;
 }
 
+/* ── PNG TOKENS ────────────────────────────────────────────── */
+/* GamePage sets:
+   --w-token-img: url("...")
+   --b-token-img: url("...")
+*/
+.skin-token-png-w,
+.skin-token-png-b {
+  border-radius: 50%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 110% 110%;
+
+  /* kill fake disc shadows */
+  box-shadow: none;
+  background-color: transparent;
+
+  /* shadow based on rendered pixels */
+  filter:
+    drop-shadow(0 2px 0 rgba(0,0,0,0.25))
+    drop-shadow(0 8px 10px rgba(0,0,0,0.55));
+}
+
+.skin-token-png-w { background-image: var(--w-token-img, none); }
+.skin-token-png-b { background-image: var(--b-token-img, none); }
+
 /* ── DEFAULT ROUTES ────────────────────────────────────────── */
 .skin-route-default {
   --route-highlight: #ee484c;

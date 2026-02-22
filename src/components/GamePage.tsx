@@ -18,7 +18,13 @@ import { ProfileModal } from "../ProfileModal"
 import { HelpModal } from "../HelpModal"
 import { getCurrentUserId } from "../services/auth" //
 import { supabase } from "../services/supabase"
-import { getResolvedLoadout, type ResolvedLoadout, DEFAULT_RESOLVED } from "../services/skinService"
+import {
+  getResolvedLoadout,
+  getPlayerLoadout,
+  type PlayerLoadout,
+  type ResolvedLoadout,
+  DEFAULT_RESOLVED,
+} from "../services/skinService"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -178,6 +184,9 @@ export function GamePage(props: GamePageProps = {}) {
   const [myLoadout, setMyLoadout] = useState<ResolvedLoadout | null>(null)
   const [opponentLoadout, setOpponentLoadout] = useState<ResolvedLoadout | null>(null)
   const [suppressOpponentSkin, setSuppressOpponentSkin] = useState(false)
+  const [myLoadoutIds, setMyLoadoutIds] = useState<PlayerLoadout | null>(null)
+  const [opponentLoadoutIds, setOpponentLoadoutIds] = useState<PlayerLoadout | null>(null)
+  const [skinImageById, setSkinImageById] = useState<Record<string, string | null>>({})
 
   const eloForFormat = (ps: PlayerStats | null, tc: typeof timeControlId): number => {
     if (!ps) return 1200
@@ -331,24 +340,66 @@ export function GamePage(props: GamePageProps = {}) {
     if (g.gameOver) setShowGameOverModal(true)
   }, [!!g.gameOver])
 
+  async function fetchSkinImages(ids: (string | null | undefined)[]): Promise<Record<string, string | null>> {
+    const uniq = Array.from(new Set(ids.filter(Boolean) as string[]))
+    if (uniq.length === 0) return {}
+
+    const { data, error } = await supabase
+      .from("skins")
+      .select("id, image_url")
+      .in("id", uniq)
+
+    if (error || !data) return {}
+
+    const map: Record<string, string | null> = {}
+    for (const row of data as any[]) map[row.id] = row.image_url ?? null
+    return map
+  }
+
   // Load skin loadouts for both players
   const reloadMyLoadout = useCallback(async () => {
     if (!currentUserId) return
-    const mine = await getResolvedLoadout(currentUserId)
-    setMyLoadout(mine)
+
+    const [mineResolved, mineIds] = await Promise.all([
+      getResolvedLoadout(currentUserId),
+      getPlayerLoadout(currentUserId),
+    ])
+
+    setMyLoadout(mineResolved)
+    setMyLoadoutIds(mineIds)
+
+    // only need the token skins for board rendering
+    const imgMap = await fetchSkinImages([mineIds.wake_token_skin_id, mineIds.brake_token_skin_id])
+    setSkinImageById((prev) => ({ ...prev, ...imgMap }))
   }, [currentUserId])
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
-      const [mine, theirs] = await Promise.all([
+      const [mineResolved, theirsResolved, mineIds, theirsIds] = await Promise.all([
         currentUserId ? getResolvedLoadout(currentUserId) : Promise.resolve(null),
         props.opponentUserId ? getResolvedLoadout(props.opponentUserId) : Promise.resolve(null),
+        currentUserId ? getPlayerLoadout(currentUserId) : Promise.resolve(null),
+        props.opponentUserId ? getPlayerLoadout(props.opponentUserId) : Promise.resolve(null),
       ])
+
       if (cancelled) return
-      setMyLoadout(mine)
-      setOpponentLoadout(theirs)
+
+      setMyLoadout(mineResolved)
+      setOpponentLoadout(theirsResolved)
+      setMyLoadoutIds(mineIds)
+      setOpponentLoadoutIds(theirsIds)
+
+      const imgMap = await fetchSkinImages([
+        mineIds?.wake_token_skin_id,
+        mineIds?.brake_token_skin_id,
+        theirsIds?.wake_token_skin_id,
+        theirsIds?.brake_token_skin_id,
+      ])
+
+      if (cancelled) return
+      setSkinImageById(imgMap)
     }
 
     load()
@@ -792,21 +843,50 @@ if (wantsNewGame) {
   const mySide: "W" | "B" = props.mySide ?? human ?? "W"
 
   // Resolve the effective style for each game side (W and B)
-  // W tokens use whoever-is-W's wake skin, B tokens use whoever-is-B's brake skin
+  // W tokens use whoever-is-W's WAKE skin, B tokens use whoever-is-B's BRAKE skin
   const effectiveOpponentLoadout = suppressOpponentSkin ? null : opponentLoadout
+  const effectiveOpponentIds = suppressOpponentSkin ? null : opponentLoadoutIds
 
-  const wTokenClass = mySide === "W"
-    ? (myLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
-    : (effectiveOpponentLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
+  // Base classes (whatever resolver produced)
+  const wTokenClassBase =
+    mySide === "W"
+      ? (myLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
+      : (effectiveOpponentLoadout?.wakeTokenClass ?? DEFAULT_RESOLVED.wakeTokenClass)
 
-  const bTokenClass = mySide === "B"
-    ? (myLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
-    : (effectiveOpponentLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
+  const bTokenClassBase =
+    mySide === "B"
+      ? (myLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
+      : (effectiveOpponentLoadout?.brakeTokenClass ?? DEFAULT_RESOLVED.brakeTokenClass)
+
+  // Equipped skin IDs for each side
+  const wSkinId =
+    mySide === "W"
+      ? (myLoadoutIds?.wake_token_skin_id ?? null)
+      : (effectiveOpponentIds?.wake_token_skin_id ?? null)
+
+  const bSkinId =
+    mySide === "B"
+      ? (myLoadoutIds?.brake_token_skin_id ?? null)
+      : (effectiveOpponentIds?.brake_token_skin_id ?? null)
+
+  // Image URLs pulled from skins table
+  const wTokenImg = (wSkinId ? skinImageById[wSkinId] : null) ?? null
+  const bTokenImg = (bSkinId ? skinImageById[bSkinId] : null) ?? null
+
+  // Force PNG class if URL exists
+  const wTokenClass = wTokenImg ? "skin-token-png-w" : wTokenClassBase
+  const bTokenClass = bTokenImg ? "skin-token-png-b" : bTokenClassBase
 
   const myRouteClass = myLoadout?.routeClass ?? DEFAULT_RESOLVED.routeClass
 
-  // Helper: given a game side ("W" or "B"), return the CSS class for that token
-  const tokenClass = (side: "W" | "B") => side === "W" ? wTokenClass : bTokenClass
+  const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
+
+  // OPTIONAL helper (only needed if your board token element expects per-token vars like --token-img)
+  // If you're using page-root vars (--w-token-img/--b-token-img), you can delete tokenVars entirely.
+  const tokenVars = (side: "W" | "B") => {
+    const url = side === "W" ? wTokenImg : bTokenImg
+    return url ? ({ ["--token-img" as any]: `url("${url}")` } as React.CSSProperties) : null
+  }
 
   return (
     <ErrBoundary>
@@ -825,6 +905,8 @@ if (wantsNewGame) {
           fontFamily: "system-ui, -apple-system, sans-serif",
           color: "#e5e7eb",
           overflow: "hidden",
+          ...(wTokenImg ? ({ ["--w-token-img" as any]: `url("${wTokenImg}")` } as any) : {}),
+          ...(bTokenImg ? ({ ["--b-token-img" as any]: `url("${bTokenImg}")` } as any) : {}),
         }}
       >
         <style>{`

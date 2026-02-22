@@ -8,6 +8,19 @@ import type { Player, GameState } from "../engine/state"
 import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
 import type { AiLevel } from "../engine/ai"
 
+// Edge Functions: explicitly attach Authorization so finalize_game is reliably authed.
+async function invokeAuthed<T>(fn: string, body: any): Promise<T> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) throw new Error(`Auth error: ${sessionError.message}`)
+  if (!sessionData.session) throw new Error("Not logged in")
+
+  const { data, error } = await supabase.functions.invoke(fn, {
+    body,
+    headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+  })
+  if (error) throw error
+  return data as T
+}
 
 function makeStateKey(s: GameState) {
   if ((s as any).gameOver) {
@@ -157,7 +170,9 @@ export function AiGameWrapper() {
       const gd = gameDataRef.current
       const isOver = Boolean((state as any)?.gameOver)
       const alreadyEnded =
-        gd?.status === "ended" || Boolean((gd as any)?.winner_id) || Boolean((gd as any)?.rating_applied)
+        gd?.status === "ended" ||
+        Boolean((gd as any)?.winner_id) ||
+        Boolean((gd as any)?.rating_applied)
       if (alreadyEnded && isOver) return
 
       const key = makeStateKey(state)
@@ -166,8 +181,7 @@ export function AiGameWrapper() {
 
       const nowIso = new Date().toISOString()
       const nextTurn = (state as any)?.player ?? null
-      const turnFlipped =
-        prevPlayerRef.current === null || prevPlayerRef.current !== nextTurn
+      const turnFlipped = prevPlayerRef.current === null || prevPlayerRef.current !== nextTurn
       prevPlayerRef.current = nextTurn
 
       const patch: any = {
@@ -197,6 +211,17 @@ export function AiGameWrapper() {
       if (error) {
         console.error("Failed to save AI game state:", error)
         if (!isOver) return
+      }
+
+      // Finalize on server (idempotent via games.rating_applied). This updates stats for AI opponents
+      // without double-finalizing on refresh.
+      if (isOver && !alreadyEnded) {
+        const go = (state as any).gameOver
+        try {
+          await invokeAuthed("finalize_game", { gameId, winner: go.winner, reason: go.reason })
+        } catch (e) {
+          console.error("finalize_game failed (AI):", e)
+        }
       }
     },
     [gameId]

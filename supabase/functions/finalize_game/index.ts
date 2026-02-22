@@ -37,6 +37,12 @@ function isTimeout(reason: string) {
     .startsWith("timeout")
 }
 
+function normalizeFormat(fmt: unknown): "blitz" | "rapid" | "standard" | "daily" {
+  const f = String(fmt ?? "standard").trim().toLowerCase()
+  if (f === "blitz" || f === "rapid" || f === "standard" || f === "daily") return f
+  return "standard"
+}
+
 // ✅ Your real AI auth user IDs
 const AI_IDS = new Set<string>([
   "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen (novice)
@@ -77,10 +83,12 @@ Deno.serve(async (req) => {
 
     const admin = createClient(URL, SRV)
 
-    // Load game — intentionally omit `rating_applied` (column may not exist in all envs)
+    // Load game
     const { data: g, error: gerr } = await admin
       .from("games")
-      .select("id, wake_id, brake_id, status, winner_id, loser_id, is_vs_ai, ai_level")
+      .select(
+        "id, wake_id, brake_id, status, winner_id, loser_id, is_vs_ai, ai_level, format, rating_applied"
+      )
       .eq("id", body.gameId)
       .single()
 
@@ -91,25 +99,34 @@ Deno.serve(async (req) => {
       return json(403, { error: "Not a participant" })
     }
 
+    // Idempotency: once rating_applied is true, never apply again (prevents duplicate stats on refresh).
+    if ((g as any).rating_applied === true) {
+      return json(200, {
+        ok: true,
+        alreadyFinalized: true,
+        winnerId: g.winner_id,
+        loserId: g.loser_id,
+      })
+    }
+
     const winnerId = body.winner === "W" ? g.wake_id : g.brake_id
     const loserId = body.winner === "W" ? g.brake_id : g.wake_id
 
-    // Update games row to ended (idempotent — skip if already done)
-    if (!(g.status === "ended" && g.winner_id && g.loser_id)) {
-      const endedAt = new Date().toISOString()
-      const { error: endErr } = await admin
-        .from("games")
-        .update({
-          status: "ended",
-          winner_id: winnerId,
-          loser_id: loserId,
-          end_reason: body.reason,
-          ended_at: endedAt,
-        })
-        .eq("id", body.gameId)
+    // Mark game ended + flip rating_applied (our "finalized" flag)
+    const endedAt = new Date().toISOString()
+    const { error: endErr } = await admin
+      .from("games")
+      .update({
+        status: "ended",
+        winner_id: winnerId,
+        loser_id: loserId,
+        end_reason: body.reason,
+        ended_at: endedAt,
+        rating_applied: true,
+      })
+      .eq("id", body.gameId)
 
-      if (endErr) return json(500, { error: endErr.message })
-    }
+    if (endErr) return json(500, { error: endErr.message })
 
     const wakeId = String(g.wake_id)
     const brakeId = String(g.brake_id)
@@ -117,13 +134,7 @@ Deno.serve(async (req) => {
     const brakeIsAi = AI_IDS.has(brakeId)
     const involvesAi = !!g?.is_vs_ai || wakeIsAi || brakeIsAi
 
-    // AI games: player stats are handled client-side by reportVsAiEloAndStats.
-    // finalize_game only needs to mark the game row as ended (done above).
-    if (involvesAi && wakeIsAi !== brakeIsAi) {
-      return json(200, { ok: true, involvesAi: true, winnerId, loserId })
-    }
-
-    // PvP (no AI): update both players' stats.
+    // Update both players' stats (including AI opponents). Elo updates are PvP-only.
     const { data: ws, error: wsErr } = await admin
       .from("player_stats")
       .select("*")
@@ -138,35 +149,62 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (lsErr) return json(500, { error: `loser stats: ${lsErr.message}` })
 
-    const wElo = ws?.elo ?? 1200
-    const lElo = ls?.elo ?? 1200
+    const fmt = normalizeFormat((g as any)?.format)
     const timeout = isTimeout(body.reason)
+    const now = new Date().toISOString()
 
-    const full = eloUpdate(wElo, lElo, true, 24)
-    let newWinnerElo = full.newA
-    const newLoserElo = full.newB
+    const gamesKey = `games_${fmt}`
+    const winsKey = `wins_${fmt}`
+    const lossesKey = `losses_${fmt}`
 
-    if (timeout) {
-      const delta = full.newA - wElo
-      newWinnerElo = Math.round(wElo + delta * TIMEOUT_WIN_GAIN_MULTIPLIER)
+    // Base stat increments (works for both human and AI rows)
+    const winnerPatch: Record<string, any> = {
+      user_id: winnerId,
+      games_played: (ws?.games_played ?? 0) + 1,
+      last_game_at: now,
+      [gamesKey]: (ws?.[gamesKey] ?? 0) + 1,
+      [winsKey]: (ws?.[winsKey] ?? 0) + 1,
     }
 
-    const { error: up1 } = await admin.from("player_stats").upsert({
-      user_id: winnerId,
-      elo: clamp(newWinnerElo, 100, 5000),
-      games_played: (ws?.games_played ?? 0) + 1,
-      wins: (ws?.wins ?? 0) + 1,
-      losses: ws?.losses ?? 0,
-    })
+    const loserPatch: Record<string, any> = {
+      user_id: loserId,
+      games_played: (ls?.games_played ?? 0) + 1,
+      last_game_at: now,
+      [gamesKey]: (ls?.[gamesKey] ?? 0) + 1,
+      [lossesKey]: (ls?.[lossesKey] ?? 0) + 1,
+    }
+
+    if (timeout) {
+      loserPatch.losses_timeout = (ls?.losses_timeout ?? 0) + 1
+    }
+
+    // Elo (and per-format Elo buckets) are PvP-only. AI opponents are fixed.
+    let newWinnerElo: number | null = null
+    let newLoserElo: number | null = null
+    if (!involvesAi) {
+      const wElo = ws?.elo ?? 1200
+      const lElo = ls?.elo ?? 1200
+
+      const full = eloUpdate(wElo, lElo, true, 24)
+      newWinnerElo = full.newA
+      newLoserElo = full.newB
+
+      if (timeout) {
+        const delta = full.newA - wElo
+        newWinnerElo = Math.round(wElo + delta * TIMEOUT_WIN_GAIN_MULTIPLIER)
+      }
+
+      const eloKey = `elo_${fmt}`
+      winnerPatch.elo = clamp(newWinnerElo, 100, 5000)
+      loserPatch.elo = clamp(newLoserElo, 100, 5000)
+      winnerPatch[eloKey] = clamp(newWinnerElo, 100, 5000)
+      loserPatch[eloKey] = clamp(newLoserElo, 100, 5000)
+    }
+
+    const { error: up1 } = await admin.from("player_stats").upsert(winnerPatch)
     if (up1) return json(500, { error: `upsert winner: ${up1.message}` })
 
-    const { error: up2 } = await admin.from("player_stats").upsert({
-      user_id: loserId,
-      elo: clamp(newLoserElo, 100, 5000),
-      games_played: (ls?.games_played ?? 0) + 1,
-      wins: ls?.wins ?? 0,
-      losses: (ls?.losses ?? 0) + 1,
-    })
+    const { error: up2 } = await admin.from("player_stats").upsert(loserPatch)
     if (up2) return json(500, { error: `upsert loser: ${up2.message}` })
 
     return json(200, {
@@ -174,6 +212,7 @@ Deno.serve(async (req) => {
       winnerId,
       loserId,
       involvesAi,
+      format: fmt,
       timeout,
       newWinnerElo,
       newLoserElo,

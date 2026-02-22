@@ -79,7 +79,30 @@ function BoardPreview({ size = 48 }: { size?: number }) {
   )
 }
 
+function ImagePreview({ url, size = 48 }: { url: string; size?: number }) {
+  return (
+    <img
+      src={url}
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      style={{
+        width: size,
+        height: size,
+        display: "block",
+        objectFit: "contain",
+        flexShrink: 0,
+        // optional: keep it clean and readable on dark UI
+        filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.45))",
+      }}
+    />
+  )
+}
+
 function SkinPreview({ skin, size = 48 }: { skin: Skin; size?: number }) {
+  if (skin.image_url) return <ImagePreview url={skin.image_url} size={size} />
+
   if (skin.type === "token") return <TokenPreview skinId={skin.id} size={size} />
   if (skin.type === "route") return <RoutePreview skinId={skin.id} size={size} />
   return <BoardPreview size={size} />
