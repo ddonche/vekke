@@ -416,12 +416,12 @@ export function useVekkeController(opts: {
     if (opponentType === "pvp" && mySide !== g.player) return
 
     if (clocks.W <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "B", reason: "Timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "B", reason: "timeout" } as any))
       warn("TIME: W ran out of time.")
       return
     }
     if (clocks.B <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "W", reason: "Timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "W", reason: "timeout" } as any))
       warn("TIME: B ran out of time.")
       return
     }
@@ -924,7 +924,7 @@ export function useVekkeController(opts: {
         if (g.gameOver) return
 
         update((s) => {
-          s.gameOver = { winner: other(s.player), reason: "Resignation" }
+          s.gameOver = { winner: other(s.player), reason: "resignation" }
         })
       },
 

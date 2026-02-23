@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     const { error: endErr } = await admin
       .from("games")
       .update({
-        status: "ended",
+        status: "finished",
         winner_id: winnerId,
         loser_id: loserId,
         end_reason: body.reason,

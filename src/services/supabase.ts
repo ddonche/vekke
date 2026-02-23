@@ -17,3 +17,6 @@ export const supabase = createClient(url, anon, {
     detectSessionInUrl: true,
   },
 })
+
+// DEBUG ONLY
+;(window as any).supabase = supabase
