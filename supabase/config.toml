@@ -30,3 +30,13 @@ entrypoint = "./functions/decline_invite/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/create_ai_game/index.ts"
+
+[functions.create_challenge_from_invite]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create_challenge_from_invite/index.ts"
+
+[functions.respond_to_challenge]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/respond_to_challenge/index.ts"

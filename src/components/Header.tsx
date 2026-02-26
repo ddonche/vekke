@@ -1,11 +1,21 @@
 // src/components/Header.tsx
 import React, { useState, useRef, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 
-export type ActivePage = "play" | "mygames" | "leaderboard" | "challenges" | "rules" | "tutorial" | "skins" | null
+export type ActivePage =
+  | "play"
+  | "mygames"
+  | "leaderboard"
+  | "orders"
+  | "rules"
+  | "tutorial"
+  | "skins"
+  | null
 
 export interface HeaderProps {
   // Auth/identity
   isLoggedIn: boolean
+  userId?: string
   username?: string
   avatarUrl?: string | null
   titleLabel?: string
@@ -13,7 +23,7 @@ export interface HeaderProps {
   isPro?: boolean
 
   // My Games badge
-  myGamesTurnCount?: number   // number of active games where it's your turn
+  myGamesTurnCount?: number // number of active games where it's your turn
 
   // Online count
   onlineNow?: number
@@ -21,11 +31,12 @@ export interface HeaderProps {
   // Which page is active (for nav highlight)
   activePage?: ActivePage
 
-  // Navigation callbacks
+  // Navigation callbacks (optional overrides)
   onPlay?: () => void
   onMyGames?: () => void
   onLeaderboard?: () => void
   onChallenges?: () => void
+  onOrders?: () => void
   onRules?: () => void
   onTutorial?: () => void
 
@@ -47,21 +58,25 @@ function VekkeLogo() {
         src="/logo.png"
         alt="Vekke"
         style={{
-          width: 50,
-          height: 50,
+          width: 40,
+          height: 40,
           objectFit: "contain",
           flexShrink: 0,
         }}
       />
       <div style={{ lineHeight: 1.05 }}>
-        <div style={{
-          fontSize: 20, fontWeight: 1000, letterSpacing: "0.06em",
-          color: "#e5e7eb",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-        }}>
+        <div
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            color: "#e8e4d8",
+            fontFamily: "'Cinzel', serif",
+          }}
+        >
           VEKKE
         </div>
-        <div style={{ fontSize: 10, opacity: 0.5, letterSpacing: "0.08em", color: "#9ca3af", fontWeight: 600 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, opacity: 0.65, letterSpacing: "0.3em", color: "#b8966a", fontWeight: 600, textTransform: "uppercase", marginTop: 4 }}>
           the game of routes
         </div>
       </div>
@@ -70,7 +85,10 @@ function VekkeLogo() {
 }
 
 function NavItem({
-  label, active, onClick, badge,
+  label,
+  active,
+  onClick,
+  badge,
 }: {
   label: string
   active?: boolean
@@ -86,43 +104,44 @@ function NavItem({
       onMouseLeave={() => setHovered(false)}
       style={{
         position: "relative",
-        background: active
-          ? "rgba(93,232,247,0.10)"
-          : hovered
-          ? "rgba(255,255,255,0.06)"
-          : "transparent",
-        border: active
-          ? "1px solid rgba(93,232,247,0.25)"
-          : "1px solid transparent",
-        color: active ? "#5de8f7" : "#e5e7eb",
-        opacity: active ? 1 : hovered ? 1 : 0.78,
-        fontWeight: 700,
+        background: active ? "rgba(184,150,106,0.10)" : hovered ? "rgba(255,255,255,0.05)" : "transparent",
+        border: active ? "1px solid rgba(184,150,106,0.30)" : "1px solid transparent",
+        color: active ? "#d4af7a" : hovered ? "#e8e4d8" : "#b0aa9e",
+        fontFamily: "'Cinzel', serif",
+        fontWeight: 600,
         cursor: "pointer",
-        padding: "7px 11px",
-        borderRadius: 10,
-        fontSize: 13,
-        letterSpacing: "0.02em",
+        padding: "7px 12px",
+        borderRadius: 4,
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
         whiteSpace: "nowrap",
         transition: "all 0.12s ease",
         display: "flex",
         alignItems: "center",
         gap: 6,
-        fontFamily: "system-ui, sans-serif",
       }}
     >
       {label}
       {typeof badge === "number" && badge > 0 && (
-        <span style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          minWidth: 18, height: 18, borderRadius: 999,
-          background: "#ee484c",
-          color: "#fff",
-          fontSize: 10, fontWeight: 900,
-          padding: "0 4px",
-          lineHeight: 1,
-          boxShadow: "0 0 8px rgba(238,72,76,0.5)",
-          animation: badge > 0 ? "badge-pulse 2s ease-in-out infinite" : "none",
-        }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: 18,
+            height: 18,
+            borderRadius: 999,
+            background: "#ee484c",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 900,
+            padding: "0 4px",
+            lineHeight: 1,
+            boxShadow: "0 0 8px rgba(238,72,76,0.5)",
+            animation: badge > 0 ? "badge-pulse 2s ease-in-out infinite" : "none",
+          }}
+        >
           {badge > 9 ? "9+" : badge}
         </span>
       )}
@@ -135,33 +154,88 @@ function Avatar({ name, url, size = 28 }: { name: string; url?: string | null; s
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map(s => s[0]?.toUpperCase())
+    .map((s) => s[0]?.toUpperCase())
     .join("")
 
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: "#1f2937",
-      border: "1px solid rgba(255,255,255,0.12)",
-      display: "grid", placeItems: "center",
-      fontWeight: 800, fontSize: Math.max(10, Math.floor(size * 0.36)),
-      color: "#e5e7eb", flexShrink: 0,
-      overflow: "hidden",
-    }}>
-      {url
-        ? <img src={url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        : <span style={{ opacity: 0.9 }}>{initials || "?"}</span>
-      }
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "#13131a",
+        border: "1px solid rgba(184,150,106,0.2)",
+        display: "grid",
+        placeItems: "center",
+        fontWeight: 800,
+        fontSize: Math.max(10, Math.floor(size * 0.36)),
+        color: "#e8e4d8",
+        flexShrink: 0,
+        overflow: "hidden",
+      }}
+    >
+      {url ? (
+        <img src={url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <span style={{ opacity: 0.9 }}>{initials || "?"}</span>
+      )}
     </div>
   )
 }
 
-function UserDropdown({
-  isLoggedIn, username, avatarUrl, titleLabel, elo, isPro,
-  onSignIn, onOpenProfile, onOpenPro, onSignOut, onOpenSkins,
-}: HeaderProps) {
+function UserDropdown(
+  props: HeaderProps & {
+    // computed fallbacks from Header()
+    goOrders: () => void
+    goChallenges: () => void
+  }
+) {
+  const {
+    isLoggedIn,
+    userId,
+    username,
+    avatarUrl,
+    titleLabel,
+    elo,
+    isPro,
+    onSignIn,
+    onOpenProfile,
+    onOpenPro,
+    onSignOut,
+    onOpenSkins,
+    goOrders,
+    goChallenges,
+  } = props
+
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  const [copied, setCopied] = useState(false)
+
+  async function copyInviteLink() {
+    if (!userId) return
+    const link = `${window.location.origin}/invite/${userId}`
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // fallback
+      const ta = document.createElement("textarea")
+      ta.value = link
+      ta.style.position = "fixed"
+      ta.style.left = "-9999px"
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      try {
+        document.execCommand("copy")
+      } catch {}
+      document.body.removeChild(ta)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    }
+  }
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -176,16 +250,21 @@ function UserDropdown({
       <button
         onClick={onSignIn}
         style={{
-          padding: "8px 16px", borderRadius: 10,
-          background: "#ee484c",
-          border: "none", color: "#fff",
-          fontWeight: 700, fontSize: 13, cursor: "pointer",
-          letterSpacing: "0.02em",
-          boxShadow: "0 4px 12px rgba(238,72,76,0.3)",
-          transition: "opacity 0.12s",
+          fontFamily: "'Cinzel', serif",
+          padding: "8px 18px",
+          borderRadius: 4,
+          background: "rgba(184,150,106,0.12)",
+          border: "1px solid rgba(184,150,106,0.45)",
+          color: "#d4af7a",
+          fontWeight: 600,
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          transition: "all 0.15s",
         }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
-        onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(184,150,106,0.22)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(184,150,106,0.12)")}
       >
         Sign In
       </button>
@@ -195,56 +274,78 @@ function UserDropdown({
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         style={{
-          display: "flex", gap: 9, alignItems: "center",
-          padding: "6px 10px", borderRadius: 12,
+          display: "flex",
+          gap: 9,
+          alignItems: "center",
+          padding: "6px 10px",
+          borderRadius: 12,
           background: open ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)",
           border: "1px solid rgba(255,255,255,0.10)",
-          color: "#e5e7eb", cursor: "pointer",
+          color: "#e8e4d8",
+          cursor: "pointer",
           transition: "background 0.12s",
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
-        onMouseLeave={e => { if (!open) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.background = "rgba(255,255,255,0.03)"
+        }}
       >
         <Avatar name={username ?? "You"} url={avatarUrl} size={28} />
         <div style={{ display: "grid", lineHeight: 1.15, textAlign: "left" }}>
-          <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
-            {username ?? "Player"}
-          </div>
+          <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 12, letterSpacing: "0.06em", whiteSpace: "nowrap", color: "#e8e4d8" }}>{username ?? "Player"}</div>
           {typeof elo === "number" && titleLabel ? (
-            <div style={{ opacity: 0.6, fontSize: 11, whiteSpace: "nowrap" }}>
-              {titleLabel} · {elo}{isPro ? " · Pro" : ""}
+            <div style={{ fontFamily: "'Cinzel', serif", opacity: 0.7, fontSize: 10, letterSpacing: "0.1em", whiteSpace: "nowrap", color: "#b8966a" }}>
+              {titleLabel} · {elo}
+              {isPro ? " · Pro" : ""}
             </div>
           ) : (
-            <div style={{ opacity: 0.6, fontSize: 11 }}>Account</div>
+            <div style={{ fontFamily: "'Cinzel', serif", opacity: 0.6, fontSize: 10, letterSpacing: "0.1em", color: "#b8966a" }}>Account</div>
           )}
         </div>
         {/* Chevron */}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.5, marginLeft: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-          <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          style={{
+            opacity: 0.5,
+            marginLeft: 2,
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 0.15s",
+          }}
+        >
+          <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 8px)", right: 0,
-          minWidth: 200,
-          background: "#111827",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 14,
-          boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-          overflow: "hidden",
-          zIndex: 9999,
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            minWidth: 200,
+            background: "#0d0d10",
+            border: "1px solid rgba(184,150,106,0.2)",
+            borderRadius: 8,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+            overflow: "hidden",
+            zIndex: 9999,
+          }}
+        >
           {/* User info header */}
           <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <Avatar name={username ?? "You"} url={avatarUrl} size={36} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: "#e5e7eb" }}>{username ?? "Player"}</div>
+                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.06em", color: "#e8e4d8" }}>{username ?? "Player"}</div>
                 {typeof elo === "number" && titleLabel && (
-                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{titleLabel} · {elo}</div>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.1em", color: "#b8966a", marginTop: 4 }}>
+                    {titleLabel} · {elo}
+                  </div>
                 )}
               </div>
             </div>
@@ -253,16 +354,28 @@ function UserDropdown({
           {/* Menu items */}
           {[
             { label: "Edit Profile", action: onOpenProfile },
-            { label: "Cosmetics", action: onOpenSkins },
+            { label: "Gear", action: onOpenSkins },
+            { label: copied ? "Invite Link Copied!" : "Copy Invite Link", action: copyInviteLink, disabled: !userId },
             { label: isPro ? "Manage Pro" : "Upgrade to Pro", action: onOpenPro },
-          ].map(({ label, action }) => (
-            <DropdownItem key={label} label={label} onClick={() => { action?.(); setOpen(false) }} />
+          ].map(({ label, action, disabled }) => (
+            <DropdownItem
+              key={label}
+              label={label}
+              disabled={!!disabled}
+              onClick={() => {
+                if (!disabled) action?.()
+                setOpen(false)
+              }}
+            />
           ))}
 
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <DropdownItem
               label="Sign Out"
-              onClick={() => { onSignOut?.(); setOpen(false) }}
+              onClick={() => {
+                onSignOut?.()
+                setOpen(false)
+              }}
               danger
             />
           </div>
@@ -272,21 +385,42 @@ function UserDropdown({
   )
 }
 
-function DropdownItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+function DropdownItem({
+  label,
+  onClick,
+  danger,
+  disabled,
+}: {
+  label: string
+  onClick: () => void
+  danger?: boolean
+  disabled?: boolean
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => {
+        if (!disabled) setHovered(true)
+      }}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => {
+        if (!disabled) onClick()
+      }}
       style={{
-        display: "block", width: "100%", textAlign: "left",
+        display: "block",
+        width: "100%",
+        textAlign: "left",
         padding: "11px 16px",
-        background: hovered ? "rgba(255,255,255,0.05)" : "transparent",
+        background: hovered ? "rgba(184,150,106,0.07)" : "transparent",
         border: "none",
-        color: danger ? "#f87171" : "#d1d5db",
-        fontSize: 13, fontWeight: 600,
-        cursor: "pointer",
+        fontFamily: "'Cinzel', serif",
+        color: disabled ? "rgba(232,228,216,0.25)" : danger ? "#f87171" : "#b0aa9e",
+        fontSize: 11,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.7 : 1,
         transition: "background 0.1s",
       }}
     >
@@ -297,12 +431,33 @@ function DropdownItem({ label, onClick, danger }: { label: string; onClick: () =
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 
+function injectFonts() {
+  if (typeof document === "undefined") return
+  if (document.getElementById("vekke-header-fonts")) return
+  const link = document.createElement("link")
+  link.id = "vekke-header-fonts"
+  link.rel = "stylesheet"
+  link.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+  document.head.appendChild(link)
+}
+
 export function Header(props: HeaderProps) {
-  const {
-    activePage, onlineNow,
-    onPlay, onMyGames, onLeaderboard, onChallenges, onRules, onTutorial,
-    myGamesTurnCount,
-  } = props
+  injectFonts()
+  const [mobileOpen, setMobileOpen] = React.useState(false)
+  const navigate = useNavigate()
+
+  const { activePage, onlineNow, myGamesTurnCount } = props
+
+  // Default navigation fallbacks (pages can still override by passing callbacks)
+  const goPlay = props.onPlay ?? (() => navigate("/"))
+  const goMyGames = props.onMyGames ?? (() => navigate("/challenges"))
+  const goLeaderboard = props.onLeaderboard ?? (() => navigate("/leaderboard"))
+  const goOrders = props.onOrders ?? (() => navigate("/orders"))
+  const goRules = props.onRules ?? (() => navigate("/rules"))
+  const goTutorial = props.onTutorial ?? (() => navigate("/tutorial"))
+
+  // Some sites separate "My Games" and "Challenges"; yours currently maps My Games → Challenges page.
+  const goChallenges = props.onChallenges ?? (() => navigate("/challenges"))
 
   return (
     <>
@@ -316,10 +471,10 @@ export function Header(props: HeaderProps) {
           top: 0;
           z-index: 1000;
           width: 100%;
-          background: rgba(15, 23, 42, 0.92);
+          background: rgba(10, 10, 12, 0.96);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid rgba(184,150,106,0.15);
           box-shadow: 0 4px 24px rgba(0,0,0,0.3);
         }
         .vekke-header-inner {
@@ -346,45 +501,143 @@ export function Header(props: HeaderProps) {
         @media (max-width: 768px) {
           .vekke-nav { display: none; }
           .vekke-header-inner { padding: 0 16px; }
+          .vekke-hamburger { display: flex !important; }
+        }
+        .vekke-hamburger {
+          display: none;
+          flex-direction: column;
+          justify-content: center;
+          gap: 5px;
+          width: 36px;
+          height: 36px;
+          background: transparent;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 4px;
+          cursor: pointer;
+          padding: 0 8px;
+          flex-shrink: 0;
+        }
+        .vekke-hamburger span {
+          display: block;
+          height: 1px;
+          background: #b0aa9e;
+          border-radius: 1px;
+          transition: all 0.2s;
+        }
+        .vekke-mobile-drawer {
+          display: none;
+          position: fixed;
+          top: 56px;
+          left: 0;
+          right: 0;
+          background: rgba(10,10,12,0.98);
+          border-bottom: 1px solid rgba(184,150,106,0.15);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          z-index: 999;
+          flex-direction: column;
+          padding: 8px 0 12px;
+        }
+        .vekke-mobile-drawer.open { display: flex; }
+        .vekke-mobile-nav-item {
+          width: 100%;
+          text-align: left;
+          padding: 12px 20px;
+          background: transparent;
+          border: none;
+          font-family: 'Cinzel', serif;
+          font-size: 0.7rem;
+          font-weight: 600;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: #b0aa9e;
+          cursor: pointer;
+          transition: background 0.1s, color 0.1s;
+        }
+        .vekke-mobile-nav-item:hover, .vekke-mobile-nav-item.active {
+          background: rgba(184,150,106,0.07);
+          color: #d4af7a;
+        }
+        .vekke-mobile-divider {
+          height: 1px;
+          background: rgba(255,255,255,0.07);
+          margin: 6px 0;
         }
       `}</style>
 
       <header className="vekke-header">
         <div className="vekke-header-inner">
-
           {/* Logo */}
-          <div onClick={onPlay}>
+          <div onClick={goPlay}>
             <VekkeLogo />
           </div>
 
           {/* Nav */}
           <nav className="vekke-nav">
-            <NavItem label="Play"          active={activePage === "play"}          onClick={onPlay} />
+            <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
             <NavItem
               label="My Games"
               active={activePage === "mygames"}
-              onClick={onMyGames}
+              onClick={goMyGames}
               badge={myGamesTurnCount}
             />
-            <NavItem label="Leaderboard"   active={activePage === "leaderboard"}   onClick={onLeaderboard} />
-            <NavItem label="Challenges"    active={activePage === "challenges"}    onClick={onChallenges} />
-            <NavItem label="Rules"         active={activePage === "rules"}         onClick={onRules} />
-            <NavItem label="Tutorial"      active={activePage === "tutorial"}      onClick={onTutorial} />
+            <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
+            <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
+            <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
+            <NavItem label="Tutorial" active={activePage === "tutorial"} onClick={goTutorial} />
           </nav>
 
           {/* Right side */}
           <div className="vekke-header-right">
+            <button className="vekke-hamburger" onClick={() => setMobileOpen(o => !o)} aria-label="Menu">
+              <span style={{ width: mobileOpen ? "100%" : "100%" }} />
+              <span style={{ width: "70%", alignSelf: "flex-end" }} />
+              <span style={{ width: mobileOpen ? "100%" : "85%" }} />
+            </button>
             {typeof onlineNow === "number" && (
-              <div style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", display: "inline-block", boxShadow: "0 0 6px #34d399" }} />
+              <div
+                style={{
+                  fontSize: 12,
+                  fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6558",
+                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#34d399",
+                    display: "inline-block",
+                    boxShadow: "0 0 6px #34d399",
+                  }}
+                />
                 {onlineNow} online
               </div>
             )}
-            <UserDropdown {...props} />
-          </div>
 
+            <UserDropdown
+              {...props}
+              goOrders={goOrders}
+              goChallenges={goChallenges}
+            />
+          </div>
         </div>
       </header>
+      <div className={`vekke-mobile-drawer${mobileOpen ? " open" : ""}`}>
+        <button className={`vekke-mobile-nav-item${activePage === "play" ? " active" : ""}`} onClick={() => { goPlay(); setMobileOpen(false) }}>Play</button>
+        <button className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`} onClick={() => { goMyGames(); setMobileOpen(false) }}>
+          My Games{typeof myGamesTurnCount === "number" && myGamesTurnCount > 0 ? ` (${myGamesTurnCount})` : ""}
+        </button>
+        <button className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`} onClick={() => { goLeaderboard(); setMobileOpen(false) }}>Leaderboard</button>
+        <button className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`} onClick={() => { goOrders(); setMobileOpen(false) }}>Orders</button>
+        <div className="vekke-mobile-divider" />
+        <button className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`} onClick={() => { goRules(); setMobileOpen(false) }}>Rules</button>
+        <button className={`vekke-mobile-nav-item${activePage === "tutorial" ? " active" : ""}`} onClick={() => { goTutorial(); setMobileOpen(false) }}>Tutorial</button>
+      </div>
     </>
   )
 }

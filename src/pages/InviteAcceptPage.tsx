@@ -17,7 +17,7 @@ export function InviteAcceptPage() {
 
         const { data } = await supabase.auth.getSession()
         if (!data.session) {
-          const returnTo = encodeURIComponent(`/invite/${inviteToken}`)
+          const returnTo = encodeURIComponent(`/invite-token/${inviteToken}`)
           window.location.assign(`/?openAuth=1&returnTo=${returnTo}`)
           return
         }

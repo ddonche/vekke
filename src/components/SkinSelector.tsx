@@ -1,6 +1,7 @@
 // src/components/SkinSelector.tsx
 import "../styles/skins.css"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { supabase } from "../services/supabase"
 import {
   getPlayerInventory,
   getPlayerLoadout,
@@ -33,6 +34,23 @@ const SKIN_CLASS_MAP: Record<string, string> = {
   "board-grid-default":  "skin-board-default",
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function getOrderSkinId(orderId: string, slot: Slot): string | null {
+  if (slot === "wake_token_skin_id") return `token-order-${orderId}-wake`
+  if (slot === "brake_token_skin_id") return `token-order-${orderId}-brake`
+  if (slot === "route_skin_id") return `route-order-${orderId}`
+  return null
+}
+
+function extractColors(skin: Skin): { primary?: string; secondary?: string } {
+  const s: any = (skin as any).style
+  if (!s || typeof s !== "object") return {}
+  const primary = typeof s.primary_color === "string" ? s.primary_color : undefined
+  const secondary = typeof s.secondary_color === "string" ? s.secondary_color : undefined
+  return { primary, secondary }
+}
+
 // ─── Previews ─────────────────────────────────────────────────────────────
 
 function TokenPreview({ skinId, size = 48 }: { skinId: string; size?: number }) {
@@ -41,6 +59,33 @@ function TokenPreview({ skinId, size = 48 }: { skinId: string; size?: number }) 
     <div
       className={cls}
       style={{ width: size, height: size, flexShrink: 0 }}
+    />
+  )
+}
+
+function StyledTokenPreview({
+  primary,
+  secondary,
+  size = 48,
+}: {
+  primary?: string
+  secondary?: string
+  size?: number
+}) {
+  const p = primary ?? "#26c6da"
+  const s = secondary ?? "#e5e7eb"
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: `radial-gradient(circle at 30% 30%, ${s} 0%, ${p} 55%, #0b0b0b 100%)`,
+        boxShadow: "0 8px 14px rgba(0,0,0,0.45)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
     />
   )
 }
@@ -56,6 +101,33 @@ function RoutePreview({ skinId, size = 48 }: { skinId: string; size?: number }) 
           width: 14, height: 14, borderRadius: "50%",
           background: "var(--route-highlight, #ee484c)",
           boxShadow: "0 0 8px var(--route-highlight, #ee484c)",
+        }} />
+      </div>
+    </div>
+  )
+}
+
+function StyledRoutePreview({
+  primary,
+  secondary,
+  size = 48,
+}: {
+  primary?: string
+  secondary?: string
+  size?: number
+}) {
+  const body = primary ?? "#26c6da"
+  const highlight = secondary ?? "#ee484c"
+
+  return (
+    <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <div style={{ position: "relative", width: size * 0.8, height: 6, borderRadius: 3, background: body }}>
+        <div style={{
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 14, height: 14, borderRadius: "50%",
+          background: highlight,
+          boxShadow: `0 0 8px ${highlight}`,
         }} />
       </div>
     </div>
@@ -93,7 +165,6 @@ function ImagePreview({ url, size = 48 }: { url: string; size?: number }) {
         display: "block",
         objectFit: "contain",
         flexShrink: 0,
-        // optional: keep it clean and readable on dark UI
         filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.45))",
       }}
     />
@@ -103,8 +174,19 @@ function ImagePreview({ url, size = 48 }: { url: string; size?: number }) {
 function SkinPreview({ skin, size = 48 }: { skin: Skin; size?: number }) {
   if (skin.image_url) return <ImagePreview url={skin.image_url} size={size} />
 
-  if (skin.type === "token") return <TokenPreview skinId={skin.id} size={size} />
-  if (skin.type === "route") return <RoutePreview skinId={skin.id} size={size} />
+  const { primary, secondary } = extractColors(skin)
+
+  if (skin.type === "token") {
+    // If it’s a known CSS skin, use that. Otherwise use style colors.
+    if (SKIN_CLASS_MAP[skin.id]) return <TokenPreview skinId={skin.id} size={size} />
+    return <StyledTokenPreview primary={primary} secondary={secondary} size={size} />
+  }
+
+  if (skin.type === "route") {
+    if (SKIN_CLASS_MAP[skin.id]) return <RoutePreview skinId={skin.id} size={size} />
+    return <StyledRoutePreview primary={primary} secondary={secondary} size={size} />
+  }
+
   return <BoardPreview size={size} />
 }
 
@@ -174,7 +256,15 @@ function SkinCard({ skin, isEquipped, onEquip }: { skin: Skin; isEquipped: boole
 
 // ─── Main SkinSelector ────────────────────────────────────────────────────
 
-export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLoadoutChange?: () => void }) {
+export function SkinSelector({
+  userId,
+  orderId,
+  onLoadoutChange,
+}: {
+  userId: string
+  orderId?: string | null
+  onLoadoutChange?: () => void
+}) {
   const [loadout, setLoadout] = useState<PlayerLoadout | null>(null)
   const [inventory, setInventory] = useState<Skin[]>([])
   const [skinMap, setSkinMap] = useState<Map<string, Skin>>(new Map())
@@ -184,18 +274,94 @@ export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLo
 
   useEffect(() => {
     let mounted = true
+
     ;(async () => {
-      const [lo, inv] = await Promise.all([getPlayerLoadout(userId), getPlayerInventory(userId)])
+      const [lo, inv] = await Promise.all([
+        getPlayerLoadout(userId),
+        getPlayerInventory(userId),
+      ])
+
       if (!mounted) return
+
       setLoadout(lo)
       setInventory(inv)
+
       const m = new Map<string, Skin>()
       inv.forEach(s => m.set(s.id, s))
+
+      // Pull Order skins directly from skins table (identity defaults, not inventory)
+      if (orderId) {
+        const ids = [
+          `token-order-${orderId}-wake`,
+          `token-order-${orderId}-brake`,
+          `route-order-${orderId}`,
+        ]
+
+        const { data, error } = await supabase
+          .from("skins")
+          .select("*")
+          .in("id", ids)
+
+        if (error) {
+          console.error("Failed to load order skins:", error)
+        } else {
+          ;(data ?? []).forEach((s: any) => m.set(s.id, s as Skin))
+        }
+      }
+
       setSkinMap(m)
       setLoading(false)
     })()
+
     return () => { mounted = false }
-  }, [userId])
+  }, [userId, orderId])
+
+  // Auto-apply Order defaults into loadout if they’re still wanderer defaults
+  useEffect(() => {
+    if (!orderId) return
+    if (!loadout) return
+
+    const desiredWake = `token-order-${orderId}-wake`
+    const desiredBrake = `token-order-${orderId}-brake`
+    const desiredRoute = `route-order-${orderId}`
+
+    const isWandererWake = !loadout.wake_token_skin_id || loadout.wake_token_skin_id === DEFAULT_LOADOUT.wake_token_skin_id
+    const isWandererBrake = !loadout.brake_token_skin_id || loadout.brake_token_skin_id === DEFAULT_LOADOUT.brake_token_skin_id
+    const isWandererRoute = !loadout.route_skin_id || loadout.route_skin_id === DEFAULT_LOADOUT.route_skin_id
+
+    // Only apply if at least one of the slots is still default
+    if (!isWandererWake && !isWandererBrake && !isWandererRoute) return
+
+    let cancelled = false
+    ;(async () => {
+      setSaving(true)
+      try {
+        const ops: Array<Promise<any>> = []
+
+        if (isWandererWake) ops.push(updateLoadoutSlot(userId, "wake_token_skin_id", desiredWake))
+        if (isWandererBrake) ops.push(updateLoadoutSlot(userId, "brake_token_skin_id", desiredBrake))
+        if (isWandererRoute) ops.push(updateLoadoutSlot(userId, "route_skin_id", desiredRoute))
+
+        await Promise.all(ops)
+
+        if (cancelled) return
+        setLoadout(prev => prev ? ({
+          ...prev,
+          ...(isWandererWake ? { wake_token_skin_id: desiredWake } : {}),
+          ...(isWandererBrake ? { brake_token_skin_id: desiredBrake } : {}),
+          ...(isWandererRoute ? { route_skin_id: desiredRoute } : {}),
+        }) : prev)
+
+        onLoadoutChange?.()
+      } catch (e) {
+        console.error("Failed to apply order defaults:", e)
+      } finally {
+        if (!cancelled) setSaving(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [orderId, loadout, userId, onLoadoutChange])
 
   const equip = useCallback(async (slot: Slot, skinId: string) => {
     if (!loadout) return
@@ -211,8 +377,39 @@ export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLo
     }
   }, [userId, loadout, onLoadoutChange])
 
-  const skinsByType = (type: string) => inventory.filter(s => s.type === type)
   const currentSlotType = SLOT_META[selectedSlot].type
+
+  const skinsByType = useMemo(() => {
+    const base = inventory.filter(s => s.type === currentSlotType)
+
+    // Include the Order skin for this slot (even if not in inventory)
+    if (orderId) {
+      const orderSkinId = getOrderSkinId(orderId, selectedSlot)
+      if (orderSkinId) {
+        const orderSkin = skinMap.get(orderSkinId)
+        if (orderSkin && !base.some(s => s.id === orderSkin.id)) {
+          return [orderSkin, ...base]
+        }
+      }
+    }
+
+    return base
+  }, [inventory, currentSlotType, orderId, selectedSlot, skinMap])
+
+  const equippedSkinForSlot = useCallback((slot: Slot): Skin | null => {
+    if (!loadout) return null
+
+    const explicit = (loadout as any)[slot] as string | null | undefined
+    if (explicit) return skinMap.get(explicit) ?? null
+
+    // If slot isn’t explicitly set, show Order default as “equipped”
+    if (orderId) {
+      const id = getOrderSkinId(orderId, slot)
+      if (id) return skinMap.get(id) ?? null
+    }
+
+    return null
+  }, [loadout, orderId, skinMap])
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
@@ -229,8 +426,9 @@ export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLo
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {SLOTS.map(slot => (
             <SlotCard
-              key={slot} slot={slot}
-              equippedSkin={loadout ? (skinMap.get(loadout[slot]) ?? null) : null}
+              key={slot}
+              slot={slot}
+              equippedSkin={equippedSkinForSlot(slot)}
               isSelected={selectedSlot === slot}
               onClick={() => setSelectedSlot(slot)}
             />
@@ -242,17 +440,20 @@ export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLo
 
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#6b7280", textTransform: "uppercase", marginBottom: 12 }}>
-          {SLOT_META[selectedSlot].label} — Your Collection
+          {SLOT_META[selectedSlot].label} — Available
         </div>
-        {skinsByType(currentSlotType).length === 0 ? (
+
+        {skinsByType.length === 0 ? (
           <div style={{ padding: 32, textAlign: "center", border: "2px dashed #2d2d2d", borderRadius: 12, color: "#4b5563", fontSize: 13 }}>
-            No {SLOT_META[selectedSlot].label.toLowerCase()} skins in your collection yet.
+            No {SLOT_META[selectedSlot].label.toLowerCase()} skins available yet.
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
-            {skinsByType(currentSlotType).map(skin => (
-              <SkinCard key={skin.id} skin={skin}
-                isEquipped={loadout?.[selectedSlot] === skin.id}
+            {skinsByType.map(skin => (
+              <SkinCard
+                key={skin.id}
+                skin={skin}
+                isEquipped={(loadout as any)?.[selectedSlot] === skin.id}
                 onEquip={() => equip(selectedSlot, skin.id)}
               />
             ))}
@@ -261,7 +462,9 @@ export function SkinSelector({ userId, onLoadoutChange }: { userId: string; onLo
       </div>
 
       {saving && (
-        <div style={{ fontSize: 12, color: "#5de8f7", textAlign: "center", opacity: 0.8 }}>Saving...</div>
+        <div style={{ fontSize: 12, color: "#5de8f7", textAlign: "center", opacity: 0.8 }}>
+          Saving...
+        </div>
       )}
     </div>
   )

@@ -13,12 +13,16 @@ export function RouteIcon({
   onClick,
   selected = false,
   highlightColor = "#5de8f7",
+  primaryColor,
+  secondaryColor,
 }: {
   route: Route
   style?: CSSProperties
   onClick?: () => void
   selected?: boolean
   highlightColor?: string
+  primaryColor?: string
+  secondaryColor?: string
 }) {
   // Derive pixel size from style.width - supports px numbers or rem strings
   const rawWidth = style?.width
@@ -47,6 +51,8 @@ export function RouteIcon({
         selected={selected}
         size={size}
         highlightColor={highlightColor}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
       />
     </div>
   )

@@ -182,7 +182,7 @@ const PIP_LAYOUTS = {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7" }) {
+export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7", primaryColor, secondaryColor }) {
   injectStyles()
 
   const rotation = DIR_ROTATION[dir] ?? 0
@@ -193,11 +193,17 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
   const arrowEm = 2.2         // arrow box in em
   const pipEm = 0.46          // pip radius in em
 
+  const bodyStyle = primaryColor
+    ? { background: `radial-gradient(circle at 50% 55%, rgba(0,0,0,0.00) 35%, rgba(0,0,0,0.30) 100%), linear-gradient(175deg, ${primaryColor}cc 0%, ${primaryColor} 40%, ${primaryColor}88 100%)` }
+    : {}
+  const accentColor = secondaryColor ?? null
+
   return (
     <div
       className="route-domino"
       style={{
         "--domino-fs": `${fs}px`,
+        ...bodyStyle,
         ...(selected ? {
           border: `2px solid ${highlightColor}`,
           boxSizing: "border-box",
@@ -224,7 +230,9 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
             filter: "drop-shadow(0.06em 0.08em 0.10em rgba(0,0,0,0.45))",
           }}
         >
-          <div className="arrow-body" />
+          <div className="arrow-body" style={accentColor ? {
+            background: `linear-gradient(160deg, ${accentColor}dd 0%, ${accentColor} 50%, ${accentColor}99 100%)`
+          } : {}} />
           <div className="arrow-hi" />
           <div className="arrow-shadow" />
         </div>
@@ -241,6 +249,9 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
               top:    `calc(${pip.y}% - ${pipEm}em)`,
               width:  `${pipEm * 2}em`,
               height: `${pipEm * 2}em`,
+              ...(accentColor ? {
+                background: `radial-gradient(circle at 35% 35%, ${accentColor}dd 0%, ${accentColor} 55%, ${accentColor}88 100%)`,
+              } : {}),
             }}
           />
         ))}

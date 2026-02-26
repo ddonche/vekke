@@ -45,7 +45,7 @@ class ErrBoundary extends React.Component<
   render() {
     if (this.state.err) {
       return (
-        <div style={{ padding: "1rem", color: "white", background: "#111" }}>
+        <div style={{ padding: "1rem", color: "white", background: "#0a0a0c" }}>
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Render crashed</div>
           <pre style={{ whiteSpace: "pre-wrap" }}>
             {String(this.state.err?.message ?? this.state.err)}
@@ -118,7 +118,6 @@ export function GamePage(props: GamePageProps = {}) {
     actions,
   } = useVekkeController({
     sounds,
-    aiDelayMs: 1200,
     opponentType: props.opponentType,
     mySide: props.mySide,
     initialState: props.initialState,
@@ -160,6 +159,7 @@ export function GamePage(props: GamePageProps = {}) {
     country_code: string | null
     country_name: string | null
     avatar_url: string | null
+    order_id: string | null 
   } | null>(null)
   const [opponentProfile, setOpponentProfile] = useState<{
     username: string
@@ -623,7 +623,7 @@ useEffect(() => {
     const checkOnboarding = async (userId: string) => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, country_code, country_name, avatar_url")
+        .select("username, country_code, country_name, avatar_url, order_id")
         .eq("id", userId)
         .single()
 
@@ -879,6 +879,19 @@ if (wantsNewGame) {
 
   const myRouteClass = myLoadout?.routeClass ?? DEFAULT_RESOLVED.routeClass
 
+  const ORDER_COLORS: Record<string, { primary: string; secondary: string }> = {
+    dragon:  { primary: "#C1121F", secondary: "#D4AF37" },
+    wolf:    { primary: "#0047AB", secondary: "#C0C0C0" },
+    serpent: { primary: "#0B0B0B", secondary: "#8C6B3F" },
+    spider:  { primary: "#0B0B0B", secondary: "#B11226" },
+    raven:   { primary: "#4B2A7A", secondary: "#2B2B2B" },
+    kraken:  { primary: "#0B1F3A", secondary: "#F28C28" },
+    turtle:  { primary: "#556B2F", secondary: "#8C6B3F" },
+    stag:    { primary: "#6B1E2D", secondary: "#1F4D2E" },
+    fox:     { primary: "#D35400", secondary: "#F2E6D8" },
+  }
+  const myOrderColors = userProfile?.order_id ? ORDER_COLORS[userProfile.order_id] : undefined
+
   const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
 
   // OPTIONAL helper (only needed if your board token element expects per-token vars like --token-img)
@@ -901,9 +914,9 @@ if (wantsNewGame) {
 
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "#1f2937",
-          fontFamily: "system-ui, -apple-system, sans-serif",
-          color: "#e5e7eb",
+          backgroundColor: "#0a0a0c",
+          fontFamily: "'EB Garamond', Georgia, serif",
+          color: "#e8e4d8",
           overflow: "hidden",
           ...(wTokenImg ? ({ ["--w-token-img" as any]: `url("${wTokenImg}")` } as any) : {}),
           ...(bTokenImg ? ({ ["--b-token-img" as any]: `url("${bTokenImg}")` } as any) : {}),
@@ -911,7 +924,8 @@ if (wantsNewGame) {
       >
         <style>{`
           * { box-sizing: border-box; }
-          body { margin: 0; background: #1f2937; }
+          body { margin: 0; background: #0a0a0c; }
+          @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
           .token-ghost { opacity: 0.3; }
           .hide-scrollbar::-webkit-scrollbar { display: none; }
           .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
@@ -919,6 +933,7 @@ if (wantsNewGame) {
 
         <Header
           isLoggedIn={!!currentUserId}
+          userId={currentUserId}
           username={userProfile?.username}
           avatarUrl={userProfile?.avatar_url ?? null}
           titleLabel={formatLabel}
@@ -942,7 +957,7 @@ if (wantsNewGame) {
             style={{
               position: "fixed",
               inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              backgroundColor: "rgba(0, 0, 0, 0.85)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -952,13 +967,13 @@ if (wantsNewGame) {
           >
             <div
               style={{
-                backgroundColor: "#374151",
-                border: "1px solid #4b5563",
+                backgroundColor: "rgba(184,150,106,0.18)",
+                border: "1px solid rgba(184,150,106,0.30)",
                 borderRadius: "12px",
                 padding: "16px",
                 maxWidth: "90vw",
                 width: "25rem",
-                color: "#e5e7eb",
+                color: "#e8e4d8",
                 position: "relative",
               }}
             >
@@ -974,7 +989,7 @@ if (wantsNewGame) {
                   right: "12px",
                   background: "none",
                   border: "none",
-                  color: "#9ca3af",
+                  color: "#6b6558",
                   fontSize: "1.5rem",
                   cursor: "pointer",
                   lineHeight: 1,
@@ -1013,8 +1028,8 @@ if (wantsNewGame) {
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: "0.625rem",
-                    border: "1px solid #4b5563",
-                    backgroundColor: "#1f2937",
+                    border: "1px solid rgba(184,150,106,0.30)",
+                    backgroundColor: "#0d0d10",
                     marginBottom: "12px",
                     display: "flex",
                     gap: "12px",
@@ -1027,14 +1042,14 @@ if (wantsNewGame) {
                       width: "48px",
                       height: "48px",
                       borderRadius: "50%",
-                      backgroundColor: "#9ca3af",
+                      backgroundColor: "#b0aa9e",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       overflow: "hidden",
                       fontSize: "1.125rem",
                       fontWeight: "bold",
-                      color: "#1f2937",
+                      color: "#0d0d10",
                       flexShrink: 0,
                     }}
                   >
@@ -1057,13 +1072,13 @@ if (wantsNewGame) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {/* Top row: username and country */}
                     <div style={{ display: "flex", gap: "12px", alignItems: "baseline", marginBottom: "4px" }}>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: "bold", color: "#e5e7eb" }}>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: "bold", color: "#e8e4d8" }}>
                         {userProfile.username}
                       </div>
                       <div
                         style={{
                           fontSize: "0.75rem",
-                          color: "#9ca3af",
+                          color: "#b0aa9e",
                           fontWeight: 900,
                           whiteSpace: "nowrap",
                         }}
@@ -1073,7 +1088,7 @@ if (wantsNewGame) {
                         {myPeak !== myElo ? <span style={{ opacity: 0.6 }}>(peak {myPeak})</span> : null}
                       </div>
                       {userProfile.country_name && (
-                        <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6558" }}>
                           {userProfile.country_name}
                         </div>
                       )}
@@ -1086,8 +1101,8 @@ if (wantsNewGame) {
                         setShowProfileModal(true)
                       }}
                       style={{
-                        color: "#9ca3af",
-                        fontSize: "0.6875rem",
+                        color: "#b0aa9e",
+                        fontSize: "0.9rem",
                         textDecoration: "none",
                         cursor: "pointer",
                       }}
@@ -1126,7 +1141,7 @@ if (wantsNewGame) {
                     marginBottom: "14px",
                     lineHeight: 1.35,
                     textAlign: "center",
-                    color: "#d1d5db",
+                    color: "#b0aa9e",
                   }}
                 >
                   Create an account to play vs others, get ranked, play friends, and do tournaments.
@@ -1137,7 +1152,7 @@ if (wantsNewGame) {
               <div
                 style={{
                   height: "1px",
-                  backgroundColor: "#4b5563",
+                  backgroundColor: "rgba(255,255,255,0.09)",
                   marginBottom: "14px",
                 }}
               />
@@ -1148,7 +1163,7 @@ if (wantsNewGame) {
                   fontSize: "0.75rem",
                   fontWeight: "bold",
                   marginBottom: "8px",
-                  color: "#9ca3af",
+                  color: "#b0aa9e",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}
@@ -1173,9 +1188,9 @@ if (wantsNewGame) {
                         flex: 1,
                         padding: "10px 12px",
                         borderRadius: "8px",
-                        border: timeControlId === id ? "2px solid #5de8f7" : "1px solid #4b5563",
-                        background: timeControlId === id ? "#1f2937" : "#374151",
-                        color: timeControlId === id ? "#5de8f7" : "#e5e7eb",
+                        border: timeControlId === id ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                        background: timeControlId === id ? "#0d0d10" : "#0f0f14",
+                        color: timeControlId === id ? "#5de8f7" : "#e8e4d8",
                         fontWeight: 900,
                         cursor: "pointer",
                         fontSize: "0.875rem",
@@ -1193,7 +1208,7 @@ if (wantsNewGame) {
                   fontSize: "0.75rem",
                   fontWeight: "bold",
                   marginBottom: "8px",
-                  color: "#9ca3af",
+                  color: "#b0aa9e",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}
@@ -1215,9 +1230,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "novice" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "novice" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "novice" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "novice" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === "novice" ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === "novice" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1230,7 +1245,7 @@ if (wantsNewGame) {
                           width: 10,
                           height: 10,
                           borderRadius: "50%",
-                          background: "#6b7280", // grey
+                          background: "#6b6558", // grey
                           marginRight: 6,
                           display: "inline-block",
                         }}
@@ -1247,9 +1262,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "adept" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "adept" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "adept" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "adept" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === "adept" ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === "adept" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1279,9 +1294,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "expert" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "expert" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "expert" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "expert" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === "expert" ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === "expert" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1311,9 +1326,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "master" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "master" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "master" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "master" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === "master" ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === "master" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1343,9 +1358,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === ("senior_master" as any) ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === ("senior_master" as any) ? "#1f2937" : "#374151",
-                    color: aiDifficulty === ("senior_master" as any) ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === ("senior_master" as any) ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === ("senior_master" as any) ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === ("senior_master" as any) ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1375,9 +1390,9 @@ if (wantsNewGame) {
                   style={{
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: aiDifficulty === "grandmaster" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: aiDifficulty === "grandmaster" ? "#1f2937" : "#374151",
-                    color: aiDifficulty === "grandmaster" ? "#5de8f7" : "#e5e7eb",
+                    border: aiDifficulty === "grandmaster" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: aiDifficulty === "grandmaster" ? "#0d0d10" : "#0f0f14",
+                    color: aiDifficulty === "grandmaster" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1411,9 +1426,9 @@ if (wantsNewGame) {
                     gridColumn: "1 / -1",
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    background: "#111827",
-                    border: "1px dashed #4b5563",
-                    color: "#e5e7eb",
+                    background: "#0d0d10",
+                    border: "1px dashed rgba(255,255,255,0.09)",
+                    color: "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1429,7 +1444,7 @@ if (wantsNewGame) {
                   fontSize: "0.75rem",
                   fontWeight: "bold",
                   marginBottom: "8px",
-                  color: "#9ca3af",
+                  color: "#b0aa9e",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}
@@ -1444,9 +1459,9 @@ if (wantsNewGame) {
                     flex: 1,
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: boardStyle === "grid" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: boardStyle === "grid" ? "#1f2937" : "#374151",
-                    color: boardStyle === "grid" ? "#5de8f7" : "#e5e7eb",
+                    border: boardStyle === "grid" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: boardStyle === "grid" ? "#0d0d10" : "#0f0f14",
+                    color: boardStyle === "grid" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1460,9 +1475,9 @@ if (wantsNewGame) {
                     flex: 1,
                     padding: "10px 12px",
                     borderRadius: "8px",
-                    border: boardStyle === "intersection" ? "2px solid #5de8f7" : "1px solid #4b5563",
-                    background: boardStyle === "intersection" ? "#1f2937" : "#374151",
-                    color: boardStyle === "intersection" ? "#5de8f7" : "#e5e7eb",
+                    border: boardStyle === "intersection" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
+                    background: boardStyle === "intersection" ? "#0d0d10" : "#0f0f14",
+                    color: boardStyle === "intersection" ? "#5de8f7" : "#e8e4d8",
                     fontWeight: 900,
                     cursor: "pointer",
                     fontSize: "0.875rem",
@@ -1474,12 +1489,12 @@ if (wantsNewGame) {
 
               <div
                 style={{
-                  fontSize: "0.6875rem",
+                  fontSize: "0.9rem",
                   opacity: 0.7,
                   marginBottom: "14px",
                   lineHeight: 1.35,
                   textAlign: "center",
-                  color: "#9ca3af",
+                  color: "#b0aa9e",
                 }}
               >
                 {boardStyle === "grid" 
@@ -1575,7 +1590,7 @@ if (wantsNewGame) {
                   marginTop: "16px",
                   textAlign: "center",
                   fontSize: "0.75rem",
-                  color: "#9ca3af",
+                  color: "#b0aa9e",
                 }}
               >
                 <a
@@ -1585,7 +1600,7 @@ if (wantsNewGame) {
                     console.log("Leaderboard clicked")
                   }}
                   style={{
-                    color: "#9ca3af",
+                    color: "#b0aa9e",
                     textDecoration: "none",
                     cursor: "pointer",
                   }}
@@ -1600,7 +1615,7 @@ if (wantsNewGame) {
                     console.log("Wiki clicked")
                   }}
                   style={{
-                    color: "#9ca3af",
+                    color: "#b0aa9e",
                     textDecoration: "none",
                     cursor: "pointer",
                   }}
@@ -1618,8 +1633,8 @@ if (wantsNewGame) {
             {/* Chat Section */}
             <div
               style={{
-                backgroundColor: "#1f2937",
-                borderBottom: "1px solid #4b5563",
+                backgroundColor: "#0d0d10",
+                borderBottom: "1px solid rgba(184,150,106,0.30)",
               }}
             >
               <div
@@ -1637,8 +1652,7 @@ if (wantsNewGame) {
                     display: "flex",
                     alignItems: "center",
                     gap: "0.375rem",
-                    fontWeight: "bold",
-                    fontSize: "0.6875rem",
+                    fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a",
                   }}
                 >
                   <svg
@@ -1647,7 +1661,7 @@ if (wantsNewGame) {
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#e5e7eb"
+                    stroke="#e8e4d8"
                     strokeWidth="2"
                   >
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -1658,7 +1672,7 @@ if (wantsNewGame) {
                   style={{
                     background: "none",
                     border: "none",
-                    color: "#9ca3af",
+                    color: "#b0aa9e",
                     fontSize: "1rem",
                     cursor: "pointer",
                     padding: 0,
@@ -1672,39 +1686,41 @@ if (wantsNewGame) {
                 <div
                   style={{
                     padding: "0.375rem 0.5rem",
-                    fontSize: "0.6875rem",
-                    color: "#d1d5db",
-                    borderTop: "1px solid #4b5563",
+                    fontFamily: "'EB Garamond', Georgia, serif",
+                    fontSize: "1.1rem",
+                    color: "#b0aa9e",
+                    borderTop: "1px solid rgba(184,150,106,0.30)",
                   }}
                 >
                   {chatMsgs.length > 0 && (() => {
                     const m = chatMsgs[chatMsgs.length - 1]
                     const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                    const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                    const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
                     return <><span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}</>
                   })()}
                 </div>
               )}
 
               {showChatExpanded && (
-                <div style={{ borderTop: "1px solid #4b5563" }}>
-                  <div style={{ display: "flex", gap: 6, padding: "0.375rem 0.5rem", borderBottom: "1px solid #4b5563" }}>
+                <div style={{ borderTop: "1px solid rgba(184,150,106,0.30)" }}>
+                  <div style={{ display: "flex", gap: 6, padding: "0.375rem 0.5rem", borderBottom: "1px solid rgba(184,150,106,0.30)" }}>
                     <input
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
                       placeholder="Message…"
-                      style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 6, padding: "6px 8px", color: "#e5e7eb", outline: "none", fontSize: "0.6875rem" }}
+                      style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 6, padding: "6px 8px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1rem" }}
                     />
-                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: "0.6875rem", flexShrink: 0 }}>
+                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
                       Send
                     </button>
                   </div>
                   <div
                     style={{
                       padding: "0.5rem",
-                      fontSize: "0.6875rem",
-                      color: "#d1d5db",
+                      fontFamily: "'EB Garamond', Georgia, serif",
+                      fontSize: "1.1rem",
+                      color: "#b0aa9e",
                       maxHeight: "10rem",
                       overflowY: "auto",
                     }}
@@ -1712,7 +1728,7 @@ if (wantsNewGame) {
                   >
                     {[...chatMsgs].reverse().map((m) => {
                       const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                      const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                      const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
                       return (
                         <div key={m.id} style={{ marginBottom: "0.25rem" }}>
                           <span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}
@@ -1730,8 +1746,8 @@ if (wantsNewGame) {
               <div
                 style={{
                   padding: "0.25rem 0.375rem",
-                  backgroundColor: "#374151",
-                  borderBottom: "1px solid #4b5563",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  borderBottom: "1px solid rgba(184,150,106,0.30)",
                   flexShrink: 0,
                 }}
               >
@@ -1758,13 +1774,13 @@ if (wantsNewGame) {
                         width: "2.25rem",
                         height: "2.25rem",
                         borderRadius: "50%",
-                        backgroundColor: "#9ca3af",
+                        backgroundColor: "#b0aa9e",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: "1.125rem",
                         fontWeight: "bold",
-                        color: "#1f2937",
+                        color: "#0d0d10",
                         overflow: "hidden",
                       }}
                     >
@@ -1792,15 +1808,16 @@ if (wantsNewGame) {
                       >
                         <span
                           style={{
-                            fontWeight: "bold",
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: "600",
                             fontSize: "0.8125rem",
-                            color: "#e5e7eb",
+                            color: "#e8e4d8",
                           }}
                         >
                           {topPlayer.username}
                         </span>
                         <span
-                          style={{ fontSize: "0.6875rem", color: "#9ca3af" }}
+                          style={{ fontSize: "0.9rem", color: "#b0aa9e" }}
                         >
                           ({topPlayer.elo})
                         </span>
@@ -1810,8 +1827,8 @@ if (wantsNewGame) {
                           display: "flex",
                           alignItems: "center",
                           gap: "0.25rem",
-                          fontSize: "0.6875rem",
-                          color: "#d1d5db",
+                          fontSize: "0.9rem",
+                          color: "#b0aa9e",
                         }}
                       >
                         <div
@@ -1825,9 +1842,6 @@ if (wantsNewGame) {
                         ></div>
                         <span>{topPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         <FlagImg cc={topPlayer.country} size={16} />
-                        <span style={{ fontSize: "0.625rem", color: "#9ca3af", fontWeight: "bold" }}>
-                          {topPlayer.country}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -1851,7 +1865,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
@@ -1891,7 +1905,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
@@ -1926,7 +1940,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
@@ -1959,7 +1973,7 @@ if (wantsNewGame) {
                         background: "none",
                         border: "1px solid #6b7280",
                         borderRadius: "50%",
-                        color: "#9ca3af",
+                        color: "#b0aa9e",
                         fontSize: "1rem",
                         cursor: "pointer",
                         padding: "2px",
@@ -1988,71 +2002,20 @@ if (wantsNewGame) {
                       alignItems: "flex-start",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "0.6875rem",
-                        color: "#e5e7eb",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.125rem",
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <span style={{ fontWeight: "bold" }}>R:</span>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: MOBILE_TOKEN_GAP,
-                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
-                        }}
-                      >
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem" }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Reserves</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: MOBILE_TOKEN_GAP, justifyContent: "center" }}>
                         {Array.from({ length: g.reserves[topPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={tokenClass(topPlayer.avatar as "W" | "B")}
-                            style={{
-                              width: MOBILE_TOKEN_SIZE,
-                              height: MOBILE_TOKEN_SIZE,
-                              borderRadius: "50%",
-                              position: "relative",
-                              display: "inline-block",
-                            }}
-                          ></div>
+                          <div key={i} className={tokenClass(topPlayer.avatar as "W" | "B")} style={{ width: MOBILE_TOKEN_SIZE, height: MOBILE_TOKEN_SIZE, borderRadius: "50%", position: "relative", display: "inline-block" }}></div>
                         ))}
                       </div>
                     </div>
-                    <div
-                      style={{
-                        fontSize: "0.6875rem",
-                        color: "#e5e7eb",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.125rem",
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <span style={{ fontWeight: "bold" }}>C:</span>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: MOBILE_TOKEN_GAP,
-                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
-                        }}
-                      >
+                    <div style={{ width: 1, background: "linear-gradient(180deg, transparent, #b8966a, transparent)", alignSelf: "stretch", margin: "0 6px" }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem" }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: MOBILE_TOKEN_GAP, justifyContent: "center" }}>
                         {Array.from({ length: g.captives.W }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={tokenClass("B")}
-                            style={{
-                              width: MOBILE_TOKEN_SIZE,
-                              height: MOBILE_TOKEN_SIZE,
-                              borderRadius: "50%",
-                              position: "relative",
-                              display: "inline-block",
-                            }}
-                          ></div>
+                          <div key={i} className={tokenClass("B")} style={{ width: MOBILE_TOKEN_SIZE, height: MOBILE_TOKEN_SIZE, borderRadius: "50%", position: "relative", display: "inline-block" }}></div>
                         ))}
                       </div>
                     </div>
@@ -2073,6 +2036,8 @@ if (wantsNewGame) {
                         <RouteIcon
                           key={r.id}
                           route={r}
+                          primaryColor={myOrderColors?.primary}     
+                          secondaryColor={myOrderColors?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
                           routeClass={myRouteClass}
@@ -2099,11 +2064,12 @@ if (wantsNewGame) {
                   justifyContent: "center",
                   alignItems: "center",
                   padding: "0.5rem",
-                  backgroundColor: "#374151",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  border: "1px solid rgba(184,150,106,0.30)",
                   gap: "0.375rem",
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0aa9e" strokeWidth="2">
                   <circle cx="12" cy="13" r="8" />
                   <path d="M12 9v4l2 2" />
                   <path d="M5 3 2 6" />
@@ -2118,12 +2084,12 @@ if (wantsNewGame) {
                   <div style={{ opacity: g.player === "B" ? 1 : 0.6 }}>
                     B {fmtClock(clocks.B)}
                   </div>
-                  <div style={{ opacity: 0.75, fontSize: "0.6875rem" }}>{timeControl.label}</div>
+                  <div style={{ opacity: 0.75, fontSize: "0.9rem" }}>{timeControl.label}</div>
                 </div>
               </div>
 
               {/* Phase Banner - between clock and board */}
-              <div style={{ padding: "0 0.375rem", backgroundColor: "#374151" }}>
+              <div style={{ padding: "0 0.375rem", backgroundColor: "rgba(184,150,106,0.18)" }}>
                 <div style={{ height: 50, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 6 }}>
                   {/* Messages Area - phase text and warnings */}
                   <div
@@ -2183,7 +2149,7 @@ if (wantsNewGame) {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      color: "#d1d5db",
+                      color: "#b0aa9e",
                       paddingLeft: 6,
                       paddingRight: 6,
                     }}
@@ -2242,7 +2208,7 @@ if (wantsNewGame) {
                   display: "flex",
                   gap: "0.375rem",
                   padding: "0.75rem 0.375rem",
-                  backgroundColor: "#374151",
+                  backgroundColor: "rgba(184,150,106,0.18)",
                   flexShrink: 0,
                   justifyContent: "space-between",
                 }}
@@ -2250,8 +2216,9 @@ if (wantsNewGame) {
                 {/* Left: Route Queue */}
                 <div
                   style={{
-                    backgroundColor: "#374151",
-                    color: "#e5e7eb",
+                    backgroundColor: "rgba(184,150,106,0.18)",
+                    border: "1px solid rgba(184,150,106,0.30)",
+                    color: "#e8e4d8",
                     padding: "0.375rem",
                     borderRadius: "0.5rem",
                     display: "flex",
@@ -2268,11 +2235,13 @@ if (wantsNewGame) {
                     minHeight: "6.75rem",
                   }}
                 >
-                  <div style={{ fontWeight: "bold", fontSize: "0.625rem" }}>Q</div>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#b8966a" }}>Q</div>
                   {g.queue.map((r, idx) => (
                     <RouteIcon
                       key={`${r.id}-${idx}`}
                       route={r}
+                      primaryColor={myOrderColors?.primary}     
+                      secondaryColor={myOrderColors?.secondary}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                       routeClass={myRouteClass}
@@ -2324,8 +2293,9 @@ if (wantsNewGame) {
                 {/* Right: Void */}
                 <div
                   style={{
-                    backgroundColor: "#374151",
-                    color: "#e5e7eb",
+                    backgroundColor: "rgba(184,150,106,0.18)",
+                    border: "1px solid rgba(184,150,106,0.30)",
+                    color: "#e8e4d8",
                     padding: "0.375rem",
                     borderRadius: "0.5rem",
                     display: "flex",
@@ -2385,16 +2355,16 @@ if (wantsNewGame) {
               </div>
 
               {/* Board style instruction */}
-              <div style={{ fontSize: 10, color: "#9ca3af", opacity: 0.6, textAlign: "center", padding: "4px 0" }}>
-                Press <span style={{ fontWeight: 900, color: "#d1d5db" }}>B</span> to switch board style
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em", color: "#6b6558", textAlign: "center", padding: "4px 0" }}>
+                Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
               </div>
 
               {/* Blue Player */}
               <div
                 style={{
                   padding: "0.25rem 0.375rem",
-                  backgroundColor: "#374151",
-                  borderTop: "1px solid #4b5563",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  borderTop: "1px solid rgba(184,150,106,0.30)",
                   flexShrink: 0,
                 }}
               >
@@ -2419,13 +2389,13 @@ if (wantsNewGame) {
                         width: "2.25rem",
                         height: "2.25rem",
                         borderRadius: "50%",
-                        backgroundColor: "#9ca3af",
+                        backgroundColor: "#b0aa9e",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: "1.125rem",
                         fontWeight: "bold",
-                        color: "#1f2937",
+                        color: "#0d0d10",
                         overflow: "hidden",
                       }}
                     >
@@ -2453,15 +2423,16 @@ if (wantsNewGame) {
                       >
                         <span
                           style={{
-                            fontWeight: "bold",
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: "600",
                             fontSize: "0.8125rem",
-                            color: "#e5e7eb",
+                            color: "#e8e4d8",
                           }}
                         >
                           {bottomPlayer.username}
                         </span>
                         <span
-                          style={{ fontSize: "0.6875rem", color: "#9ca3af" }}
+                          style={{ fontSize: "0.9rem", color: "#b0aa9e" }}
                         >
                           ({bottomPlayer.elo})
                         </span>
@@ -2470,7 +2441,7 @@ if (wantsNewGame) {
                           title="Customize appearance"
                           style={{
                             background: "none", border: "none", cursor: "pointer",
-                            color: "#6b7280", padding: "2px 4px",
+                            color: "#6b6558", padding: "2px 4px",
                             display: "flex", alignItems: "center",
                             opacity: 0.7, transition: "opacity 0.15s",
                           }}
@@ -2485,8 +2456,8 @@ if (wantsNewGame) {
                           display: "flex",
                           alignItems: "center",
                           gap: "0.25rem",
-                          fontSize: "0.6875rem",
-                          color: "#d1d5db",
+                          fontSize: "0.9rem",
+                          color: "#b0aa9e",
                         }}
                       >
                         <div
@@ -2500,9 +2471,6 @@ if (wantsNewGame) {
                         ></div>
                         <span>{bottomPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         <FlagImg cc={bottomPlayer.country} size={16} />
-                        <span style={{ fontSize: "0.625rem", color: "#9ca3af", fontWeight: "bold" }}>
-                          {bottomPlayer.country}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -2525,7 +2493,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
@@ -2565,7 +2533,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
@@ -2600,7 +2568,7 @@ if (wantsNewGame) {
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
@@ -2632,7 +2600,7 @@ if (wantsNewGame) {
                         background: "none",
                         border: "1px solid #6b7280",
                         borderRadius: "50%",
-                        color: "#9ca3af",
+                        color: "#b0aa9e",
                         fontSize: "1rem",
                         cursor: "pointer",
                         padding: "2px",
@@ -2659,71 +2627,20 @@ if (wantsNewGame) {
                       alignItems: "flex-start",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.125rem",
-                        alignItems: "flex-start",
-                        fontSize: "0.6875rem",
-                        color: "#e5e7eb",
-                      }}
-                    >
-                      <span style={{ fontWeight: "bold" }}>R:</span>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: MOBILE_TOKEN_GAP,
-                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
-                        }}
-                      >
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem" }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Reserves</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: MOBILE_TOKEN_GAP, justifyContent: "center" }}>
                         {Array.from({ length: g.reserves[bottomPlayer.avatar as "W" | "B"] }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={tokenClass(bottomPlayer.avatar as "W" | "B")}
-                            style={{
-                              width: MOBILE_TOKEN_SIZE,
-                              height: MOBILE_TOKEN_SIZE,
-                              borderRadius: "50%",
-                              position: "relative",
-                              display: "inline-block",
-                            }}
-                          ></div>
+                          <div key={i} className={tokenClass(bottomPlayer.avatar as "W" | "B")} style={{ width: MOBILE_TOKEN_SIZE, height: MOBILE_TOKEN_SIZE, borderRadius: "50%", position: "relative", display: "inline-block" }}></div>
                         ))}
                       </div>
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.125rem",
-                        alignItems: "flex-start",
-                        fontSize: "0.6875rem",
-                        color: "#e5e7eb",
-                      }}
-                    >
-                      <span style={{ fontWeight: "bold" }}>C:</span>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: MOBILE_TOKEN_GAP,
-                          maxWidth: MOBILE_TOKEN_WRAP_MAX,
-                        }}
-                      >
+                    <div style={{ width: 1, background: "linear-gradient(180deg, transparent, #b8966a, transparent)", alignSelf: "stretch", margin: "0 6px" }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem" }}>
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: MOBILE_TOKEN_GAP, justifyContent: "center" }}>
                         {Array.from({ length: g.captives.B }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={tokenClass("W")}
-                            style={{
-                              width: MOBILE_TOKEN_SIZE,
-                              height: MOBILE_TOKEN_SIZE,
-                              borderRadius: "50%",
-                              position: "relative",
-                              display: "inline-block",
-                            }}
-                          ></div>
+                          <div key={i} className={tokenClass("W")} style={{ width: MOBILE_TOKEN_SIZE, height: MOBILE_TOKEN_SIZE, borderRadius: "50%", position: "relative", display: "inline-block" }}></div>
                         ))}
                       </div>
                     </div>
@@ -2743,6 +2660,8 @@ if (wantsNewGame) {
                         <RouteIcon
                           key={r.id}
                           route={r}
+                          primaryColor={myOrderColors?.primary}     
+                          secondaryColor={myOrderColors?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
                           routeClass={myRouteClass}
@@ -2773,11 +2692,11 @@ if (wantsNewGame) {
                         padding: 12,
                         borderRadius: 8,
                         border: "2px solid #3296ab",
-                        background: "#374151",
+                        background: "rgba(184,150,106,0.18)",
                         fontWeight: 900,
                         fontSize: 13,
                         cursor: "pointer",
-                        color: "#f9fafb",
+                        color: "#e8e4d8",
                       }}
                     >
                       Confirm Swap & End Turn
@@ -2791,11 +2710,11 @@ if (wantsNewGame) {
                           padding: 12,
                           borderRadius: 8,
                           border: "2px solid #3296ab",
-                          background: "#374151",
+                          background: "rgba(184,150,106,0.18)",
                           fontWeight: 900,
                           fontSize: 13,
                           cursor: "pointer",
-                          color: "#f9fafb",
+                          color: "#e8e4d8",
                         }}
                       >
                         Confirm Early Swap
@@ -2806,12 +2725,12 @@ if (wantsNewGame) {
                         style={{
                           padding: "12px 14px",
                           borderRadius: 8,
-                          border: "1px solid #4b5563",
+                          border: "1px solid rgba(184,150,106,0.30)",
                           background: "transparent",
                           fontWeight: 900,
                           fontSize: 13,
                           cursor: "pointer",
-                          color: "#f9fafb",
+                          color: "#e8e4d8",
                         }}
                       >
                         Cancel
@@ -2831,11 +2750,11 @@ if (wantsNewGame) {
                       padding: 12,
                       borderRadius: 8,
                       border: "2px solid #3296ab",
-                      background: "#374151",
+                      background: "rgba(184,150,106,0.18)",
                       fontWeight: 900,
                       fontSize: 13,
                       cursor: "pointer",
-                      color: "#f9fafb",
+                      color: "#e8e4d8",
                     }}
                   >
                     Confirm Evasion
@@ -2846,12 +2765,12 @@ if (wantsNewGame) {
                     style={{
                       padding: "12px 14px",
                       borderRadius: 8,
-                      border: "1px solid #4b5563",
+                      border: "1px solid rgba(184,150,106,0.30)",
                       background: "transparent",
                       fontWeight: 900,
                       fontSize: 13,
                       cursor: "pointer",
-                      color: "#f9fafb",
+                      color: "#e8e4d8",
                     }}
                   >
                     Cancel
@@ -2867,10 +2786,10 @@ if (wantsNewGame) {
                     padding: "10px",
                     borderRadius: "0.5rem",
                     border: "2px solid #6b7280",
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
                     fontWeight: "bold",
-                    fontSize: "0.6875rem",
-                    color: "#e5e7eb",
+                    fontSize: "0.9rem",
+                    color: "#e8e4d8",
                     cursor: "pointer",
                     marginBottom: "0.5rem",
                   }}
@@ -2882,8 +2801,8 @@ if (wantsNewGame) {
               {/* Game Log */}
               <div
                 style={{
-                  backgroundColor: "#374151",
-                  borderTop: "1px solid #4b5563",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  borderTop: "1px solid rgba(184,150,106,0.30)",
                   flexGrow: showLogExpanded ? 1 : 0,
                   display: "flex",
                   flexDirection: "column",
@@ -2893,11 +2812,9 @@ if (wantsNewGame) {
                 <div
                   style={{
                     padding: "0.375rem 0.5rem",
-                    fontWeight: "bold",
-                    fontSize: "0.6875rem",
-                    color: "#e5e7eb",
-                    backgroundColor: "#1f2937",
-                    borderBottom: "1px solid #4b5563",
+                    fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a",
+                    backgroundColor: "#0d0d10",
+                    borderBottom: "1px solid rgba(184,150,106,0.30)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
@@ -2910,7 +2827,7 @@ if (wantsNewGame) {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#9ca3af",
+                      color: "#b0aa9e",
                       fontSize: "1rem",
                       cursor: "pointer",
                       padding: 0,
@@ -2924,12 +2841,12 @@ if (wantsNewGame) {
                   <div
                     style={{
                       padding: "0.5rem",
-                      fontSize: "0.625rem",
-                      color: "#d1d5db",
-                      fontFamily: "monospace",
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                      fontSize: "0.85rem",
+                      color: "#b0aa9e",
                       overflowY: "auto",
                       maxHeight: "12rem",
-                      lineHeight: "1.4",
+                      lineHeight: "1.5",
                     }}
                     className="hide-scrollbar"
                   >
@@ -2937,7 +2854,7 @@ if (wantsNewGame) {
                       <div style={{ opacity: 0.7 }}>No log entries yet.</div>
                     ) : (
                       g.log.map((l, i) => (
-                        <div key={i} style={{ padding: "2px 0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 11, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
+                        <div key={i} style={{ padding: "2px 0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
                           {l}
                         </div>
                       ))
@@ -2968,9 +2885,9 @@ if (wantsNewGame) {
                 <div
                   style={{
                     padding: 12,
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
                     borderRadius: 8,
-                    border: g.player === leftPlayer.avatar ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    border: g.player === leftPlayer.avatar ? (leftPlayer.avatar === "W" ? "2px solid #e8e4d8" : "2px solid #5de8f7") : "1px solid rgba(184,150,106,0.30)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -2979,13 +2896,13 @@ if (wantsNewGame) {
                         width: 48,
                         height: 48,
                         borderRadius: "50%",
-                        backgroundColor: "#9ca3af",
+                        backgroundColor: "#b0aa9e",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: 24,
                         fontWeight: 900,
-                        color: "#1f2937",
+                        color: "#0d0d10",
                         overflow: "hidden",
                       }}
                     >
@@ -3005,16 +2922,15 @@ if (wantsNewGame) {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                        <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
                           {leftPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({leftPlayer.elo})</span>
+                        <span style={{ fontSize: 13, color: "#b0aa9e" }}>({leftPlayer.elo})</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#b0aa9e" }}>
                         <div className={tokenClass(leftPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
                         <span>{leftPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         <FlagImg cc={leftPlayer.country} size={18} />
-                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{leftPlayer.country}</span>
                       </div>
                     </div>
                   </div>
@@ -3030,7 +2946,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
@@ -3057,7 +2973,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseRansom ? "pointer" : "default",
                           padding: 0,
@@ -3083,7 +2999,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
@@ -3110,7 +3026,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
@@ -3134,7 +3050,7 @@ if (wantsNewGame) {
                         background: "none",
                         border: "1px solid #6b7280",
                         borderRadius: "50%",
-                        color: "#9ca3af",
+                        color: "#b0aa9e",
                         fontSize: 20,
                         cursor: "pointer",
                         padding: 2,
@@ -3151,18 +3067,19 @@ if (wantsNewGame) {
                   </div>
 
                   {/* Reserves and Captives */}
-                  <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Reserves</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
                         {Array.from({ length: g.reserves[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(leftPlayer.avatar as "W" | "B")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ width: 1, background: "linear-gradient(180deg, transparent, #b8966a, transparent)", alignSelf: "stretch", margin: "0 10px" }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
                         {Array.from({ length: g.captives[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(leftPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
@@ -3170,9 +3087,9 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Route Cards */}
+                  {/* Route Hand */}
                   <div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a", marginBottom: 6 }}>Route Hand</div>
                     <div ref={setRouteMeasureEl(2)} style={{ display: "flex", gap: 6, width: "100%" }}>
                       {g.routes[leftPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                         const isActive = g.player === leftPlayer.avatar
@@ -3183,6 +3100,8 @@ if (wantsNewGame) {
                           <RouteIcon
                             key={r.id}
                             route={r}
+                            primaryColor={myOrderColors?.primary}     
+                            secondaryColor={myOrderColors?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={myRouteClass}
@@ -3205,9 +3124,9 @@ if (wantsNewGame) {
                 {/* Chat Section */}
                 <div
                   style={{
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
                     borderRadius: 8,
-                    border: "1px solid #4b5563",
+                    border: "1px solid rgba(184,150,106,0.30)",
                     flexGrow: showChatExpanded ? 1 : 0,
                     display: "flex",
                     flexDirection: "column",
@@ -3218,8 +3137,8 @@ if (wantsNewGame) {
                   <div
                     style={{
                       padding: "10px 12px",
-                      backgroundColor: "#1f2937",
-                      borderBottom: "1px solid #4b5563",
+                      backgroundColor: "#0d0d10",
+                      borderBottom: "1px solid rgba(184,150,106,0.30)",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
@@ -3228,8 +3147,8 @@ if (wantsNewGame) {
                     }}
                     onClick={() => setShowChatExpanded(!showChatExpanded)}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 13, color: "#e5e7eb" }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" strokeWidth="2">
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8e4d8" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                       <span>Chat</span>
@@ -3239,23 +3158,23 @@ if (wantsNewGame) {
                   {!showChatExpanded && chatMsgs.length > 0 && (() => {
                     const m = chatMsgs[chatMsgs.length - 1]
                     const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                    const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                    const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
                     return (
-                      <div style={{ padding: "10px 12px", fontSize: 12, color: "#d1d5db", borderTop: "1px solid #4b5563" }}>
+                      <div style={{ padding: "10px 12px", fontFamily: "'EB Garamond', Georgia, serif", fontSize: 16, color: "#b0aa9e", borderTop: "1px solid rgba(184,150,106,0.30)" }}>
                         <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
                       </div>
                     )
                   })()}
                   {showChatExpanded && (
-                    <div style={{ borderBottom: "1px solid #4b5563", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
+                    <div style={{ borderBottom: "1px solid rgba(184,150,106,0.30)", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
                       <input
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
                         placeholder="Type a message…"
-                        style={{ flexGrow: 1, background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 10px", color: "#e5e7eb", outline: "none", fontSize: 12 }}
+                        style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 8, padding: "8px 10px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: 16 }}
                       />
-                      <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 900, cursor: "pointer", color: "#0b1220", fontSize: 12, flexShrink: 0 }}>
+                      <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
                         Send
                       </button>
                     </div>
@@ -3264,8 +3183,9 @@ if (wantsNewGame) {
                     <div
                       style={{
                         padding: 12,
-                        fontSize: 12,
-                        color: "#d1d5db",
+                        fontFamily: "'EB Garamond', Georgia, serif",
+                        fontSize: 16,
+                        color: "#b0aa9e",
                         overflowY: "auto",
                         flexGrow: 1,
                         minHeight: 0,
@@ -3274,7 +3194,7 @@ if (wantsNewGame) {
                     >
                       {[...chatMsgs].reverse().map((m) => {
                         const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                        const color = m.from === "SYS" ? "#9ca3af" : m.from === "B" ? "#5de8f7" : "#e5e7eb"
+                        const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
                         return (
                           <div key={m.id} style={{ marginBottom: 8 }}>
                             <span style={{ fontWeight: 900, color }}>{name}:</span>{" "}{m.text}
@@ -3289,8 +3209,9 @@ if (wantsNewGame) {
               {/* Queue */}
               <div
                 style={{
-                  backgroundColor: "#374151",
-                  color: "#e5e7eb",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  border: "1px solid rgba(184,150,106,0.30)",
+                  color: "#e8e4d8",
                   padding: 12,
                   borderRadius: 12,
                   display: "flex",
@@ -3302,11 +3223,13 @@ if (wantsNewGame) {
                   width: (routeDominoW != null ? routeDominoW + 24 : 120),
                 }}
               >
-                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Queue</div>
+                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a", marginBottom: 6 }}>Queue</div>
                 {g.queue.map((r, idx) => (
                   <RouteIcon
                     key={`${r.id}-${idx}`}
                     route={r}
+                    primaryColor={myOrderColors?.primary}     
+                    secondaryColor={myOrderColors?.secondary}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                     routeClass={myRouteClass}
@@ -3330,12 +3253,13 @@ if (wantsNewGame) {
                     gap: 20,
                     alignItems: "center",
                     padding: "12px 24px",
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
+                    border: "1px solid rgba(184,150,106,0.30)",
                     borderRadius: 12,
                     boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b0aa9e" strokeWidth="2">
                     <circle cx="12" cy="13" r="8" />
                     <path d="M12 9v4l2 2" />
                     <path d="M5 3 2 6" />
@@ -3344,13 +3268,13 @@ if (wantsNewGame) {
                     <path d="M17.64 18.67 20 21" />
                   </svg>
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb", opacity: g.player === "W" ? 1 : 0.6 }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e8e4d8", opacity: g.player === "W" ? 1 : 0.6 }}>
                       W {fmtClock(clocks.W)}
                     </div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e5e7eb", opacity: g.player === "B" ? 1 : 0.6 }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e8e4d8", opacity: g.player === "B" ? 1 : 0.6 }}>
                       B {fmtClock(clocks.B)}
                     </div>
-                    <div style={{ fontSize: 18, color: "#9ca3af", opacity: 0.75 }}>{timeControl.label}</div>
+                    <div style={{ fontSize: 18, color: "#b0aa9e", opacity: 0.75 }}>{timeControl.label}</div>
                   </div>
                 </div>
 
@@ -3414,7 +3338,7 @@ if (wantsNewGame) {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      color: "#d1d5db",
+                      color: "#b0aa9e",
                       paddingLeft: 8,
                       paddingRight: 8,
                     }}
@@ -3499,8 +3423,8 @@ if (wantsNewGame) {
                 )}
 
                 {/* Board style instruction */}
-                <div style={{ fontSize: 11, color: "#9ca3af", opacity: 0.6, textAlign: "center" }}>
-                  Press <span style={{ fontWeight: 900, color: "#d1d5db" }}>B</span> to switch board style
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em", color: "#6b6558", textAlign: "center" }}>
+                  Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
                 </div>
 
                 {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
@@ -3514,11 +3438,11 @@ if (wantsNewGame) {
                           padding: 12,
                           borderRadius: 10,
                           border: "2px solid #3296ab",
-                          background: "#374151",
+                          background: "rgba(184,150,106,0.18)",
                           fontWeight: 900,
                           fontSize: 13,
                           cursor: "pointer",
-                          color: "#f9fafb",
+                          color: "#e8e4d8",
                         }}
                       >
                         Confirm Swap & End Turn
@@ -3532,11 +3456,11 @@ if (wantsNewGame) {
                             padding: 12,
                             borderRadius: 10,
                             border: "2px solid #3296ab",
-                            background: "#374151",
+                            background: "rgba(184,150,106,0.18)",
                             fontWeight: 900,
                             fontSize: 13,
                             cursor: "pointer",
-                            color: "#f9fafb",
+                            color: "#e8e4d8",
                           }}
                         >
                           Confirm Early Swap
@@ -3546,12 +3470,12 @@ if (wantsNewGame) {
                           style={{
                             padding: "12px 14px",
                             borderRadius: 10,
-                            border: "1px solid #4b5563",
+                            border: "1px solid rgba(184,150,106,0.30)",
                             background: "transparent",
                             fontWeight: 900,
                             fontSize: 13,
                             cursor: "pointer",
-                            color: "#f9fafb",
+                            color: "#e8e4d8",
                           }}
                         >
                           Cancel
@@ -3571,11 +3495,11 @@ if (wantsNewGame) {
                         padding: 12,
                         borderRadius: 10,
                         border: "2px solid #3296ab",
-                        background: "#374151",
+                        background: "rgba(184,150,106,0.18)",
                         fontWeight: 900,
                         fontSize: 13,
                         cursor: "pointer",
-                        color: "#f9fafb",
+                        color: "#e8e4d8",
                       }}
                     >
                       Confirm Evasion
@@ -3586,12 +3510,12 @@ if (wantsNewGame) {
                       style={{
                         padding: "12px 14px",
                         borderRadius: 10,
-                        border: "1px solid #4b5563",
+                        border: "1px solid rgba(184,150,106,0.30)",
                         background: "transparent",
                         fontWeight: 900,
                         fontSize: 13,
                         cursor: "pointer",
-                        color: "#f9fafb",
+                        color: "#e8e4d8",
                       }}
                     >
                       Cancel
@@ -3608,10 +3532,10 @@ if (wantsNewGame) {
                       padding: "10px 12px",
                       borderRadius: 12,
                       border: "2px solid #6b7280",
-                      backgroundColor: "#374151",
+                      backgroundColor: "rgba(184,150,106,0.18)",
                       fontWeight: 900,
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "#e8e4d8",
                       cursor: "pointer",
                     }}
                   >
@@ -3623,9 +3547,10 @@ if (wantsNewGame) {
               {/* Void */}
               <div
                 style={{
-                  backgroundColor: "#374151",
-                  color: "#e5e7eb",
+                  backgroundColor: "rgba(184,150,106,0.18)",
+                  color: "#e8e4d8",
                   padding: 12,
+                  border: "1px solid rgba(184,150,106,0.30)",
                   borderRadius: 12,
                   display: "flex",
                   flexDirection: "column",
@@ -3636,7 +3561,7 @@ if (wantsNewGame) {
                   width: 74, // match Queue
                 }}
               >
-                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>Void</div>
+                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a", marginBottom: 6 }}>Void</div>
                 <div style={{ display: "flex", gap: 6, width: "100%" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {Array.from({ length: Math.min(g.void.W, 8) }).map((_, i) => (
@@ -3657,9 +3582,9 @@ if (wantsNewGame) {
                 <div
                   style={{
                     padding: 12,
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
                     borderRadius: 8,
-                    border: g.player === rightPlayer.avatar ? "2px solid #5de8f7" : "1px solid #4b5563",
+                    border: g.player === rightPlayer.avatar ? (rightPlayer.avatar === "W" ? "2px solid #e8e4d8" : "2px solid #5de8f7") : "1px solid rgba(184,150,106,0.30)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -3668,13 +3593,13 @@ if (wantsNewGame) {
                         width: 48,
                         height: 48,
                         borderRadius: "50%",
-                        backgroundColor: "#9ca3af",
+                        backgroundColor: "#b0aa9e",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: 24,
                         fontWeight: 900,
-                        color: "#1f2937",
+                        color: "#0d0d10",
                         overflow: "hidden",
                       }}
                     >
@@ -3694,16 +3619,16 @@ if (wantsNewGame) {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontWeight: 900, fontSize: 16, color: "#e5e7eb" }}>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
                           {rightPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#9ca3af" }}>({rightPlayer.elo})</span>
+                        <span style={{ fontSize: 13, color: "#b0aa9e" }}>({rightPlayer.elo})</span>
                         <button
                           onClick={() => setSkinsOpen(true)}
                           title="Customize appearance"
                           style={{
                             background: "none", border: "none", cursor: "pointer",
-                            color: "#6b7280", padding: "2px 4px",
+                            color: "#6b6558", padding: "2px 4px",
                             display: "flex", alignItems: "center",
                             opacity: 0.7, transition: "opacity 0.15s",
                           }}
@@ -3713,11 +3638,10 @@ if (wantsNewGame) {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         </button>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d1d5db" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#b0aa9e" }}>
                         <div className={tokenClass(rightPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
                         <span>{rightPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                         <FlagImg cc={rightPlayer.country} size={18} />
-                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900 }}>{rightPlayer.country}</span>
                       </div>
                     </div>
                   </div>
@@ -3733,7 +3657,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
@@ -3760,7 +3684,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseRansom ? "pointer" : "default",
                           padding: 0,
@@ -3786,7 +3710,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
@@ -3813,7 +3737,7 @@ if (wantsNewGame) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "#1f2937",
+                          backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
                           cursor: canUseEvasion ? "pointer" : "default",
                           padding: 0,
@@ -3837,7 +3761,7 @@ if (wantsNewGame) {
                         background: "none",
                         border: "1px solid #6b7280",
                         borderRadius: "50%",
-                        color: "#9ca3af",
+                        color: "#b0aa9e",
                         fontSize: 20,
                         cursor: "pointer",
                         padding: 2,
@@ -3854,18 +3778,19 @@ if (wantsNewGame) {
                   </div>
 
                   {/* Reserves and Captives */}
-                  <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Reserves</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Reserves</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
                         {Array.from({ length: g.reserves[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(rightPlayer.avatar as "W" | "B")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Captives</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ width: 1, background: "linear-gradient(180deg, transparent, #b8966a, transparent)", alignSelf: "stretch", margin: "0 10px" }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
                         {Array.from({ length: g.captives[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(rightPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
@@ -3873,9 +3798,9 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Route Cards */}
+                  {/* Route Hand */}
                   <div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 900, marginBottom: 6 }}>Route Cards</div>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a", marginBottom: 6 }}>Route Hand</div>
                     <div ref={setRouteMeasureEl(3)} style={{ display: "flex", gap: 6, width: "100%" }}>
                       {g.routes[rightPlayer.avatar as "W" | "B"].slice(0, 3).map((r) => {
                         const isActive = g.player === rightPlayer.avatar
@@ -3886,6 +3811,8 @@ if (wantsNewGame) {
                           <RouteIcon
                             key={r.id}
                             route={r}
+                            primaryColor={myOrderColors?.primary}     
+                            secondaryColor={myOrderColors?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={myRouteClass}
@@ -3908,9 +3835,9 @@ if (wantsNewGame) {
                 {/* Game Log */}
                 <div
                   style={{
-                    backgroundColor: "#374151",
+                    backgroundColor: "rgba(184,150,106,0.18)",
                     borderRadius: 8,
-                    border: "1px solid #4b5563",
+                    border: "1px solid rgba(184,150,106,0.30)",
                     flexGrow: showLogExpanded ? 1 : 0,
                     display: "flex",
                     flexDirection: "column",
@@ -3921,11 +3848,9 @@ if (wantsNewGame) {
                   <div
                     style={{
                       padding: "10px 12px",
-                      backgroundColor: "#1f2937",
-                      borderBottom: "1px solid #4b5563",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      color: "#e5e7eb",
+                      backgroundColor: "#0d0d10",
+                      borderBottom: "1px solid rgba(184,150,106,0.30)",
+                      fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
@@ -3942,7 +3867,7 @@ if (wantsNewGame) {
                     style={{
                       padding: 12,
                       fontSize: 11,
-                      color: "#d1d5db",
+                      color: "#b0aa9e",
                       fontFamily: "monospace",
                       overflowY: "auto",
                       flexGrow: 1,
@@ -3974,7 +3899,7 @@ if (wantsNewGame) {
             style={{
               position: "fixed",
               inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              backgroundColor: "rgba(0, 0, 0, 0.85)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -3984,13 +3909,13 @@ if (wantsNewGame) {
           >
             <div
               style={{
-                backgroundColor: "#374151",
-                border: "1px solid #4b5563",
+                backgroundColor: "rgba(184,150,106,0.18)",
+                border: "1px solid rgba(184,150,106,0.30)",
                 borderRadius: "12px",
                 padding: "16px",
                 maxWidth: "90vw",
                 width: "25rem",
-                color: "#e5e7eb",
+                color: "#e8e4d8",
               }}
             >
               <div
@@ -4009,7 +3934,7 @@ if (wantsNewGame) {
                   style={{
                     background: "none",
                     border: "none",
-                    color: "#9ca3af",
+                    color: "#b0aa9e",
                     fontSize: "1.25rem",
                     cursor: "pointer",
                     lineHeight: 1,
@@ -4035,8 +3960,8 @@ if (wantsNewGame) {
                   const winner = go.winner
                   const winnerName = winner === "W" ? whitePlayer.username : bluePlayer.username
                   const loserName  = winner === "W" ? bluePlayer.username  : whitePlayer.username
-                  const winnerColor = winner === "W" ? "#e5e7eb" : "#5de8f7"
-                  const loserColor = winner === "W" ? "#5de8f7" : "#e5e7eb"
+                  const winnerColor = winner === "W" ? "#e8e4d8" : "#5de8f7"
+                  const loserColor = winner === "W" ? "#5de8f7" : "#e8e4d8"
 
                   if (reason?.toLowerCase() === "timeout") {
                     return (
@@ -4078,8 +4003,8 @@ if (wantsNewGame) {
               {/* Match summary */}
               <div
                 style={{
-                  background: "#1f2937",
-                  border: "1px solid #4b5563",
+                  background: "#0d0d10",
+                  border: "1px solid rgba(184,150,106,0.30)",
                   borderRadius: 10,
                   padding: 10,
                   marginBottom: 12,
@@ -4087,34 +4012,34 @@ if (wantsNewGame) {
                   justifyContent: "space-between",
                   gap: 10,
                   fontSize: 12,
-                  color: "#d1d5db",
+                  color: "#b0aa9e",
                 }}
               >
                 <div>
                   <div style={{ opacity: 0.75, fontWeight: 800 }}>Rounds</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#f9fafb" }}>{g.round}</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#e8e4d8" }}>{g.round}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ opacity: 0.75, fontWeight: 800 }}>Mode</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#f9fafb" }}>Tournament</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#e8e4d8" }}>Tournament</div>
                 </div>
               </div>
 
               {/* Match stats */}
               <div
                 style={{
-                  background: "#1f2937",
-                  border: "1px solid #4b5563",
+                  background: "#0d0d10",
+                  border: "1px solid rgba(184,150,106,0.30)",
                   borderRadius: 10,
                   padding: 12,
                   marginBottom: 14,
                   display: "grid",
                   gap: 8,
                   fontSize: 12,
-                  color: "#e5e7eb",
+                  color: "#e8e4d8",
                 }}
               >
-                <div style={{ fontWeight: 900, marginBottom: 2, color: "#f9fafb" }}>Match Stats</div>
+                <div style={{ fontWeight: 900, marginBottom: 2, color: "#e8e4d8" }}>Match Stats</div>
 
                 {[
                   ["Sieges", (g as any).stats?.sieges?.W ?? 0, (g as any).stats?.sieges?.B ?? 0],
@@ -4135,9 +4060,9 @@ if (wantsNewGame) {
                       background: "rgba(55,65,81,0.6)",
                     }}
                   >
-                    <div style={{ fontWeight: 900, color: "#f9fafb" }}>{label as string}</div>
+                    <div style={{ fontWeight: 900, color: "#e8e4d8" }}>{label as string}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 900 }}>
-                      <span style={{ color: "#e5e7eb" }}>W {String(w)}</span>
+                      <span style={{ color: "#e8e4d8" }}>W {String(w)}</span>
                       <span style={{ opacity: 0.4 }}>|</span>
                       <span style={{ color: "#5de8f7" }}>B {String(b)}</span>
                     </div>

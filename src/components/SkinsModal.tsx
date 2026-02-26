@@ -11,12 +11,44 @@ interface SkinsModalProps {
 
 export function SkinsModal({ isOpen, onClose, onLoadoutChange }: SkinsModalProps) {
   const [userId, setUserId] = useState<string | null>(null)
+  const [orderId, setOrderId] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    let mounted = true
+
+    ;(async () => {
+      const { data } = await supabase.auth.getSession()
+      if (!mounted) return
       if (data.session) setUserId(data.session.user.id)
-    })
+    })()
+
+    return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    let mounted = true
+
+    ;(async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("order_id")
+        .eq("id", userId)
+        .maybeSingle()
+
+      if (!mounted) return
+
+      if (error) {
+        console.error("Failed to load profile order_id:", error)
+        setOrderId(null)
+        return
+      }
+
+      setOrderId((data as any)?.order_id ?? null)
+    })()
+
+    return () => { mounted = false }
+  }, [userId])
 
   if (!isOpen) return null
 
@@ -84,7 +116,13 @@ export function SkinsModal({ isOpen, onClose, onLoadoutChange }: SkinsModalProps
 
         {/* Modal body - scrollable */}
         <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-          {userId && <SkinSelector userId={userId} onLoadoutChange={onLoadoutChange} />}
+          {userId && (
+            <SkinSelector
+              userId={userId}
+              orderId={orderId}
+              onLoadoutChange={onLoadoutChange}
+            />
+          )}
         </div>
       </div>
     </>

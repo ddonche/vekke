@@ -913,6 +913,7 @@ export function useRansom(state: GameState) {
   }
 
   const p = state.player
+  const enemy = other(p)
 
   if (state.ransomUsedThisTurn) {
     state.warning = "INVALID: Ransom already used this turn."
@@ -931,8 +932,11 @@ export function useRansom(state: GameState) {
 
   state.warning = null
 
-  // Pay the cost
+  // Pay: spend CAPTURED ENEMY tokens → enemy's void bucket
   state.captives[p] -= RANSOM_COST_CAPTIVES
+  state.void[enemy] += RANSOM_COST_CAPTIVES
+
+  // Recover: pull 1 of your own from your void → reserves
   state.void[p] -= 1
   state.reserves[p] += 1
 

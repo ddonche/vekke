@@ -558,9 +558,12 @@ function bestEarlySwapPlanBasic(state: GameState, me: Player): { handId: string;
   if (state.gameOver) return null
   if (state.earlySwapUsedThisTurn) return null
 
+  // Early swap always costs captives. Never consider it if we can't pay.
+  // (Humans can't arm it via UI in this case; AI should obey the same rule.)
+  if (state.captives[me] < 2) return null
+
   const remainingMoves = countUsableMoves(state, me)
   const urgency = remainingMoves <= 2
-  if (!urgency && state.captives[me] < 2) return null
 
   const unusedHand = state.routes[me].filter((r) => !state.usedRoutes.includes(r.id))
   if (unusedHand.length === 0) return null
@@ -649,6 +652,9 @@ function bestEarlySwapPlanBrutal(state: GameState, me: Player): { handId: string
   if (state.phase !== "ACTION") return null
   if (state.gameOver) return null
   if (state.earlySwapUsedThisTurn) return null
+
+  // Same hard gate as humans: if we can't pay, we can't arm.
+  if (state.captives[me] < 2) return null
 
   // If we already have a forcing tactic available, don't pay to swap early.
   const curForce = bestForcingOpportunity(state, me)

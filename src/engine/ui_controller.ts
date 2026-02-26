@@ -416,12 +416,12 @@ export function useVekkeController(opts: {
     if (opponentType === "pvp" && mySide !== g.player) return
 
     if (clocks.W <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "B", reason: "timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "B", reason: "Timeout" } as any))
       warn("TIME: W ran out of time.")
       return
     }
     if (clocks.B <= 0) {
-      update((s) => ((s as any).gameOver = { winner: "W", reason: "timeout" } as any))
+      update((s) => ((s as any).gameOver = { winner: "W", reason: "Timeout" } as any))
       warn("TIME: B ran out of time.")
       return
     }
@@ -546,47 +546,16 @@ export function useVekkeController(opts: {
       if (g.player !== ai) return
       if (evasionArmed) return // Don't let AI move during evasion interrupt
 
-      // --- AI "thinking" delay (pacing so AI can realistically flag in blitz) ---
+      // --- AI "thinking" delay ---
+      // Human pacing: ~1–5 seconds per AI action, regardless of level/time control.
+      // (Still respects opts.aiDelayMs if you want a fixed delay.)
       const delayMs = (() => {
-        // Respect explicit override if provided
         if (opts.aiDelayMs != null) return AI_DELAY_MS
 
-        // Baseline ranges by level (ms)
-        // GM already does real compute; keep it snappy.
-        const byLevel: Record<AiLevel, [number, number]> = {
-          novice: [700, 1800],
-          adept: [800, 2000],
-          expert: [900, 2200],
-          master: [1000, 2400],
-          senior_master: [1100, 2600],
-          grandmaster: [120, 420],
-        }
-
-        const [min0, max0] = byLevel[aiDifficulty] ?? byLevel.novice
-
-        // Time control scaling: blitz should consume more clock; daily should feel instant-ish.
-        const tcMult =
-          timeControlId === "blitz" ? 1.35 :
-          timeControlId === "rapid" ? 1.15 :
-          timeControlId === "standard" ? 1.0 :
-          /* daily */ 0.10
-
-        // Phase scaling: action is where "thinking" lives.
-        const phaseMult =
-          g.phase === "ACTION" ? 1.0 :
-          g.phase === "SWAP" ? 0.55 :
-          g.phase === "REINFORCE" ? 0.45 :
-          g.phase === "OPENING" ? 0.35 :
-          0.6
-
-        const min = min0 * tcMult * phaseMult
-        const max = max0 * tcMult * phaseMult
-
-        // Uniform jitter inside range
-        const ms = min + Math.random() * Math.max(0, max - min)
-
-        // Clamp so it never becomes absurd
-        return Math.max(40, Math.round(ms))
+        const MIN_MS = 1000
+        const MAX_MS = 5000
+        const ms = MIN_MS + Math.random() * (MAX_MS - MIN_MS)
+        return Math.max(MIN_MS, Math.round(ms))
       })()
       // --- end delay ---
 
@@ -924,7 +893,7 @@ export function useVekkeController(opts: {
         if (g.gameOver) return
 
         update((s) => {
-          s.gameOver = { winner: other(s.player), reason: "resignation" }
+          s.gameOver = { winner: other(s.player), reason: "Resignation" }
         })
       },
 

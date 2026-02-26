@@ -19,7 +19,7 @@ export function DevInvitePage() {
         isRanked: false,
         initialState,
       })
-      setLink(`${window.location.origin}/invite/${r.inviteToken}`)
+      setLink(`${window.location.origin}/invite-token/${r.inviteToken}`)
     } catch (e: any) {
       setErr(e?.message ?? String(e))
     } finally {
