@@ -24,6 +24,7 @@ interface IntersectionBoardProps {
   evasionPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
+  dotColor?: string
 }
 
 export function IntersectionBoard({
@@ -40,6 +41,7 @@ export function IntersectionBoard({
   evasionPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
+  dotColor = "#ee484c",
 }: IntersectionBoardProps) {
   // Mobile: match GridBoard flex proportions
   // Grid uses: gap 0.125rem (2px), padding 0.375rem (6px), 6 cells
@@ -69,9 +71,9 @@ export function IntersectionBoard({
         y1={pos}
         x2={endPos}
         y2={pos}
-        stroke={mobile ? "#666" : "#444"}
+        stroke="rgba(184,150,106,0.30)"
         strokeWidth={1}
-        opacity={mobile ? 0.5 : 0.5}
+        opacity={1}
       />
     )
 
@@ -83,9 +85,9 @@ export function IntersectionBoard({
         y1={startPos}
         x2={pos}
         y2={endPos}
-        stroke={mobile ? "#666" : "#444"}
+        stroke="rgba(184,150,106,0.30)"
         strokeWidth={1}
-        opacity={mobile ? 0.5 : 0.5}
+        opacity={1}
       />
     )
   }
@@ -115,9 +117,9 @@ export function IntersectionBoard({
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke={mobile ? "#666" : "#444"}
+        stroke="rgba(184,150,106,0.30)"
         strokeWidth={1}
-        opacity={mobile ? 0.5 : 0.5}
+        opacity={1}
       />
     )
   }
@@ -145,9 +147,9 @@ export function IntersectionBoard({
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke={mobile ? "#666" : "#444"}
+        stroke="rgba(184,150,106,0.30)"
         strokeWidth={1}
-        opacity={mobile ? 0.5 : 0.5}
+        opacity={1}
       />
     )
   }
@@ -186,7 +188,7 @@ export function IntersectionBoard({
           cx={x}
           cy={y}
           r={mobile ? 4 : 5}
-          fill={isSelected ? "#5de8f7" : "var(--route-highlight, #ee484c)"}
+          fill={isSelected ? "#5de8f7" : dotColor}
           pointerEvents="none"
         />
       )

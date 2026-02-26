@@ -891,6 +891,8 @@ if (wantsNewGame) {
     fox:     { primary: "#D35400", secondary: "#F2E6D8" },
   }
   const myOrderColors = userProfile?.order_id ? ORDER_COLORS[userProfile.order_id] : undefined
+  const opponentOrderColors = opponentProfile?.order_id ? ORDER_COLORS[opponentProfile.order_id] : undefined
+  const activeOrderColors = g.player === human ? myOrderColors : opponentOrderColors
 
   const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
 
@@ -2036,8 +2038,8 @@ if (wantsNewGame) {
                         <RouteIcon
                           key={r.id}
                           route={r}
-                          primaryColor={myOrderColors?.primary}     
-                          secondaryColor={myOrderColors?.secondary}
+                          primaryColor={opponentOrderColors?.primary}     
+                          secondaryColor={opponentOrderColors?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
                           routeClass={myRouteClass}
@@ -2089,57 +2091,50 @@ if (wantsNewGame) {
               </div>
 
               {/* Phase Banner - between clock and board */}
-              <div style={{ padding: "0 0.375rem", backgroundColor: "rgba(184,150,106,0.18)" }}>
-                <div style={{ height: 50, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 6 }}>
+              <div style={{ padding: "0 0.375rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {/* Messages Area - phase text and warnings */}
                   <div
                     style={{
-                      fontSize: 13,
-                      fontWeight: 900,
-                      color: "#5de8f7",
-                      textAlign: "center",
-                      minHeight: 20,
+                      background: g.player === human
+                        ? (g.player === "W" ? "rgba(232,228,216,0.10)" : "rgba(93,232,247,0.10)")
+                        : "rgba(255,255,255,0.03)",
+                      border: g.player === human
+                        ? (g.player === "W" ? "1px solid rgba(232,228,216,0.25)" : "1px solid rgba(93,232,247,0.25)")
+                        : "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 6,
+                      padding: "4px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
                     }}
                   >
-                    {evasionArmed ? (
-                      `${g.player === "W" ? "B" : "W"} is currently in Evasion`
-                    ) : (
-                      <>
-                        {g.phase}: {g.player}{" "}
-                        {g.phase === "ACTION"
-                          ? "make your moves"
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.5rem", letterSpacing: "0.25em", textTransform: "uppercase", color: g.player === human ? (g.player === "W" ? "rgba(232,228,216,0.55)" : "rgba(93,232,247,0.55)") : "#3a3830" }}>
+                      {g.player === human ? `${g.player} · ${g.phase}` : "Opponent"}
+                    </span>
+                    <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 10 }}>—</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
+                      {evasionArmed
+                        ? `${g.player === "W" ? "B" : "W"} in Evasion`
+                        : g.player !== human
+                          ? "Waiting..."
+                          : g.phase === "ACTION" ? "Make your moves"
                           : g.phase === "REINFORCE"
-                            ? (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                  place {g.reinforcementsToPlace} reinforcements
-                                  {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                    <div 
-                                      key={i} 
-                                      className={tokenClass(g.player as "W" | "B")}
-                                      style={{ width: "0.625rem", height: "0.625rem", borderRadius: "50%", position: "relative" }}
-                                    />
-                                  ))}
-                                </span>
-                              )
-                            : g.phase === "SWAP"
-                              ? "make a route swap"
-                              : "place opening tokens"}
-                      </>
-                    )}
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
+                                {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                  <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 7, height: 7, borderRadius: "50%", position: "relative" }} />
+                                ))}
+                              </span>
+                          : g.phase === "SWAP" ? "Make a route swap"
+                          : "Place opening tokens"}
+                    </span>
                     {g.warning && (
-                        <div
-                          style={{
-                            marginTop: 3,
-                            color: "#ef4444",
-                            fontWeight: 900,
-                            textTransform: "uppercase",
-                            letterSpacing: 0.5,
-                            fontSize: 11,
-                          }}
-                        >
-                          {g.warning}
-                        </div>
-                      )}
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginLeft: 4 }}>
+                        {g.warning}
+                      </span>
+                    )}
                   </div>
                   
                   {/* Info Row - latest log and resign (won't move) */}
@@ -2240,8 +2235,8 @@ if (wantsNewGame) {
                     <RouteIcon
                       key={`${r.id}-${idx}`}
                       route={r}
-                      primaryColor={myOrderColors?.primary}     
-                      secondaryColor={myOrderColors?.secondary}
+                      primaryColor={activeOrderColors?.primary}     
+                      secondaryColor={activeOrderColors?.secondary}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                       routeClass={myRouteClass}
@@ -2283,6 +2278,7 @@ if (wantsNewGame) {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={true}
+                    dotColor={myOrderColors?.primary ?? "#ee484c"}
                     evasionSourcePos={evasionSourcePos}
                     evasionDestPos={pendingEvasion?.to ?? null}
                     evasionPlayer={evasionPlayer}
@@ -3100,8 +3096,8 @@ if (wantsNewGame) {
                           <RouteIcon
                             key={r.id}
                             route={r}
-                            primaryColor={myOrderColors?.primary}     
-                            secondaryColor={myOrderColors?.secondary}
+                            primaryColor={opponentOrderColors?.primary}     
+                            secondaryColor={opponentOrderColors?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={myRouteClass}
@@ -3228,8 +3224,8 @@ if (wantsNewGame) {
                   <RouteIcon
                     key={`${r.id}-${idx}`}
                     route={r}
-                    primaryColor={myOrderColors?.primary}     
-                    secondaryColor={myOrderColors?.secondary}
+                    primaryColor={activeOrderColors?.primary}     
+                    secondaryColor={activeOrderColors?.secondary}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                     routeClass={myRouteClass}
@@ -3279,56 +3275,49 @@ if (wantsNewGame) {
                 </div>
 
                 {/* Phase Banner - moved between clock and board */}
-                <div style={{ width: "100%", maxWidth: 597, height: 60, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ width: "100%", maxWidth: 597, display: "flex", flexDirection: "column", gap: 6, marginBottom: 2 }}>
                   {/* Messages Area - phase text and warnings */}
                   <div
                     style={{
-                      fontSize: 16,
-                      fontWeight: 900,
-                      color: "#5de8f7",
-                      textAlign: "center",
-                      minHeight: 24,
+                      background: g.player === human
+                        ? (g.player === "W" ? "rgba(232,228,216,0.10)" : "rgba(93,232,247,0.10)")
+                        : "rgba(255,255,255,0.03)",
+                      border: g.player === human
+                        ? (g.player === "W" ? "1px solid rgba(232,228,216,0.25)" : "1px solid rgba(93,232,247,0.25)")
+                        : "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 8,
+                      padding: "6px 20px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 10,
                     }}
                   >
-                    {evasionArmed ? (
-                      `${g.player === "W" ? "B" : "W"} is currently in Evasion`
-                    ) : (
-                      <>
-                        {g.phase}: {g.player}{" "}
-                        {g.phase === "ACTION"
-                          ? "make your moves"
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.52rem", letterSpacing: "0.35em", textTransform: "uppercase", color: g.player === human ? (g.player === "W" ? "rgba(232,228,216,0.55)" : "rgba(93,232,247,0.55)") : "#3a3830" }}>
+                      {g.player === human ? `${g.player} · ${g.phase}` : "Opponent's Turn"}
+                    </span>
+                    <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 13 }}>—</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
+                      {evasionArmed
+                        ? `${g.player === "W" ? "B" : "W"} is currently in Evasion`
+                        : g.player !== human
+                          ? "Waiting for opponent..."
+                          : g.phase === "ACTION" ? "Make your moves"
                           : g.phase === "REINFORCE"
-                            ? (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                  place {g.reinforcementsToPlace} reinforcements
-                                  {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                    <div 
-                                      key={i} 
-                                      className={tokenClass(g.player as "W" | "B")}
-                                      style={{ width: "0.75rem", height: "0.75rem", borderRadius: "50%", position: "relative" }}
-                                    />
-                                  ))}
-                                </span>
-                              )
-                            : g.phase === "SWAP"
-                              ? "make a route swap"
-                              : "place opening tokens"}
-                      </>
-                    )}
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
+                                {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                  <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 9, height: 9, borderRadius: "50%", position: "relative" }} />
+                                ))}
+                              </span>
+                          : g.phase === "SWAP" ? "Make a route swap"
+                          : "Place opening tokens"}
+                    </span>
                     {g.warning && (
-                        <div
-                          style={{
-                            marginTop: 4,
-                            color: "#ef4444",
-                            fontWeight: 900,
-                            textTransform: "uppercase",
-                            letterSpacing: 0.5,
-                            fontSize: 13,
-                          }}
-                        >
-                          {g.warning}
-                        </div>
-                      )}
+                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: "#ef4444", letterSpacing: "0.15em", textTransform: "uppercase", marginLeft: 4 }}>
+                        {g.warning}
+                      </span>
+                    )}
                   </div>
                   
                   {/* Info Row - latest log and resign (won't move) */}
@@ -3415,6 +3404,7 @@ if (wantsNewGame) {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={false}
+                    dotColor={myOrderColors?.primary ?? "#ee484c"}
                     evasionSourcePos={evasionSourcePos}
                     evasionDestPos={pendingEvasion?.to ?? null}
                     evasionPlayer={evasionPlayer}

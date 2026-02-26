@@ -231,7 +231,7 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
           }}
         >
           <div className="arrow-body" style={accentColor ? {
-            background: `linear-gradient(160deg, ${accentColor}dd 0%, ${accentColor} 50%, ${accentColor}99 100%)`
+            background: `linear-gradient(160deg, ${accentColor}ff 0%, ${accentColor} 50%, ${accentColor}ee 100%)`
           } : {}} />
           <div className="arrow-hi" />
           <div className="arrow-shadow" />
@@ -250,7 +250,7 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
               width:  `${pipEm * 2}em`,
               height: `${pipEm * 2}em`,
               ...(accentColor ? {
-                background: `radial-gradient(circle at 35% 35%, ${accentColor}dd 0%, ${accentColor} 55%, ${accentColor}88 100%)`,
+                background: `radial-gradient(circle at 35% 35%, ${accentColor}ff 0%, ${accentColor} 55%, ${accentColor}ee 100%)`,
               } : {}),
             }}
           />
