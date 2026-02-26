@@ -325,9 +325,9 @@ export function SkinSelector({
     const desiredBrake = `token-order-${orderId}-brake`
     const desiredRoute = `route-order-${orderId}`
 
-    const isWandererWake = !loadout.wake_token_skin_id || loadout.wake_token_skin_id === DEFAULT_LOADOUT.wake_token_skin_id
-    const isWandererBrake = !loadout.brake_token_skin_id || loadout.brake_token_skin_id === DEFAULT_LOADOUT.brake_token_skin_id
-    const isWandererRoute = !loadout.route_skin_id || loadout.route_skin_id === DEFAULT_LOADOUT.route_skin_id
+    const isWandererWake = !loadout.wake_token_skin_id
+    const isWandererBrake = !loadout.brake_token_skin_id
+    const isWandererRoute = !loadout.route_skin_id
 
     // Only apply if at least one of the slots is still default
     if (!isWandererWake && !isWandererBrake && !isWandererRoute) return

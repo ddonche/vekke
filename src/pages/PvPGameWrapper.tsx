@@ -52,6 +52,7 @@ export function PvPGameWrapper() {
   const [opponentElo, setOpponentElo] = useState<number>(1200)
 
   const [myUserId, setMyUserId] = useState<string | null>(null)
+  const [opponentUserId, setOpponentUserId] = useState<string | null>(null)
 
   const [rematchInviteToken, setRematchInviteToken] = useState<string | null>(null)
   const [rematchFromName, setRematchFromName] = useState<string>("Opponent")
@@ -99,6 +100,8 @@ export function PvPGameWrapper() {
         } else {
           throw new Error("You are not a player in this game")
         }
+
+        setOpponentUserId(opponentId)
 
         const { data: myProfile } = await supabase
           .from("profiles")
@@ -432,6 +435,7 @@ export function PvPGameWrapper() {
         myElo={myElo}
         opponentName={opponentName}
         opponentElo={opponentElo}
+        opponentUserId={opponentUserId ?? undefined}
         externalGameData={gameData}
         initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
         initialClocks={initialClocks}

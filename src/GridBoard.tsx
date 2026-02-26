@@ -24,6 +24,7 @@ interface GridBoardProps {
   evasionPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
+  cellColor?: string
 }
 
 export function GridBoard({
@@ -40,6 +41,7 @@ export function GridBoard({
   evasionPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
+  cellColor,
 }: GridBoardProps) {
   // Mobile: use same fixed sizing as IntersectionBoard
   // cellSize 58px spacing = 56px cell + 2px gap
@@ -64,7 +66,8 @@ export function GridBoard({
         gridTemplateRows: `repeat(6, ${gridSize})`,
         gap: cellGap,
         padding: cellPadding,
-        backgroundColor: "#4b5563",
+        backgroundColor: "rgba(184,150,106,0.12)",
+        border: "1px solid rgba(184,150,106,0.30)",
         borderRadius: mobile ? "12px" : "20px",
         boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
         ...(mobile ? { width: boardWidth, height: boardWidth } : {}),
@@ -90,7 +93,7 @@ export function GridBoard({
               style={{
                 width: mobile ? 56 : 90,
                 height: mobile ? 56 : 90,
-                backgroundColor: isSelected || isEvasionSource ? "#1f2937" : "#6b7280",
+                backgroundColor: isSelected || isEvasionSource ? "rgba(0,0,0,0.35)" : (cellColor ? `${cellColor}30` : "rgba(184,150,106,0.28)"),
                 borderRadius: cellBorderRadius,
                 boxShadow: isSelected || isEvasionSource
                   ? `0 0 0 ${mobile ? "2px" : "3px"} #5de8f7`
@@ -114,8 +117,8 @@ export function GridBoard({
                   left: notationLeft,
                   fontSize: notationSize,
                   fontWeight: mobile ? "bold" : 900,
-                  color: "#9ca3af",
-                  opacity: mobile ? 0.55 : 0.75,
+                  color: "#6b6558",
+                  opacity: 1,
                 }}
               >
                 {notation}

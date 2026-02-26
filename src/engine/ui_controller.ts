@@ -98,6 +98,12 @@ export function useVekkeController(opts: {
   opponentType?: "ai" | "pvp"
   onMoveComplete?: (state: GameState, clocks: { W: number; B: number }) => void
   initialState?: GameState
+  /**
+   * PvP only: pass the latest state received from the DB here.
+   * When it changes the controller will apply it to the local engine,
+   * which is how the opponent's move is shown on your board.
+   */
+  externalState?: GameState
   mySide?: Player
   initialTimeControlId?: TimeControlId
   initialClocks?: { W: number; B: number }
@@ -138,6 +144,42 @@ export function useVekkeController(opts: {
   const [vsAi, setVsAi] = useState<boolean>(opponentType === "ai")
   const [gameId, setGameId] = useState<string | null>(null)
   const reportedResultRef = useRef<string | null>(null)
+
+  // ------------------------------------------------------------
+  // External state injection (PvP: opponent's move from DB)
+  // ------------------------------------------------------------
+  // When the wrapper receives the opponent's state via realtime it passes it
+  // here.  We apply it to the local engine so the board actually updates.
+  // We use a ref flag to suppress the onMoveComplete echo that would otherwise
+  // write the opponent's state straight back to the DB.
+  const applyingExternalRef = useRef(false)
+  const lastExternalKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (opponentType !== "pvp") return
+    if (!opts.externalState) return
+
+    // Cheap dedup key – same shape as PvPGameWrapper's makeStateKey
+    const ext = opts.externalState as any
+    let key: string
+    if (ext.gameOver) {
+      key = `gameover-${ext.gameOver.winner}-${ext.gameOver.reason}-${ext.log?.length ?? 0}`
+    } else if (ext.phase === "OPENING") {
+      key = `opening-${ext.openingPlaced?.B ?? 0}-${ext.openingPlaced?.W ?? 0}`
+    } else {
+      key = `${ext.player}-${ext.phase}-${ext.log?.length ?? 0}`
+    }
+
+    if (key === lastExternalKeyRef.current) return
+    lastExternalKeyRef.current = key
+
+    applyingExternalRef.current = true
+    setG(opts.externalState)
+  }, [opts.externalState, opponentType])
+
+  // Track the last state key we actually sent to onMoveComplete so we never
+  // fire it twice for the same state (e.g. on a clock tick with unchanged g).
+  const lastSyncedKeyRef = useRef<string | null>(null)
 
   const setWarning = useCallback((msg: string) => {
     setG((prev) => {
@@ -336,12 +378,39 @@ export function useVekkeController(opts: {
     [update]
   )
 
-  // Sync state to database after any state change (both PvP and DB-backed AI games)
+  // Sync state to database after a real local state change.
+  // IMPORTANT: do NOT include `clocks` in the deps – clocks tick every second
+  // and would cause this to spam writes, overwriting the opponent's move.
   useEffect(() => {
     if (!started) return
     if (!onMoveComplete) return
+
+    // Skip if this state update came from the DB (opponent's move).
+    // Echoing it back would overwrite the DB with stale local state.
+    if (applyingExternalRef.current) {
+      applyingExternalRef.current = false
+      return
+    }
+
+    // Dedup: only fire when g actually changed to a new logical state.
+    const gAny = g as any
+    let key: string
+    if (gAny.gameOver) {
+      key = `gameover-${gAny.gameOver.winner}-${gAny.gameOver.reason}-${gAny.log?.length ?? 0}`
+    } else if (gAny.phase === "OPENING") {
+      key = `opening-${gAny.openingPlaced?.B ?? 0}-${gAny.openingPlaced?.W ?? 0}`
+    } else {
+      key = `${gAny.player}-${gAny.phase}-${gAny.log?.length ?? 0}`
+    }
+
+    if (key === lastSyncedKeyRef.current) return
+    lastSyncedKeyRef.current = key
+
     onMoveComplete(g, clocks)
-  }, [g, clocks, started, onMoveComplete])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g, started, onMoveComplete])
+  // Note: clocks intentionally omitted – clock values are included in the
+  // argument but must not be the trigger, only g changing should trigger a write.
 
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)

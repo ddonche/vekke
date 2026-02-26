@@ -166,6 +166,7 @@ export function GamePage(props: GamePageProps = {}) {
     country_code: string | null
     country_name: string | null
     avatar_url: string | null
+    order_id: string | null
   } | null>(null)
 
   type PlayerStats = {
@@ -486,6 +487,11 @@ export function GamePage(props: GamePageProps = {}) {
     }
   }, [started, g.lastMove?.moveNumber])
 
+  // Stable ref so the sync effect below doesn't need `actions` as a dep.
+  // (actions recreates on every g change, which would cause the effect to fire on every local move.)
+  const actionsRef = useRef(actions)
+  actionsRef.current = actions
+
   // PvP: Watch for external game data changes and update state
   useEffect(() => {
     if (props.opponentType !== "pvp") return
@@ -493,28 +499,31 @@ export function GamePage(props: GamePageProps = {}) {
 
     const externalState = props.externalGameData.current_state as GameState
 
-    // Sync key covers turn number + phase + log length so mid-turn moves propagate
+    // Sync key covers current player + phase + log length so mid-turn moves propagate
+    // NOTE: GameState uses `.player`, not `.turn` — `.turn` does not exist on GameState
+    const extPlayer = (externalState as any).player
     const syncKey =
       externalState.phase === "OPENING"
         ? `opening-${externalState.openingPlaced.B}-${externalState.openingPlaced.W}`
-        : `${externalState.turn}-${externalState.phase}-${externalState.log.length}`
+        : `${extPlayer}-${externalState.phase}-${externalState.log.length}`
 
     if (syncKey === lastProcessedMoveRef.current) return
 
     lastProcessedMoveRef.current = syncKey
-    actions.loadState(externalState)
+    actionsRef.current.loadState(externalState)
 
-    if (!started) actions.setStarted(true)
+    if (!actionsRef.current.started) actionsRef.current.setStarted(true)
   }, [
-    props.externalGameData?.current_state?.turn,
+    (props.externalGameData?.current_state as any)?.player,
     props.externalGameData?.current_state?.phase,
     props.externalGameData?.current_state?.log?.length,
     props.externalGameData?.current_state?.openingPlaced?.B,
     props.externalGameData?.current_state?.openingPlaced?.W,
     props.externalGameData?.current_state?.gameOver,
     props.opponentType,
-    started,
-    actions,
+    // NOTE: `actions` intentionally excluded — it changes on every g update and would
+    // cause this effect to fire on every local state change, not just DB updates.
+    // `started` intentionally excluded for the same reason; actionsRef stays current.
   ])
 
   // Auto-start the game when loaded via a wrapper (both PvP and AI)
@@ -727,7 +736,7 @@ if (wantsNewGame) {
     let cancelled = false
     supabase
       .from("profiles")
-      .select("username, country_code, country_name, avatar_url")
+      .select("username, country_code, country_name, avatar_url, order_id")
       .eq("id", resolvedOpponentUserId)
       .single()
       .then(({ data, error }) => {
@@ -744,6 +753,23 @@ if (wantsNewGame) {
   }, [props.opponentUserId, props.externalGameData, props.mySide])
 
   // Flag image component using flagcdn.com (cross-platform, works on Windows)
+  // Returns a colour matching the AI-level thresholds used in the new-game modal.
+  const eloColor = (elo: number) => {
+    if (elo >= 2000) return "#D4AF37" // gold  – Grandmaster
+    if (elo >= 1750) return "#7c2d12" // brown – Senior Master
+    if (elo >= 1500) return "#16a34a" // green – Master
+    if (elo >= 1200) return "#dc2626" // red   – Expert
+    if (elo >= 900)  return "#2563eb" // blue  – Adept
+    return "#6b6558"                  // grey  – Novice
+  }
+
+  const GearIcon = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  )
+
   const FlagImg = ({ cc, size = 16 }: { cc: string | null | undefined; size?: number }) => {
       const s = (cc ?? "").trim().toLowerCase()
       if (!s || !/^[a-z]{2}$/.test(s)) return null
@@ -842,6 +868,11 @@ if (wantsNewGame) {
   // Who is on which side?
   const mySide: "W" | "B" = props.mySide ?? human ?? "W"
 
+  // Returns the correct route card skin class for a given game side.
+  // Your side uses your equipped skin; opponent's side uses theirs.
+  const routeClassForSide = (side: "W" | "B") =>
+    side === mySide ? myRouteClass : opponentRouteClass
+
   // Resolve the effective style for each game side (W and B)
   // W tokens use whoever-is-W's WAKE skin, B tokens use whoever-is-B's BRAKE skin
   const effectiveOpponentLoadout = suppressOpponentSkin ? null : opponentLoadout
@@ -878,6 +909,7 @@ if (wantsNewGame) {
   const bTokenClass = bTokenImg ? "skin-token-png-b" : bTokenClassBase
 
   const myRouteClass = myLoadout?.routeClass ?? DEFAULT_RESOLVED.routeClass
+  const opponentRouteClass = effectiveOpponentLoadout?.routeClass ?? DEFAULT_RESOLVED.routeClass
 
   const ORDER_COLORS: Record<string, { primary: string; secondary: string }> = {
     dragon:  { primary: "#C1121F", secondary: "#D4AF37" },
@@ -1784,66 +1816,26 @@ if (wantsNewGame) {
                         fontWeight: "bold",
                         color: "#0d0d10",
                         overflow: "hidden",
+                        flexShrink: 0,
                       }}
                     >
                       {topPlayer.avatar_url ? (
-                        <img
-                          src={topPlayer.avatar_url}
-                          alt={topPlayer.username}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        topPlayer.avatar
-                      )}
+                        <img src={topPlayer.avatar_url} alt={topPlayer.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : topPlayer.avatar}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "baseline",
-                          gap: "0.25rem",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: "'Cinzel', serif",
-                            fontWeight: "600",
-                            fontSize: "0.8125rem",
-                            color: "#e8e4d8",
-                          }}
-                        >
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+                      {/* Row 1: flag · username · elo */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <FlagImg cc={topPlayer.country} size={14} />
+                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: "0.8125rem", color: "#e8e4d8" }}>
                           {topPlayer.username}
                         </span>
-                        <span
-                          style={{ fontSize: "0.9rem", color: "#b0aa9e" }}
-                        >
-                          ({topPlayer.elo})
-                        </span>
+                        <span style={{ fontWeight: 900, color: eloColor(topPlayer.elo), fontSize: "0.75rem" }}>{topPlayer.elo}</span>
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          fontSize: "0.9rem",
-                          color: "#b0aa9e",
-                        }}
-                      >
-                        <div
-                          className={tokenClass(topPlayer.avatar as "W" | "B")}
-                          style={{
-                            width: "0.75rem",
-                            height: "0.75rem",
-                            borderRadius: "50%",
-                            position: "relative",
-                          }}
-                        ></div>
-                        <span>{topPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        <FlagImg cc={topPlayer.country} size={16} />
+                      {/* Row 2: token · side */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.75rem" }}>
+                        <div className={tokenClass(topPlayer.avatar as "W" | "B")} style={{ width: "0.65rem", height: "0.65rem", borderRadius: "50%", position: "relative" }} />
+                        <span style={{ color: "#b0aa9e" }}>{topPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                       </div>
                     </div>
                   </div>
@@ -2042,7 +2034,7 @@ if (wantsNewGame) {
                           secondaryColor={opponentOrderColors?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
-                          routeClass={myRouteClass}
+                          routeClass={routeClassForSide(topPlayer.avatar as "W" | "B")}
                           style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -2239,7 +2231,7 @@ if (wantsNewGame) {
                       secondaryColor={activeOrderColors?.secondary}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
-                      routeClass={myRouteClass}
+                      routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
                       style={{
                         ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                         alignSelf: "center",
@@ -2393,80 +2385,35 @@ if (wantsNewGame) {
                         fontWeight: "bold",
                         color: "#0d0d10",
                         overflow: "hidden",
+                        flexShrink: 0,
                       }}
                     >
                       {bottomPlayer.avatar_url ? (
-                        <img
-                          src={bottomPlayer.avatar_url}
-                          alt={bottomPlayer.username}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        bottomPlayer.avatar
-                      )}
+                        <img src={bottomPlayer.avatar_url} alt={bottomPlayer.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : bottomPlayer.avatar}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "baseline",
-                          gap: "0.25rem",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: "'Cinzel', serif",
-                            fontWeight: "600",
-                            fontSize: "0.8125rem",
-                            color: "#e8e4d8",
-                          }}
-                        >
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+                      {/* Row 1: flag · username · elo · gear */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", width: "100%" }}>
+                        <FlagImg cc={bottomPlayer.country} size={14} />
+                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: "0.8125rem", color: "#e8e4d8" }}>
                           {bottomPlayer.username}
                         </span>
-                        <span
-                          style={{ fontSize: "0.9rem", color: "#b0aa9e" }}
-                        >
-                          ({bottomPlayer.elo})
-                        </span>
+                        <span style={{ fontWeight: 900, color: eloColor(bottomPlayer.elo), fontSize: "0.75rem" }}>{bottomPlayer.elo}</span>
                         <button
                           onClick={() => setSkinsOpen(true)}
                           title="Customize appearance"
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            color: "#6b6558", padding: "2px 4px",
-                            display: "flex", alignItems: "center",
-                            opacity: 0.7, transition: "opacity 0.15s",
-                          }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#6b6558", padding: "1px 2px", display: "flex", alignItems: "center", opacity: 0.7, transition: "opacity 0.15s", marginLeft: "auto" }}
                           onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
                           onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                          <GearIcon />
                         </button>
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          fontSize: "0.9rem",
-                          color: "#b0aa9e",
-                        }}
-                      >
-                        <div
-                          className={tokenClass(bottomPlayer.avatar as "W" | "B")}
-                          style={{
-                            width: "0.75rem",
-                            height: "0.75rem",
-                            borderRadius: "50%",
-                            position: "relative",
-                          }}
-                        ></div>
-                        <span>{bottomPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        <FlagImg cc={bottomPlayer.country} size={16} />
+                      {/* Row 2: token · side */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.75rem" }}>
+                        <div className={tokenClass(bottomPlayer.avatar as "W" | "B")} style={{ width: "0.65rem", height: "0.65rem", borderRadius: "50%", position: "relative" }} />
+                        <span style={{ color: "#b0aa9e" }}>{bottomPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                       </div>
                     </div>
                   </div>
@@ -2660,7 +2607,7 @@ if (wantsNewGame) {
                           secondaryColor={myOrderColors?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
-                          routeClass={myRouteClass}
+                          routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
                           style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -2900,33 +2847,26 @@ if (wantsNewGame) {
                         fontWeight: 900,
                         color: "#0d0d10",
                         overflow: "hidden",
+                        flexShrink: 0,
                       }}
                     >
                       {leftPlayer.avatar_url ? (
-                        <img
-                          src={leftPlayer.avatar_url}
-                          alt={leftPlayer.username}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        leftPlayer.avatar
-                      )}
+                        <img src={leftPlayer.avatar_url} alt={leftPlayer.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : leftPlayer.avatar}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+                      {/* Row 1: flag · username · elo */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <FlagImg cc={leftPlayer.country} size={16} />
                         <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
                           {leftPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#b0aa9e" }}>({leftPlayer.elo})</span>
+                        <span style={{ fontWeight: 900, color: eloColor(leftPlayer.elo), fontSize: 13 }}>{leftPlayer.elo}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#b0aa9e" }}>
+                      {/* Row 2: token · side */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                         <div className={tokenClass(leftPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>{leftPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        <FlagImg cc={leftPlayer.country} size={18} />
+                        <span style={{ color: "#b0aa9e" }}>{leftPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                       </div>
                     </div>
                   </div>
@@ -3100,7 +3040,7 @@ if (wantsNewGame) {
                             secondaryColor={opponentOrderColors?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
-                            routeClass={myRouteClass}
+                            routeClass={routeClassForSide(leftPlayer.avatar as "W" | "B")}
                             style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",
@@ -3228,7 +3168,7 @@ if (wantsNewGame) {
                     secondaryColor={activeOrderColors?.secondary}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
-                    routeClass={myRouteClass}
+                    routeClass={routeClassForSide(g.player as "W" | "B")}
                     style={{
                       ...(routeDominoW
                         ? { flex: "0 0 auto", width: routeDominoW }
@@ -3591,47 +3531,35 @@ if (wantsNewGame) {
                         fontWeight: 900,
                         color: "#0d0d10",
                         overflow: "hidden",
+                        flexShrink: 0,
                       }}
                     >
                       {rightPlayer.avatar_url ? (
-                        <img
-                          src={rightPlayer.avatar_url}
-                          alt={rightPlayer.username}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        rightPlayer.avatar
-                      )}
+                        <img src={rightPlayer.avatar_url} alt={rightPlayer.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : rightPlayer.avatar}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+                      {/* Row 1: flag · username · elo · gear */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+                        <FlagImg cc={rightPlayer.country} size={16} />
                         <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
                           {rightPlayer.username}
                         </span>
-                        <span style={{ fontSize: 13, color: "#b0aa9e" }}>({rightPlayer.elo})</span>
+                        <span style={{ fontWeight: 900, color: eloColor(rightPlayer.elo), fontSize: 13 }}>{rightPlayer.elo}</span>
                         <button
                           onClick={() => setSkinsOpen(true)}
                           title="Customize appearance"
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            color: "#6b6558", padding: "2px 4px",
-                            display: "flex", alignItems: "center",
-                            opacity: 0.7, transition: "opacity 0.15s",
-                          }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#6b6558", padding: "2px 4px", display: "flex", alignItems: "center", opacity: 0.7, transition: "opacity 0.15s", marginLeft: "auto" }}
                           onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
                           onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                          <GearIcon />
                         </button>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#b0aa9e" }}>
+                      {/* Row 2: token · side */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                         <div className={tokenClass(rightPlayer.avatar as "W" | "B")} style={{ width: 14, height: 14, borderRadius: "50%", position: "relative" }} />
-                        <span>{rightPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
-                        <FlagImg cc={rightPlayer.country} size={18} />
+                        <span style={{ color: "#b0aa9e" }}>{rightPlayer.avatar === "W" ? "Wake" : "Brake"}</span>
                       </div>
                     </div>
                   </div>
@@ -3805,7 +3733,7 @@ if (wantsNewGame) {
                             secondaryColor={myOrderColors?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
-                            routeClass={myRouteClass}
+                            routeClass={routeClassForSide(rightPlayer.avatar as "W" | "B")}
                             style={{
                             ...(routeDominoW != null ? { width: routeDominoW } : { width: "100%" }),
                             alignSelf: "center",

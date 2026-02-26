@@ -855,7 +855,7 @@ export function aiStepMaster(state: GameState, aiPlayer: Player) {
     const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
-    if (shouldRansom(state, aiPlayer, level)) {
+    if (shouldRansom(state, aiPlayer, "master")) {
       useRansom(state)
       return
     }
