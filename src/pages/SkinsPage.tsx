@@ -2,71 +2,112 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
+import { Header } from "../components/Header"
 import { SkinSelector } from "../components/SkinSelector"
 
+function injectFonts() {
+  if (typeof document === "undefined") return
+  if (document.getElementById("vekke-skins-fonts")) return
+  const link = document.createElement("link")
+  link.id = "vekke-skins-fonts"
+  link.rel = "stylesheet"
+  link.href =
+    "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+  document.head.appendChild(link)
+}
+
 export function SkinsPage() {
-  const [userId, setUserId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  injectFonts()
+
   const navigate = useNavigate()
 
+  const [userId, setUserId] = useState<string | null>(null)
+  const [me, setMe] = useState<{ id: string; username: string; avatar_url: string | null } | null>(null)
+  const [orderId, setOrderId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
         navigate("/")
         return
       }
-      setUserId(data.session.user.id)
+      const uid = data.session.user.id
+      setUserId(uid)
+      const { data: myp } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, order_id")
+        .eq("id", uid)
+        .single()
+      if (myp) {
+        setMe(myp as any)
+        setOrderId((myp as any).order_id ?? null)
+      }
       setLoading(false)
     })
   }, [navigate])
 
   if (loading) {
     return (
-      <div style={{
-        background: "#0a0a0a", minHeight: "100vh",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <div style={{ color: "#6b7280" }}>Loading...</div>
+      <div style={{ background: "#0a0a0c", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.72rem", letterSpacing: "0.4em", textTransform: "uppercase", color: "#6b6558" }}>
+          Loading...
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "white" }}>
-      {/* Header */}
-      <div style={{
-        borderBottom: "1px solid #1a1a1a",
-        padding: "16px 24px",
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-      }}>
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            background: "none", border: "1px solid #2d2d2d",
-            borderRadius: 8, padding: "8px 14px",
-            color: "#9ca3af", cursor: "pointer", fontSize: 13,
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = "#5de8f7")}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = "#2d2d2d")}
-        >
-          ← Back
-        </button>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "0.05em" }}>
-            COSMETICS
-          </div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-            Customize your tokens, routes, and board
-          </div>
-        </div>
-      </div>
+    <div style={{
+      position: "fixed", inset: 0, width: "100vw", height: "100vh",
+      display: "flex", flexDirection: "column",
+      backgroundColor: "#0a0a0c",
+      fontFamily: "'EB Garamond', Georgia, serif",
+      color: "#e8e4d8",
+      overflow: "hidden",
+    }}>
+      <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #0a0a0c; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
 
-      {/* Content */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 24px" }}>
-        {userId && <SkinSelector userId={userId} />}
+      <Header
+        isLoggedIn={!!userId}
+        userId={userId ?? undefined}
+        username={me?.username ?? undefined}
+        avatarUrl={me?.avatar_url ?? null}
+        titleLabel="Gear"
+        elo={undefined}
+        activePage="skins"
+        myGamesTurnCount={0}
+        onSignIn={() => navigate("/")}
+        onOpenProfile={() => navigate("/?openProfile=1")}
+        onOpenSkins={() => navigate("/skins")}
+        onSignOut={async () => { await supabase.auth.signOut(); navigate("/") }}
+        onPlay={() => navigate("/")}
+        onMyGames={() => navigate("/challenges")}
+        onLeaderboard={() => navigate("/leaderboard")}
+        onChallenges={() => navigate("/challenges")}
+        onOrders={() => navigate("/orders")}
+        onRules={() => navigate("/rules")}
+        onTutorial={() => navigate("/tutorial")}
+      />
+
+      <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ padding: "28px 24px 60px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+
+          {/* Page title — same as "My Games" in ChallengesPage */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: "1.3rem", fontWeight: 700, color: "#e8e4d8", letterSpacing: "0.06em" }}>
+              Gear
+            </div>
+          </div>
+
+          {userId && <SkinSelector userId={userId} orderId={orderId} />}
+
+        </div>
       </div>
     </div>
   )

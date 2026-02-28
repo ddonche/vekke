@@ -15,38 +15,27 @@ export function SkinsModal({ isOpen, onClose, onLoadoutChange }: SkinsModalProps
 
   useEffect(() => {
     let mounted = true
-
     ;(async () => {
       const { data } = await supabase.auth.getSession()
       if (!mounted) return
       if (data.session) setUserId(data.session.user.id)
     })()
-
     return () => { mounted = false }
   }, [])
 
   useEffect(() => {
     if (!userId) return
     let mounted = true
-
     ;(async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("order_id")
         .eq("id", userId)
         .maybeSingle()
-
       if (!mounted) return
-
-      if (error) {
-        console.error("Failed to load profile order_id:", error)
-        setOrderId(null)
-        return
-      }
-
+      if (error) { console.error("Failed to load profile order_id:", error); setOrderId(null); return }
       setOrderId((data as any)?.order_id ?? null)
     })()
-
     return () => { mounted = false }
   }, [userId])
 
@@ -72,43 +61,57 @@ export function SkinsModal({ isOpen, onClose, onLoadoutChange }: SkinsModalProps
         transform: "translate(-50%, -50%)",
         width: "min(720px, calc(100vw - 32px))",
         maxHeight: "85vh",
-        background: "#0f0f0f",
-        border: "1px solid #2d2d2d",
-        borderRadius: 16,
+        background: "#0f0f14",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 12,
         zIndex: 1001,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        fontFamily: "'EB Garamond', Georgia, serif",
+        color: "#e8e4d8",
       }}>
         {/* Modal header */}
         <div style={{
-          padding: "18px 24px",
-          borderBottom: "1px solid #1a1a1a",
+          padding: "16px 20px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexShrink: 0,
+          background: "#0d0d10",
         }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.05em" }}>
-              COSMETICS
+            <div style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "1.3rem", fontWeight: 700,
+              letterSpacing: "0.06em",
+              color: "#e8e4d8",
+            }}>
+              Gear
             </div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+            <div style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: "1rem", fontStyle: "italic",
+              color: "#6b6558", marginTop: 2,
+            }}>
               Changes apply immediately
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "none", border: "1px solid #2d2d2d",
-              borderRadius: 8, width: 36, height: 36,
-              color: "#9ca3af", cursor: "pointer",
-              fontSize: 18, lineHeight: 1,
+              fontFamily: "'Cinzel', serif",
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 4, width: 36, height: 36,
+              color: "#6b6558", cursor: "pointer",
+              fontSize: "1.1rem", lineHeight: 1,
               display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.15s",
+              transition: "border-color 0.15s, color 0.15s",
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = "#5de8f7")}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = "#2d2d2d")}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,150,106,0.5)"; e.currentTarget.style.color = "#d4af7a" }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#6b6558" }}
           >
             ×
           </button>

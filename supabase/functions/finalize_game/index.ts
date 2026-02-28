@@ -37,6 +37,15 @@ function isTimeout(reason: string) {
     .startsWith("timeout")
 }
 
+function winType(reason: string): "siegemate" | "elimination" | "collapse" | null {
+  const r = String(reason ?? "").trim().toLowerCase()
+  if (r === "siegemate") return "siegemate"
+  if (r === "collapse") return "collapse"
+  if (r === "timeout" || r.startsWith("timeout")) return null // timeout, not a board win
+  if (r === "resignation") return null // opponent resigned, not a board win
+  return "elimination" // default: elimination or unrecognized reason
+}
+
 function normalizeFormat(fmt: unknown): "blitz" | "rapid" | "standard" | "daily" {
   const f = String(fmt ?? "standard").trim().toLowerCase()
   if (f === "blitz" || f === "rapid" || f === "standard" || f === "daily") return f
@@ -176,6 +185,13 @@ Deno.serve(async (req) => {
 
     if (timeout) {
       loserPatch.losses_timeout = (ls?.losses_timeout ?? 0) + 1
+    }
+
+    // Track win type (board victories only — not timeout or resignation)
+    const wt = winType(body.reason)
+    if (wt) {
+      const winTypeKey = `wins_${wt}` // wins_siegemate | wins_elimination | wins_collapse
+      winnerPatch[winTypeKey] = (ws?.[winTypeKey] ?? 0) + 1
     }
 
     // Elo (and per-format Elo buckets) are PvP-only. AI opponents are fixed.

@@ -51,42 +51,23 @@ function extractColors(skin: Skin): { primary?: string; secondary?: string } {
   return { primary, secondary }
 }
 
-// ─── Previews ─────────────────────────────────────────────────────────────
+// ─── Previews (unchanged logic, only BoardPreview restyled) ───────────────
 
 function TokenPreview({ skinId, size = 48 }: { skinId: string; size?: number }) {
   const cls = SKIN_CLASS_MAP[skinId] ?? "skin-token-default-w"
-  return (
-    <div
-      className={cls}
-      style={{ width: size, height: size, flexShrink: 0 }}
-    />
-  )
+  return <div className={cls} style={{ width: size, height: size, flexShrink: 0 }} />
 }
 
-function StyledTokenPreview({
-  primary,
-  secondary,
-  size = 48,
-}: {
-  primary?: string
-  secondary?: string
-  size?: number
-}) {
+function StyledTokenPreview({ primary, secondary, size = 48 }: { primary?: string; secondary?: string; size?: number }) {
   const p = primary ?? "#26c6da"
   const s = secondary ?? "#e5e7eb"
-
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        flexShrink: 0,
-        background: `radial-gradient(circle at 30% 30%, ${s} 0%, ${p} 55%, #0b0b0b 100%)`,
-        boxShadow: "0 8px 14px rgba(0,0,0,0.45)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    />
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: `radial-gradient(circle at 30% 30%, ${s} 0%, ${p} 55%, #0b0b0b 100%)`,
+      boxShadow: "0 8px 14px rgba(0,0,0,0.45)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    }} />
   )
 }
 
@@ -107,18 +88,9 @@ function RoutePreview({ skinId, size = 48 }: { skinId: string; size?: number }) 
   )
 }
 
-function StyledRoutePreview({
-  primary,
-  secondary,
-  size = 48,
-}: {
-  primary?: string
-  secondary?: string
-  size?: number
-}) {
+function StyledRoutePreview({ primary, secondary, size = 48 }: { primary?: string; secondary?: string; size?: number }) {
   const body = primary ?? "#26c6da"
   const highlight = secondary ?? "#ee484c"
-
   return (
     <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
       <div style={{ position: "relative", width: size * 0.8, height: 6, borderRadius: 3, background: body }}>
@@ -126,8 +98,7 @@ function StyledRoutePreview({
           position: "absolute", left: "50%", top: "50%",
           transform: "translate(-50%, -50%)",
           width: 14, height: 14, borderRadius: "50%",
-          background: highlight,
-          boxShadow: `0 0 8px ${highlight}`,
+          background: highlight, boxShadow: `0 0 8px ${highlight}`,
         }} />
       </div>
     </div>
@@ -142,10 +113,11 @@ function BoardPreview({ size = 48 }: { size?: number }) {
       width: size, height: size, display: "grid", flexShrink: 0,
       gridTemplateColumns: `repeat(${cellCount}, ${cellSize}px)`,
       gap: 2, padding: 4,
-      background: "#374151", borderRadius: 6,
+      background: "#13131a", borderRadius: 6,
+      border: "1px solid rgba(255,255,255,0.07)",
     }}>
       {Array.from({ length: cellCount * cellCount }).map((_, i) => (
-        <div key={i} style={{ background: "#6b7280", borderRadius: 2 }} />
+        <div key={i} style={{ background: "rgba(184,150,106,0.15)", borderRadius: 2 }} />
       ))}
     </div>
   )
@@ -153,71 +125,77 @@ function BoardPreview({ size = 48 }: { size?: number }) {
 
 function ImagePreview({ url, size = 48 }: { url: string; size?: number }) {
   return (
-    <img
-      src={url}
-      alt=""
-      width={size}
-      height={size}
-      draggable={false}
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        objectFit: "contain",
-        flexShrink: 0,
-        filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.45))",
-      }}
+    <img src={url} alt="" width={size} height={size} draggable={false}
+      style={{ width: size, height: size, display: "block", objectFit: "contain", flexShrink: 0, filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.45))" }}
     />
   )
 }
 
 function SkinPreview({ skin, size = 48 }: { skin: Skin; size?: number }) {
   if (skin.image_url) return <ImagePreview url={skin.image_url} size={size} />
-
   const { primary, secondary } = extractColors(skin)
-
   if (skin.type === "token") {
-    // If it’s a known CSS skin, use that. Otherwise use style colors.
     if (SKIN_CLASS_MAP[skin.id]) return <TokenPreview skinId={skin.id} size={size} />
     return <StyledTokenPreview primary={primary} secondary={secondary} size={size} />
   }
-
   if (skin.type === "route") {
     if (SKIN_CLASS_MAP[skin.id]) return <RoutePreview skinId={skin.id} size={size} />
     return <StyledRoutePreview primary={primary} secondary={secondary} size={size} />
   }
-
   return <BoardPreview size={size} />
 }
 
 // ─── Slot Card ────────────────────────────────────────────────────────────
 
-function SlotCard({
-  slot, equippedSkin, isSelected, onClick,
-}: {
+function SlotCard({ slot, equippedSkin, isSelected, onClick }: {
   slot: Slot; equippedSkin: Skin | null; isSelected: boolean; onClick: () => void
 }) {
   const meta = SLOT_META[slot]
   return (
-    <button onClick={onClick} style={{
-      flex: 1, minWidth: 100,
-      background: isSelected ? "linear-gradient(135deg, #0f2027 0%, #1a3a4a 100%)" : "#1a1a1a",
-      border: isSelected ? "2px solid #5de8f7" : "2px solid #2d2d2d",
-      borderRadius: 12, padding: "14px 12px", cursor: "pointer",
-      display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
-      transition: "all 0.15s ease",
-      boxShadow: isSelected ? "0 0 20px rgba(93,232,247,0.15)" : "none",
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: "#6b7280", textTransform: "uppercase" }}>
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, minWidth: 110,
+        background: isSelected ? "rgba(93,232,247,0.04)" : "#0f0f14",
+        border: isSelected ? "1px solid rgba(93,232,247,0.5)" : "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 10, padding: "14px 12px", cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+        transition: "all 0.15s ease",
+        boxShadow: isSelected ? "0 0 18px rgba(93,232,247,0.08)" : "none",
+      }}
+    >
+      {/* Slot label — matches the Cinzel card label size used throughout the site */}
+      <div style={{
+        fontFamily: "'Cinzel', serif",
+        fontSize: "0.85rem", fontWeight: 600,
+        letterSpacing: "0.2em", textTransform: "uppercase",
+        color: isSelected ? "#5de8f7" : "#6b6558",
+        transition: "color 0.15s",
+      }}>
         {meta.label}
       </div>
-      <div style={{ width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, background: "#111", overflow: "hidden" }}>
+
+      {/* Preview thumbnail */}
+      <div style={{
+        width: 56, height: 56,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: 8, background: "#0a0a0c",
+        border: "1px solid rgba(255,255,255,0.07)",
+        overflow: "hidden",
+      }}>
         {equippedSkin
           ? <SkinPreview skin={equippedSkin} size={44} />
-          : <span style={{ color: "#374151", fontSize: 22 }}>{meta.icon}</span>
+          : <span style={{ fontFamily: "'Cinzel', serif", fontSize: "1.2rem", color: "#3a3830" }}>{meta.icon}</span>
         }
       </div>
-      <div style={{ fontSize: 11, color: equippedSkin ? "#d1d5db" : "#4b5563", textAlign: "center", lineHeight: 1.3 }}>
+
+      {/* Equipped skin name — EB Garamond italic, same as secondary text throughout */}
+      <div style={{
+        fontFamily: "'EB Garamond', Georgia, serif",
+        fontSize: "1.05rem", fontStyle: "italic",
+        color: equippedSkin ? "#b0aa9e" : "#3a3830",
+        textAlign: "center", lineHeight: 1.3,
+      }}>
         {equippedSkin?.name ?? "None"}
       </div>
     </button>
@@ -228,27 +206,63 @@ function SlotCard({
 
 function SkinCard({ skin, isEquipped, onEquip }: { skin: Skin; isEquipped: boolean; onEquip: () => void }) {
   return (
-    <button onClick={onEquip} style={{
-      background: isEquipped ? "linear-gradient(135deg, #0f2027, #1a3a4a)" : "#1a1a1a",
-      border: isEquipped ? "2px solid #5de8f7" : "2px solid #2d2d2d",
-      borderRadius: 12, padding: 16, cursor: isEquipped ? "default" : "pointer",
-      display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-      transition: "all 0.15s ease", position: "relative",
-      boxShadow: isEquipped ? "0 0 20px rgba(93,232,247,0.1)" : "none",
-    }}>
+    <button
+      onClick={onEquip}
+      style={{
+        background: isEquipped ? "rgba(93,232,247,0.04)" : "#0f0f14",
+        border: isEquipped ? "1px solid rgba(93,232,247,0.5)" : "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 10, padding: 16,
+        cursor: isEquipped ? "default" : "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+        transition: "all 0.15s ease", position: "relative",
+        boxShadow: isEquipped ? "0 0 18px rgba(93,232,247,0.08)" : "none",
+      }}
+    >
       {isEquipped && (
         <div style={{
           position: "absolute", top: 8, right: 8,
-          background: "#5de8f7", borderRadius: 4, padding: "2px 6px",
-          fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: "#0a0a0a", textTransform: "uppercase",
-        }}>Equipped</div>
+          background: "rgba(93,232,247,0.15)",
+          border: "1px solid rgba(93,232,247,0.4)",
+          borderRadius: 3, padding: "2px 7px",
+          fontFamily: "'Cinzel', serif",
+          fontSize: "0.52rem", fontWeight: 600,
+          letterSpacing: "0.2em", textTransform: "uppercase",
+          color: "#5de8f7",
+        }}>
+          Equipped
+        </div>
       )}
-      <div style={{ width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center", background: "#111", borderRadius: 10, overflow: "hidden" }}>
+
+      {/* Preview */}
+      <div style={{
+        width: 64, height: 64,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "#0a0a0c",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 8, overflow: "hidden",
+      }}>
         <SkinPreview skin={skin} size={52} />
       </div>
+
+      {/* Skin name — Cinzel at readable size, same as other card titles on the site */}
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb", marginBottom: 4 }}>{skin.name}</div>
-        <div style={{ fontSize: 11, color: "#6b7280", textTransform: "capitalize" }}>{skin.acquisition_type}</div>
+        <div style={{
+          fontFamily: "'Cinzel', serif",
+          fontSize: "1rem", fontWeight: 600,
+          letterSpacing: "0.04em",
+          color: isEquipped ? "#5de8f7" : "#e8e4d8",
+          marginBottom: 4,
+        }}>
+          {skin.name}
+        </div>
+        <div style={{
+          fontFamily: "'EB Garamond', Georgia, serif",
+          fontSize: "1rem", fontStyle: "italic",
+          color: "#6b6558",
+          textTransform: "capitalize",
+        }}>
+          {skin.acquisition_type}
+        </div>
       </div>
     </button>
   )
@@ -274,13 +288,11 @@ export function SkinSelector({
 
   useEffect(() => {
     let mounted = true
-
     ;(async () => {
       const [lo, inv] = await Promise.all([
         getPlayerLoadout(userId),
         getPlayerInventory(userId),
       ])
-
       if (!mounted) return
 
       setLoadout(lo)
@@ -289,37 +301,24 @@ export function SkinSelector({
       const m = new Map<string, Skin>()
       inv.forEach(s => m.set(s.id, s))
 
-      // Pull Order skins directly from skins table (identity defaults, not inventory)
       if (orderId) {
         const ids = [
           `token-order-${orderId}-wake`,
           `token-order-${orderId}-brake`,
           `route-order-${orderId}`,
         ]
-
-        const { data, error } = await supabase
-          .from("skins")
-          .select("*")
-          .in("id", ids)
-
-        if (error) {
-          console.error("Failed to load order skins:", error)
-        } else {
-          ;(data ?? []).forEach((s: any) => m.set(s.id, s as Skin))
-        }
+        const { data, error } = await supabase.from("skins").select("*").in("id", ids)
+        if (!error) (data ?? []).forEach((s: any) => m.set(s.id, s as Skin))
       }
 
       setSkinMap(m)
       setLoading(false)
     })()
-
     return () => { mounted = false }
   }, [userId, orderId])
 
-  // Auto-apply Order defaults into loadout if they’re still wanderer defaults
   useEffect(() => {
-    if (!orderId) return
-    if (!loadout) return
+    if (!orderId || !loadout) return
 
     const desiredWake = `token-order-${orderId}-wake`
     const desiredBrake = `token-order-${orderId}-brake`
@@ -329,7 +328,6 @@ export function SkinSelector({
     const isWandererBrake = !loadout.brake_token_skin_id
     const isWandererRoute = !loadout.route_skin_id
 
-    // Only apply if at least one of the slots is still default
     if (!isWandererWake && !isWandererBrake && !isWandererRoute) return
 
     let cancelled = false
@@ -337,13 +335,10 @@ export function SkinSelector({
       setSaving(true)
       try {
         const ops: Array<Promise<any>> = []
-
         if (isWandererWake) ops.push(updateLoadoutSlot(userId, "wake_token_skin_id", desiredWake))
         if (isWandererBrake) ops.push(updateLoadoutSlot(userId, "brake_token_skin_id", desiredBrake))
         if (isWandererRoute) ops.push(updateLoadoutSlot(userId, "route_skin_id", desiredRoute))
-
         await Promise.all(ops)
-
         if (cancelled) return
         setLoadout(prev => prev ? ({
           ...prev,
@@ -351,7 +346,6 @@ export function SkinSelector({
           ...(isWandererBrake ? { brake_token_skin_id: desiredBrake } : {}),
           ...(isWandererRoute ? { route_skin_id: desiredRoute } : {}),
         }) : prev)
-
         onLoadoutChange?.()
       } catch (e) {
         console.error("Failed to apply order defaults:", e)
@@ -359,7 +353,6 @@ export function SkinSelector({
         if (!cancelled) setSaving(false)
       }
     })()
-
     return () => { cancelled = true }
   }, [orderId, loadout, userId, onLoadoutChange])
 
@@ -381,8 +374,6 @@ export function SkinSelector({
 
   const skinsByType = useMemo(() => {
     const base = inventory.filter(s => s.type === currentSlotType)
-
-    // Include the Order skin for this slot (even if not in inventory)
     if (orderId) {
       const orderSkinId = getOrderSkinId(orderId, selectedSlot)
       if (orderSkinId) {
@@ -392,37 +383,38 @@ export function SkinSelector({
         }
       }
     }
-
     return base
   }, [inventory, currentSlotType, orderId, selectedSlot, skinMap])
 
   const equippedSkinForSlot = useCallback((slot: Slot): Skin | null => {
     if (!loadout) return null
-
     const explicit = (loadout as any)[slot] as string | null | undefined
     if (explicit) return skinMap.get(explicit) ?? null
-
-    // If slot isn’t explicitly set, show Order default as “equipped”
     if (orderId) {
       const id = getOrderSkinId(orderId, slot)
       if (id) return skinMap.get(id) ?? null
     }
-
     return null
   }, [loadout, orderId, skinMap])
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-      <div style={{ color: "#6b7280", fontSize: 14 }}>Loading inventory...</div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 64 }}>
+      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.72rem", letterSpacing: "0.4em", textTransform: "uppercase", color: "#6b6558" }}>
+        Loading inventory...
+      </div>
     </div>
   )
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+
+      {/* ── Current Loadout — section label matches ChallengesPage "Active Games" exactly ── */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#6b7280", textTransform: "uppercase", marginBottom: 12 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.85rem", fontWeight: 600, letterSpacing: "0.3em", textTransform: "uppercase", color: "#b8966a", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
           Current Loadout
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
         </div>
+
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {SLOTS.map(slot => (
             <SlotCard
@@ -436,19 +428,26 @@ export function SkinSelector({
         </div>
       </div>
 
-      <div style={{ height: 1, background: "#2d2d2d" }} />
-
+      {/* ── Available Skins ── */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#6b7280", textTransform: "uppercase", marginBottom: 12 }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.85rem", fontWeight: 600, letterSpacing: "0.3em", textTransform: "uppercase", color: "#b8966a", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
           {SLOT_META[selectedSlot].label} — Available
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
         </div>
 
         {skinsByType.length === 0 ? (
-          <div style={{ padding: 32, textAlign: "center", border: "2px dashed #2d2d2d", borderRadius: 12, color: "#4b5563", fontSize: 13 }}>
+          <div style={{
+            padding: "40px 24px", textAlign: "center",
+            border: "1px dashed rgba(255,255,255,0.07)",
+            borderRadius: 10,
+            fontFamily: "'EB Garamond', Georgia, serif",
+            fontSize: "1.1rem", fontStyle: "italic",
+            color: "#b0aa9e",
+          }}>
             No {SLOT_META[selectedSlot].label.toLowerCase()} skins available yet.
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
             {skinsByType.map(skin => (
               <SkinCard
                 key={skin.id}
@@ -461,11 +460,17 @@ export function SkinSelector({
         )}
       </div>
 
+      {/* ── Saving indicator ── */}
       {saving && (
-        <div style={{ fontSize: 12, color: "#5de8f7", textAlign: "center", opacity: 0.8 }}>
+        <div style={{
+          fontFamily: "'Cinzel', serif", fontSize: "0.72rem",
+          letterSpacing: "0.3em", textTransform: "uppercase",
+          color: "#5de8f7", textAlign: "center", opacity: 0.7,
+        }}>
           Saving...
         </div>
       )}
+
     </div>
   )
 }

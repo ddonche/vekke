@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
+import { ProfileModal } from "../ProfileModal"
 
 export type ActivePage =
   | "play"
@@ -184,9 +185,9 @@ function Avatar({ name, url, size = 28 }: { name: string; url?: string | null; s
 
 function UserDropdown(
   props: HeaderProps & {
-    // computed fallbacks from Header()
     goOrders: () => void
     goChallenges: () => void
+    onOpenProfileModal: () => void
   }
 ) {
   const {
@@ -204,6 +205,7 @@ function UserDropdown(
     onOpenSkins,
     goOrders,
     goChallenges,
+    onOpenProfileModal,
   } = props
 
   const [open, setOpen] = useState(false)
@@ -352,7 +354,7 @@ function UserDropdown(
 
           {/* Menu items */}
           {[
-            { label: "Edit Profile", action: onOpenProfile },
+            { label: "Edit Profile", action: onOpenProfileModal },
             { label: "Gear", action: onOpenSkins },
             { label: copied ? "Invite Link Copied!" : "Copy Invite Link", action: copyInviteLink, disabled: !userId },
             { label: isPro ? "Manage Pro" : "Upgrade to Pro", action: onOpenPro },
@@ -443,6 +445,7 @@ function injectFonts() {
 export function Header(props: HeaderProps) {
   injectFonts()
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [profileModalOpen, setProfileModalOpen] = React.useState(false)
   const navigate = useNavigate()
 
   const { activePage, onlineNow } = props
@@ -639,6 +642,7 @@ export function Header(props: HeaderProps) {
               {...props}
               goOrders={goOrders}
               goChallenges={goChallenges}
+              onOpenProfileModal={() => setProfileModalOpen(true)}
             />
           </div>
         </div>
@@ -654,6 +658,14 @@ export function Header(props: HeaderProps) {
         <button className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`} onClick={() => { goRules(); setMobileOpen(false) }}>Rules</button>
         <button className={`vekke-mobile-nav-item${activePage === "tutorial" ? " active" : ""}`} onClick={() => { goTutorial(); setMobileOpen(false) }}>Tutorial</button>
       </div>
+
+      {profileModalOpen && props.userId && (
+        <ProfileModal
+          userId={props.userId}
+          onClose={() => setProfileModalOpen(false)}
+          onUpdate={() => setProfileModalOpen(false)}
+        />
+      )}
     </>
   )
 }
