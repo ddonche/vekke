@@ -1,6 +1,7 @@
 // src/components/Header.tsx
 import React, { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { supabase } from "../services/supabase"
 
 export type ActivePage =
   | "play"
@@ -138,11 +139,9 @@ function NavItem({
             fontWeight: 900,
             padding: "0 4px",
             lineHeight: 1,
-            boxShadow: "0 0 8px rgba(238,72,76,0.5)",
-            animation: badge > 0 ? "badge-pulse 2s ease-in-out infinite" : "none",
           }}
         >
-          {badge > 9 ? "9+" : badge}
+          {badge}
         </span>
       )}
     </button>
@@ -446,7 +445,28 @@ export function Header(props: HeaderProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const navigate = useNavigate()
 
-  const { activePage, onlineNow, myGamesTurnCount } = props
+  const { activePage, onlineNow } = props
+
+  // ── Internal turn-count: fetch on mount + poll every 15s ──────────────────
+  const [turnCount, setTurnCount] = useState(0)
+
+  useEffect(() => {
+    const uid = props.userId
+    if (!uid) { setTurnCount(0); return }
+
+    async function fetchCount() {
+      const { count } = await supabase
+        .from("games")
+        .select("id", { count: "exact", head: true })
+        .is("ended_at", null)
+        .or(`and(wake_id.eq.${uid},turn.eq.W),and(brake_id.eq.${uid},turn.eq.B)`)
+      setTurnCount(count ?? 0)
+    }
+
+    fetchCount()
+    const t = window.setInterval(fetchCount, 15_000)
+    return () => window.clearInterval(t)
+  }, [props.userId])
 
   // Default navigation fallbacks (pages can still override by passing callbacks)
   const goPlay = props.onPlay ?? (() => navigate("/"))
@@ -462,10 +482,6 @@ export function Header(props: HeaderProps) {
   return (
     <>
       <style>{`
-        @keyframes badge-pulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(238,72,76,0.5); }
-          50%       { box-shadow: 0 0 12px rgba(238,72,76,0.9); }
-        }
         .vekke-header {
           position: sticky;
           top: 0;
@@ -579,7 +595,7 @@ export function Header(props: HeaderProps) {
               label="My Games"
               active={activePage === "mygames"}
               onClick={goMyGames}
-              badge={myGamesTurnCount}
+              badge={turnCount}
             />
             <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
@@ -630,7 +646,7 @@ export function Header(props: HeaderProps) {
       <div className={`vekke-mobile-drawer${mobileOpen ? " open" : ""}`}>
         <button className={`vekke-mobile-nav-item${activePage === "play" ? " active" : ""}`} onClick={() => { goPlay(); setMobileOpen(false) }}>Play</button>
         <button className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`} onClick={() => { goMyGames(); setMobileOpen(false) }}>
-          My Games{typeof myGamesTurnCount === "number" && myGamesTurnCount > 0 ? ` (${myGamesTurnCount})` : ""}
+          My Games{turnCount > 0 ? ` (${turnCount})` : ""}
         </button>
         <button className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`} onClick={() => { goLeaderboard(); setMobileOpen(false) }}>Leaderboard</button>
         <button className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`} onClick={() => { goOrders(); setMobileOpen(false) }}>Orders</button>

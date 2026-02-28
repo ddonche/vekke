@@ -164,20 +164,23 @@ function PlayerChip({ profile, stats, label, timeControl, statusLabel, statusCol
         }
       </div>
       <div style={{ minWidth: 0, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "nowrap" }}>
           <FlagImg cc={profile?.country_code} size={16} />
           <span style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", fontWeight: 600, color: "#e8e4d8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
           {typeof elo === "number" && (
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", color: "#b0aa9e" }}>
-              {elo} ELO
-            </div>
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", color: "#6b6558", whiteSpace: "nowrap", flexShrink: 0 }}>· {elo} ELO</span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 3 }}>
+          {timeControl && (
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b6558" }}>
+              {formatTc(timeControl)}
+            </span>
           )}
           {statusLabel && (
-            <div className="game-status" style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: statusColor ?? "#b0aa9e" }}>
-              {typeof elo === "number" ? `· ${statusLabel}` : statusLabel}
-            </div>
+            <span className="game-status" style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: statusColor ?? "#b0aa9e" }}>
+              {timeControl ? ` · ${statusLabel}` : statusLabel}
+            </span>
           )}
         </div>
       </div>
@@ -199,6 +202,7 @@ export function ChallengesPage() {
   const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({})
   const [statsById, setStatsById] = useState<Record<string, PlayerStatLite>>({})
   const [gamesById, setGamesById] = useState<Record<string, GameAny>>({})
+  const [aiGames, setAiGames] = useState<GameAny[]>([])
 
   // For keeping the header badge accurate without manual refresh:
   // we poll the games for the active game ids.
@@ -294,8 +298,30 @@ export function ChallengesPage() {
       new Set(invList.map(r => r.game_id).filter((x): x is string => typeof x === "string" && x.length > 0))
     )
 
-    // This is what drives polling & header badge freshness
-    setActiveGameIds(gameIds)
+    // Fetch active AI games for this user
+    const { data: aiGs } = await supabase
+      .from("games")
+      .select("*")
+      .eq("is_vs_ai", true)
+      .or(`wake_id.eq.${uid},brake_id.eq.${uid}`)
+      .is("ended_at", null)
+      .order("last_move_at", { ascending: false })
+
+    const aiGameList = (aiGs ?? []) as GameAny[]
+    setAiGames(aiGameList)
+
+    const aiGameIds = aiGameList.map((g: any) => g.id as string)
+
+    // Add AI opponent user IDs so their profiles/avatars/flags get fetched
+    for (const g of aiGameList) {
+      const wake = g.wake_id as string | null
+      const brake = g.brake_id as string | null
+      if (wake && wake !== uid) profileIds.add(wake)
+      if (brake && brake !== uid) profileIds.add(brake)
+    }
+
+    // This is what drives polling & header badge freshness (PvP + AI)
+    setActiveGameIds([...gameIds, ...aiGameIds])
 
     if (profileIds.size > 0) {
       const ids = Array.from(profileIds)
@@ -415,15 +441,39 @@ export function ChallengesPage() {
     return { incoming, outgoingWaiting, outgoingReady, acceptedWithGame, acceptedNoGame }
   }, [invites, userId])
 
+  type ActiveGameItem = {
+    gameId: string
+    label: string
+    status: string
+    opponentId?: string
+    isAi?: boolean
+    format?: string | null
+  }
+
   const activeGames = useMemo(() => {
-    if (!userId) return [] as Array<{ gameId: string; label: string; status: string; opponentId?: string }>
+    if (!userId) return [] as ActiveGameItem[]
 
     const uid = userId
-    const items: Array<{ gameId: string; label: string; status: string; opponentId?: string }> = []
+    const items: ActiveGameItem[] = []
 
+    // PvP games from accepted invites
     for (const inv of derived.acceptedWithGame) {
       const gameId = inv.game_id!
       const g = gamesById[gameId]
+
+      // Drop finished games — check both server columns and current_state.gameOver
+      // (some timed-out games may have gameOver set in state before server columns are written)
+      const cs = safeJson(g?.current_state)
+      const isEnded = g && (
+        g.ended_at ||
+        g.winner_id ||
+        g.status === "finished" ||
+        g.status === "complete" ||
+        g.status === "completed" ||
+        g.status === "over" ||
+        cs?.gameOver != null
+      )
+      if (isEnded) continue
 
       let status = "In progress"
       let opponentId: string | undefined
@@ -439,8 +489,6 @@ export function ChallengesPage() {
         const brake = firstDefined<string>(g, ["brake_id", "brakeId"])
         if (wake && brake) opponentId = wake === uid ? brake : brake === uid ? wake : undefined
       } else {
-        // If we don't have the games row, infer opponent from invite row.
-        // For token accepts, accepted_by is the best available "invitee identity".
         const inviteeId = inv.invited_user_id ?? inv.accepted_by ?? undefined
         opponentId = inv.created_by === uid ? inviteeId : inv.created_by
       }
@@ -452,13 +500,38 @@ export function ChallengesPage() {
       items.push({ gameId, label, status, opponentId })
     }
 
+    // AI games
+    for (const g of aiGames) {
+      const gameId = g.id as string
+      const live = gamesById[gameId] ?? g
+
+      const mySide = deriveMySide(live, uid)
+      const ti = deriveTurnInfo(live)
+      let status = "In progress"
+      if (ti.turnSide && mySide) {
+        status = ti.turnSide === mySide ? "Your turn" : "Waiting for opponent"
+      }
+
+      const wake = firstDefined<string>(live, ["wake_id", "wakeId"])
+      const brake = firstDefined<string>(live, ["brake_id", "brakeId"])
+      const opponentId = wake === uid ? brake : brake === uid ? wake : undefined
+
+      const format = (live.format ?? g.format ?? null) as string | null
+      const oppName = opponentId ? profiles[opponentId]?.username : undefined
+      const label = oppName
+        ? `vs ${oppName}${format ? ` (${formatTc(format)})` : ""}`
+        : `AI Game${format ? ` (${formatTc(format)})` : ""}`
+
+      items.push({ gameId, label, status, opponentId, isAi: true, format })
+    }
+
     items.sort((a, b) => {
       const av = a.status === "Your turn" ? 0 : 1
       const bv = b.status === "Your turn" ? 0 : 1
       return av - bv
     })
     return items
-  }, [derived.acceptedWithGame, gamesById, profiles, userId])
+  }, [derived.acceptedWithGame, gamesById, aiGames, profiles, userId])
 
   useEffect(() => {
     load().catch((e: any) => setErr(e?.message ?? String(e)))
@@ -576,10 +649,17 @@ export function ChallengesPage() {
                   }}
                 >
                   <div className="game-card-row" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                    <PlayerChip profile={g.opponentId ? profiles[g.opponentId] : undefined} stats={g.opponentId ? statsById[g.opponentId] : undefined} label="Opponent" timeControl={invites.find(i => i.game_id === g.gameId)?.time_control} statusLabel={g.status} statusColor={g.status === "Your turn" ? "#5de8f7" : "#b0aa9e"} />
+                    <PlayerChip
+                      profile={g.opponentId ? profiles[g.opponentId] : undefined}
+                      stats={g.opponentId ? statsById[g.opponentId] : undefined}
+                      label="Opponent"
+                      timeControl={g.isAi ? g.format : invites.find(i => i.game_id === g.gameId)?.time_control}
+                      statusLabel={g.status}
+                      statusColor={g.status === "Your turn" ? "#5de8f7" : "#b0aa9e"}
+                    />
                   </div>
                   <button
-                    onClick={() => window.location.assign(`/pvp/${g.gameId}`)}
+                    onClick={() => window.location.assign(g.isAi ? `/ai/${g.gameId}` : `/pvp/${g.gameId}`)}
                     style={{
                       fontFamily: "'Cinzel', serif",
                       background: "rgba(184,150,106,0.10)",
@@ -609,7 +689,6 @@ export function ChallengesPage() {
 
           {derived.incoming.length > 0 && (
             <div>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6b6558", marginBottom: 10 }}>Needs your response</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {derived.incoming.map(r => {
                   const inviterName = profiles[r.created_by]?.username ?? r.created_by
@@ -625,7 +704,6 @@ export function ChallengesPage() {
                       }}
                     >
                       <PlayerChip profile={profiles[r.created_by]} stats={statsById[r.created_by]} label={inviterName} timeControl={r.time_control} />
-                      {tc && <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b6558", marginTop: 4 }}>{tc}</div>}
                       <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           disabled={busy}
@@ -675,7 +753,6 @@ export function ChallengesPage() {
 
           {derived.outgoingWaiting.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6b6558", marginBottom: 10 }}>Waiting</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {derived.outgoingWaiting.map(r => {
                   const inviteeId = r.invited_user_id ?? r.accepted_by ?? undefined
@@ -693,8 +770,7 @@ export function ChallengesPage() {
                         background: "#0f0f14",
                       }}
                     >
-                      <PlayerChip profile={otherId ? profiles[otherId] : undefined} stats={otherId ? statsById[otherId] : undefined} label={otherName} timeControl={r.time_control} />
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>{tc && <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b6558" }}>{tc}</div>}<div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#b0aa9e" }}>{msg}</div></div>
+                      <PlayerChip profile={otherId ? profiles[otherId] : undefined} stats={otherId ? statsById[otherId] : undefined} label={otherName} timeControl={r.time_control} statusLabel={msg} />
                     </div>
                   )
                 })}
@@ -720,8 +796,7 @@ export function ChallengesPage() {
                         background: "#0f0f14",
                       }}
                     >
-                      <PlayerChip profile={inviteeId ? profiles[inviteeId] : undefined} stats={inviteeId ? statsById[inviteeId] : undefined} label={otherName} timeControl={r.time_control} />
-                      {tc && <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b6558", marginTop: 4 }}>{tc}  -  accepted</div>}
+                      <PlayerChip profile={inviteeId ? profiles[inviteeId] : undefined} stats={inviteeId ? statsById[inviteeId] : undefined} label={otherName} timeControl={r.time_control} statusLabel="Accepted" />
                       <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
                           disabled={busy}
@@ -788,8 +863,7 @@ export function ChallengesPage() {
                         background: "#0f0f14",
                       }}
                     >
-                      <PlayerChip profile={otherId ? profiles[otherId] : undefined} stats={otherId ? statsById[otherId] : undefined} label={otherName} timeControl={r.time_control} />
-                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b6558", marginTop: 4 }}>{tc ? `${tc}  -  ` : ""}Accepted  -  awaiting game</div>
+                      <PlayerChip profile={otherId ? profiles[otherId] : undefined} stats={otherId ? statsById[otherId] : undefined} label={otherName} timeControl={r.time_control} statusLabel="Awaiting game" />
                     </div>
                   )
                 })}

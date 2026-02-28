@@ -71,7 +71,7 @@ type GamePageProps = {
   opponentType?: "ai" | "pvp"
   mySide?: Player
   initialState?: GameState
-  onMoveComplete?: (state: GameState) => void
+  onMoveComplete?: (state: GameState, clocks: { W: number; B: number }) => void
   myName?: string
   myElo?: number
   opponentName?: string
@@ -82,6 +82,8 @@ type GamePageProps = {
   initialClocks?: { W: number; B: number }
   onPlayComputer?: () => void
   onRequestRematch?: () => void
+  /** AI level from DB — passed straight to controller so first move uses correct logic */
+  aiDifficulty?: string
 }
 
 export function GamePage(props: GamePageProps = {}) {
@@ -124,6 +126,7 @@ export function GamePage(props: GamePageProps = {}) {
     onMoveComplete: props.onMoveComplete,
     initialTimeControlId: props.initialTimeControlId,
     initialClocks: props.initialClocks,
+    initialAiDifficulty: props.aiDifficulty as any,
   })
 
   const [ghost, setGhost] = useState<null | {
@@ -534,22 +537,24 @@ export function GamePage(props: GamePageProps = {}) {
     // Start if we were given an initial snapshot OR if we already have remote state.
     // (Remote state path matters for refresh/resume.)
     if (props.initialState || props.externalGameData?.current_state) {
-      actions.setStarted(true)
+      actionsRef.current.setStarted(true)
     }
   }, [
     props.opponentType,
     props.initialState,
     props.externalGameData?.current_state,
     started,
-    actions,
+    // Note: actionsRef intentionally used instead of actions — actions recreates on every g
+    // change and would cause this effect (and setStarted) to fire on every state update.
   ])
 
-  // Set AI difficulty from DB when loading an existing AI game via wrapper
+  // Safety net: if ai_level changes on externalGameData (shouldn't normally happen),
+  // keep the controller in sync. Uses actionsRef to avoid firing on every g update.
   useEffect(() => {
     if (props.opponentType !== "ai") return
     const lvl = props.externalGameData?.ai_level
-    if (lvl) actions.setAiDifficulty(lvl as any)
-  }, [props.opponentType, props.externalGameData?.ai_level, actions])
+    if (lvl) actionsRef.current.setAiDifficulty(lvl as any)
+  }, [props.opponentType, props.externalGameData?.ai_level])
 
   // ===== TWO MODES ONLY: WEB vs MOBILE =====
   // Wider breakpoint so shrinking the browser reliably flips to mobile.
@@ -925,6 +930,16 @@ if (wantsNewGame) {
   const myOrderColors = userProfile?.order_id ? ORDER_COLORS[userProfile.order_id] : undefined
   const opponentOrderColors = opponentProfile?.order_id ? ORDER_COLORS[opponentProfile.order_id] : undefined
   const activeOrderColors = g.player === human ? myOrderColors : opponentOrderColors
+
+  // W (Wake) player gets inverted dominoes by default: white body, teal accents.
+  // If the player has an Order, Order colors override this entirely.
+  const W_DEFAULT_COLORS = { primary: "#ffffff", secondary: "#5de8f7" }
+  const routeColorsForSide = (side: "W" | "B"): { primary: string; secondary: string } | undefined => {
+    const orderColors = side === mySide ? myOrderColors : opponentOrderColors
+    if (orderColors) return orderColors
+    return side === "W" ? W_DEFAULT_COLORS : undefined
+  }
+  const activeRouteColors = routeColorsForSide(g.player as "W" | "B")
 
   const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
 
@@ -2030,9 +2045,8 @@ if (wantsNewGame) {
                         <RouteIcon
                           key={r.id}
                           route={r}
-                          primaryColor={opponentOrderColors?.primary}     
-                          secondaryColor={opponentOrderColors?.secondary}
-                          onClick={() => isActive && !used && actions.playRoute(topPlayer.avatar as "W" | "B", r.id)}
+                          primaryColor={routeColorsForSide(topPlayer.avatar as "W" | "B")?.primary}
+                          secondaryColor={routeColorsForSide(topPlayer.avatar as "W" | "B")?.secondary}
                           selected={isSelected}
                           routeClass={routeClassForSide(topPlayer.avatar as "W" | "B")}
                           style={{
@@ -2227,8 +2241,8 @@ if (wantsNewGame) {
                     <RouteIcon
                       key={`${r.id}-${idx}`}
                       route={r}
-                      primaryColor={activeOrderColors?.primary}     
-                      secondaryColor={activeOrderColors?.secondary}
+                      primaryColor={activeRouteColors?.primary}     
+                      secondaryColor={activeRouteColors?.secondary}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                       routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
@@ -2603,8 +2617,8 @@ if (wantsNewGame) {
                         <RouteIcon
                           key={r.id}
                           route={r}
-                          primaryColor={myOrderColors?.primary}     
-                          secondaryColor={myOrderColors?.secondary}
+                          primaryColor={routeColorsForSide(bottomPlayer.avatar as "W" | "B")?.primary}
+                          secondaryColor={routeColorsForSide(bottomPlayer.avatar as "W" | "B")?.secondary}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
                           routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
@@ -3036,8 +3050,8 @@ if (wantsNewGame) {
                           <RouteIcon
                             key={r.id}
                             route={r}
-                            primaryColor={opponentOrderColors?.primary}     
-                            secondaryColor={opponentOrderColors?.secondary}
+                            primaryColor={routeColorsForSide(leftPlayer.avatar as "W" | "B")?.primary}
+                            secondaryColor={routeColorsForSide(leftPlayer.avatar as "W" | "B")?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={routeClassForSide(leftPlayer.avatar as "W" | "B")}
@@ -3164,8 +3178,8 @@ if (wantsNewGame) {
                   <RouteIcon
                     key={`${r.id}-${idx}`}
                     route={r}
-                    primaryColor={activeOrderColors?.primary}     
-                    secondaryColor={activeOrderColors?.secondary}
+                    primaryColor={activeRouteColors?.primary}     
+                    secondaryColor={activeRouteColors?.secondary}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                     routeClass={routeClassForSide(g.player as "W" | "B")}
@@ -3729,8 +3743,8 @@ if (wantsNewGame) {
                           <RouteIcon
                             key={r.id}
                             route={r}
-                            primaryColor={myOrderColors?.primary}     
-                            secondaryColor={myOrderColors?.secondary}
+                            primaryColor={routeColorsForSide(rightPlayer.avatar as "W" | "B")?.primary}
+                            secondaryColor={routeColorsForSide(rightPlayer.avatar as "W" | "B")?.secondary}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={routeClassForSide(rightPlayer.avatar as "W" | "B")}

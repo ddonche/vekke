@@ -247,6 +247,7 @@ export function AiGameWrapper() {
       opponentElo={opponentElo}
       opponentUserId={mySide === "W" ? gameData.brake_id : gameData.wake_id}
       externalGameData={gameData}
+      aiDifficulty={(gameData as any).ai_level}
       initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
       initialClocks={initialClocks}
       onMoveComplete={handleMoveComplete}

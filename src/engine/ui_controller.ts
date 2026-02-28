@@ -107,6 +107,8 @@ export function useVekkeController(opts: {
   mySide?: Player
   initialTimeControlId?: TimeControlId
   initialClocks?: { W: number; B: number }
+  /** AI games loaded from DB: pass the ai_level so the controller starts with the right difficulty */
+  initialAiDifficulty?: AiLevel
 }) {
   const sounds = opts.sounds
   const AI_DELAY_MS = opts.aiDelayMs ?? 1200
@@ -127,7 +129,7 @@ export function useVekkeController(opts: {
   })
   const ai: Player = human === "W" ? "B" : "W"
 
-  const [aiDifficulty, setAiDifficulty] = useState<AiLevel>("novice")
+  const [aiDifficulty, setAiDifficulty] = useState<AiLevel>(opts.initialAiDifficulty ?? "novice")
 
   const [started, setStarted] = useState(() => opponentType === "pvp")
   const [audioReady, setAudioReady] = useState(false)

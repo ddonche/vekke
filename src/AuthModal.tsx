@@ -1,6 +1,123 @@
 import React, { useState } from "react"
 import { supabase } from "./services/supabase"
 
+// ── Shared Vekke modal styles ─────────────────────────────────────────────────
+const S = {
+  overlay: {
+    position: "fixed" as const,
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10000,
+    padding: "20px",
+  },
+  card: {
+    background: "#0f0f14",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: "12px",
+    padding: "28px 24px",
+    maxWidth: "90vw",
+    width: "22rem",
+    color: "#e8e4d8",
+    fontFamily: "'EB Garamond', Georgia, serif",
+  },
+  title: {
+    fontFamily: "'Cinzel', serif",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    letterSpacing: "0.3em",
+    textTransform: "uppercase" as const,
+    color: "#b8966a",
+    marginBottom: 20,
+    textAlign: "center" as const,
+  },
+  label: {
+    display: "block",
+    fontFamily: "'Cinzel', serif",
+    fontSize: "0.68rem",
+    fontWeight: 600,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase" as const,
+    color: "#b0aa9e",
+    marginBottom: 6,
+  },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 6,
+    border: "1px solid rgba(184,150,106,0.2)",
+    background: "#13131a",
+    color: "#e8e4d8",
+    fontSize: "0.95rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  },
+  hint: {
+    fontFamily: "'EB Garamond', Georgia, serif",
+    fontSize: "0.8rem",
+    marginTop: 4,
+    color: "#6b6558",
+  },
+  btnPrimary: {
+    width: "100%",
+    padding: "11px",
+    borderRadius: 4,
+    border: "1px solid rgba(184,150,106,0.45)",
+    background: "rgba(184,150,106,0.12)",
+    color: "#d4af7a",
+    fontFamily: "'Cinzel', serif",
+    fontWeight: 600,
+    fontSize: "0.72rem",
+    letterSpacing: "0.18em",
+    textTransform: "uppercase" as const,
+    cursor: "pointer",
+  },
+  btnCancel: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: 4,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "transparent",
+    color: "#6b6558",
+    fontFamily: "'Cinzel', serif",
+    fontWeight: 600,
+    fontSize: "0.68rem",
+    letterSpacing: "0.15em",
+    textTransform: "uppercase" as const,
+    cursor: "pointer",
+    marginTop: 10,
+  },
+  error: {
+    padding: "10px 12px",
+    marginBottom: 16,
+    background: "rgba(239,68,68,0.08)",
+    border: "1px solid rgba(239,68,68,0.3)",
+    borderRadius: 6,
+    fontSize: "0.9rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    color: "#fca5a5",
+  },
+  success: {
+    padding: "10px 12px",
+    marginBottom: 16,
+    background: "rgba(52,211,153,0.08)",
+    border: "1px solid rgba(52,211,153,0.3)",
+    borderRadius: 6,
+    fontSize: "0.9rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    color: "#6ee7b7",
+  },
+  field: { marginBottom: 16 },
+  divider: {
+    height: 1,
+    background: "rgba(255,255,255,0.07)",
+    margin: "0 0 20px",
+  },
+}
+
 type AuthModalProps = {
   onClose: () => void
 }
@@ -15,251 +132,98 @@ export function AuthModal({ onClose }: AuthModalProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setMessage(null)
-    setLoading(true)
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
+    setError(null); setMessage(null); setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
-
-    if (error) {
-      setError(error.message)
-      return
-    }
-
-    // Success - close modal
+    if (error) { setError(error.message); return }
     onClose()
   }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setMessage(null)
-    setLoading(true)
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-
+    setError(null); setMessage(null); setLoading(true)
+    const { error } = await supabase.auth.signUp({ email, password })
     setLoading(false)
-
-    if (error) {
-      setError(error.message)
-      return
-    }
-
-    // Success - show confirmation message
+    if (error) { setError(error.message); return }
     setMessage("Check your email for the confirmation link!")
   }
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Enter your email first")
-      return
-    }
-
-    setError(null)
-    setMessage(null)
-    setLoading(true)
-
+    if (!email) { setError("Enter your email first"); return }
+    setError(null); setMessage(null); setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
-
     setLoading(false)
-
-    if (error) {
-      setError(error.message)
-      return
-    }
-
-    setMessage("Password reset email sent! Check your inbox.")
+    if (error) { setError(error.message); return }
+    setMessage("Password reset email sent!")
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 10000,
-        padding: "20px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: "#374151",
-          border: "1px solid #4b5563",
-          borderRadius: "12px",
-          padding: "20px",
-          maxWidth: "90vw",
-          width: "25rem",
-          color: "#e5e7eb",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div style={S.overlay} onClick={onClose}>
+      <div style={S.card} onClick={(e) => e.stopPropagation()}>
+
+        <div style={S.title}>Sign In to Vekke</div>
+
         {/* Tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            marginBottom: "20px",
-            borderBottom: "1px solid #4b5563",
-          }}
-        >
-          <button
-            onClick={() => {
-              setTab("login")
-              setError(null)
-              setMessage(null)
-            }}
-            style={{
-              flex: 1,
-              padding: "10px",
-              background: "none",
-              border: "none",
-              borderBottom: tab === "login" ? "2px solid #ee484c" : "2px solid transparent",
-              color: tab === "login" ? "#ee484c" : "#9ca3af",
-              fontWeight: "bold",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-            }}
-          >
-            Login
-          </button>
-          <button
-            onClick={() => {
-              setTab("signup")
-              setError(null)
-              setMessage(null)
-            }}
-            style={{
-              flex: 1,
-              padding: "10px",
-              background: "none",
-              border: "none",
-              borderBottom: tab === "signup" ? "2px solid #ee484c" : "2px solid transparent",
-              color: tab === "signup" ? "#ee484c" : "#9ca3af",
-              fontWeight: "bold",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-            }}
-          >
-            Sign Up
-          </button>
-        </div>
-
-        {/* Error/Message display */}
-        {error && (
-          <div
-            style={{
-              padding: "10px",
-              marginBottom: "16px",
-              backgroundColor: "#991b1b",
-              border: "1px solid #dc2626",
-              borderRadius: "6px",
-              fontSize: "0.875rem",
-              color: "#fecaca",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {message && (
-          <div
-            style={{
-              padding: "10px",
-              marginBottom: "16px",
-              backgroundColor: "#065f46",
-              border: "1px solid #059669",
-              borderRadius: "6px",
-              fontSize: "0.875rem",
-              color: "#d1fae5",
-            }}
-          >
-            {message}
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={tab === "login" ? handleLogin : handleSignup}>
-          <div style={{ marginBottom: "14px" }}>
-            <label
+        <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+          {(["login", "signup"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setError(null); setMessage(null) }}
               style={{
-                display: "block",
-                fontSize: "0.75rem",
-                fontWeight: "bold",
-                marginBottom: "6px",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                flex: 1,
+                padding: "8px",
+                background: tab === t ? "rgba(184,150,106,0.10)" : "transparent",
+                border: tab === t ? "1px solid rgba(184,150,106,0.35)" : "1px solid transparent",
+                borderRadius: 4,
+                color: tab === t ? "#d4af7a" : "#6b6558",
+                fontFamily: "'Cinzel', serif",
+                fontWeight: 600,
+                fontSize: "0.68rem",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase" as const,
+                cursor: "pointer",
+                transition: "all 0.12s",
               }}
             >
-              Email
-            </label>
+              {t === "login" ? "Log In" : "Sign Up"}
+            </button>
+          ))}
+        </div>
+
+        <div style={S.divider} />
+
+        {error && <div style={S.error}>{error}</div>}
+        {message && <div style={S.success}>{message}</div>}
+
+        <form onSubmit={tab === "login" ? handleLogin : handleSignup}>
+          <div style={S.field}>
+            <label style={S.label}>Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: "8px",
-                border: "1px solid #4b5563",
-                background: "#1f2937",
-                color: "#e5e7eb",
-                fontSize: "0.875rem",
-              }}
+              style={S.input}
             />
           </div>
 
-          <div style={{ marginBottom: "14px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "0.75rem",
-                fontWeight: "bold",
-                marginBottom: "6px",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              Password
-            </label>
+          <div style={S.field}>
+            <label style={S.label}>Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: "8px",
-                border: "1px solid #4b5563",
-                background: "#1f2937",
-                color: "#e5e7eb",
-                fontSize: "0.875rem",
-              }}
+              style={S.input}
             />
           </div>
 
-          {/* Forgot password link (login only) */}
           {tab === "login" && (
-            <div style={{ marginBottom: "16px", textAlign: "right" }}>
+            <div style={{ textAlign: "right", marginBottom: 16, marginTop: -8 }}>
               <button
                 type="button"
                 onClick={handleForgotPassword}
@@ -267,8 +231,9 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#9ca3af",
-                  fontSize: "0.75rem",
+                  color: "#6b6558",
+                  fontFamily: "'EB Garamond', Georgia, serif",
+                  fontSize: "0.85rem",
                   cursor: "pointer",
                   textDecoration: "underline",
                 }}
@@ -278,45 +243,16 @@ export function AuthModal({ onClose }: AuthModalProps) {
             </div>
           )}
 
-          {/* Submit button */}
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "0.625rem",
-              border: "2px solid #111",
-              backgroundColor: "#ee484c",
-              color: "white",
-              fontWeight: "bold",
-              cursor: loading ? "default" : "pointer",
-              fontSize: "0.875rem",
-              opacity: loading ? 0.6 : 1,
-            }}
+            style={{ ...S.btnPrimary, opacity: loading ? 0.6 : 1 }}
           >
-            {loading ? "Loading..." : tab === "login" ? "Log In" : "Sign Up"}
+            {loading ? "Loading…" : tab === "login" ? "Log In" : "Create Account"}
           </button>
         </form>
 
-        {/* Cancel button */}
-        <button
-          onClick={onClose}
-          style={{
-            width: "100%",
-            marginTop: "12px",
-            padding: "10px",
-            borderRadius: "8px",
-            border: "1px solid #4b5563",
-            background: "transparent",
-            color: "#9ca3af",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-          }}
-        >
-          Cancel
-        </button>
+        <button onClick={onClose} style={S.btnCancel}>Cancel</button>
       </div>
     </div>
   )

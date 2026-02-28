@@ -787,7 +787,7 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, level: AiLevel, mistak
     const earlyPlan = bestEarlySwapPlanBasic(state, aiPlayer)
     if (earlyPlan) { armEarlySwap(state); return }
 
-    if (shouldRansom(state, aiPlayer, "master")) {
+    if (shouldRansom(state, aiPlayer, level)) {
       useRansom(state)
       return
     }
@@ -806,12 +806,13 @@ function aiStepGreedy(state: GameState, aiPlayer: Player, level: AiLevel, mistak
 
 // Blue belt (approx): 1-ply greedy + 0% imperfection.
 export function aiStepAdept(state: GameState, aiPlayer: Player) {
-  return aiStepGreedy(state, aiPlayer, "adept", 0.0)
+  // weaker: makes “2nd/3rd best” moves sometimes
+  return aiStepGreedy(state, aiPlayer, "adept", 0.22)
 }
 
-// Purple belt (approx): same greedy engine, but no intentional mistakes.
 export function aiStepExpert(state: GameState, aiPlayer: Player) {
-  return aiStepGreedy(state, aiPlayer, "expert", 0.0)
+  // stronger than adept: still imperfect but much less so
+  return aiStepGreedy(state, aiPlayer, "expert", 0.08)
 }
 
 // Brown belt (approx): 2-ply minimax (me → opponent) on ACTION, otherwise strong-but-normal policy.
