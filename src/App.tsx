@@ -10,11 +10,14 @@ import { AiGameWrapper } from "./pages/AiGameWrapper"
 import OrdersPage from "./pages/OrdersPage"
 import { AuthGatePage } from "./pages/AuthGatePage"
 import { GamePage } from "./components/GamePage"
+import ProfilePage from "./pages/ProfilePage"
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<GamePage />} />
+
+      <Route path="/u/:username" element={<ProfilePage />} />
 
       <Route path="/auth" element={<AuthGatePage />} />
       <Route path="/auth-host" element={<GamePage />} />

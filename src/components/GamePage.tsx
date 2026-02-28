@@ -1842,7 +1842,20 @@ if (wantsNewGame) {
                       {/* Row 1: flag · username · elo */}
                       <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
                         <FlagImg cc={topPlayer.country} size={14} />
-                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: "0.8125rem", color: "#e8e4d8" }}>
+                        <span
+                          onClick={() => {
+                            if (topPlayer.username && topPlayer.username !== "You") {
+                              window.location.assign(`/u/${encodeURIComponent(topPlayer.username)}`)
+                            }
+                          }}
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: 600,
+                            fontSize: "0.8125rem",
+                            color: "#e8e4d8",
+                            cursor: topPlayer.username && topPlayer.username !== "You" ? "pointer" : "default",
+                          }}
+                        >
                           {topPlayer.username}
                         </span>
                         <span style={{ fontWeight: 900, color: eloColor(topPlayer.elo), fontSize: "0.75rem" }}>{topPlayer.elo}</span>
@@ -2410,7 +2423,20 @@ if (wantsNewGame) {
                       {/* Row 1: flag · username · elo · gear */}
                       <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", width: "100%" }}>
                         <FlagImg cc={bottomPlayer.country} size={14} />
-                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: "0.8125rem", color: "#e8e4d8" }}>
+                        <span
+                          onClick={() => {
+                            if (bottomPlayer.username && bottomPlayer.username !== "You") {
+                              window.location.assign(`/u/${encodeURIComponent(bottomPlayer.username)}`)
+                            }
+                          }}
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: 600,
+                            fontSize: "0.8125rem",
+                            color: "#e8e4d8",
+                            cursor: bottomPlayer.username && bottomPlayer.username !== "You" ? "pointer" : "default",
+                          }}
+                        >
                           {bottomPlayer.username}
                         </span>
                         <span style={{ fontWeight: 900, color: eloColor(bottomPlayer.elo), fontSize: "0.75rem" }}>{bottomPlayer.elo}</span>
@@ -2872,7 +2898,20 @@ if (wantsNewGame) {
                       {/* Row 1: flag · username · elo */}
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <FlagImg cc={leftPlayer.country} size={16} />
-                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
+                        <span
+                          onClick={() => {
+                            if (leftPlayer.username && leftPlayer.username !== "You") {
+                              window.location.assign(`/u/${encodeURIComponent(leftPlayer.username)}`)
+                            }
+                          }}
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: "#e8e4d8",
+                            cursor: leftPlayer.username && leftPlayer.username !== "You" ? "pointer" : "default",
+                          }}
+                        >
                           {leftPlayer.username}
                         </span>
                         <span style={{ fontWeight: 900, color: eloColor(leftPlayer.elo), fontSize: 13 }}>{leftPlayer.elo}</span>
@@ -3556,7 +3595,20 @@ if (wantsNewGame) {
                       {/* Row 1: flag · username · elo · gear */}
                       <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
                         <FlagImg cc={rightPlayer.country} size={16} />
-                        <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 15, color: "#e8e4d8" }}>
+                        <span
+                          onClick={() => {
+                            if (rightPlayer.username && rightPlayer.username !== "You") {
+                              window.location.assign(`/u/${encodeURIComponent(rightPlayer.username)}`)
+                            }
+                          }}
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: "#e8e4d8",
+                            cursor: rightPlayer.username && rightPlayer.username !== "You" ? "pointer" : "default",
+                          }}
+                        >
                           {rightPlayer.username}
                         </span>
                         <span style={{ fontWeight: 900, color: eloColor(rightPlayer.elo), fontSize: 13 }}>{rightPlayer.elo}</span>

@@ -166,7 +166,25 @@ function PlayerChip({ profile, stats, label, timeControl, statusLabel, statusCol
       <div style={{ minWidth: 0, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "nowrap" }}>
           <FlagImg cc={profile?.country_code} size={16} />
-          <span style={{ fontFamily: "'Cinzel', serif", fontSize: "1rem", fontWeight: 600, color: "#e8e4d8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+          <span
+            onClick={() => {
+              if (profile?.username) {
+                window.location.assign(`/u/${encodeURIComponent(profile.username)}`)
+              }
+            }}
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "1rem",
+              fontWeight: 600,
+              color: "#e8e4d8",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              cursor: profile?.username ? "pointer" : "default",
+            }}
+          >
+            {name}
+          </span>
           {typeof elo === "number" && (
             <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.1em", color: "#6b6558", whiteSpace: "nowrap", flexShrink: 0 }}>· {elo} ELO</span>
           )}

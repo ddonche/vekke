@@ -324,7 +324,10 @@ export function useVekkeController(opts: {
   const extraReinfBought = Boolean((g as any).extraReinforcementBoughtThisTurn)
 
   const canBuyExtraReinforcement =
-    g.phase === "ACTION" && !g.gameOver && !extraReinfBought && g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST
+    g.phase === "ACTION" &&
+    !g.gameOver &&
+    !extraReinfBought &&
+    g.reserves[g.player] >= EXTRA_REINFORCEMENT_COST + 2
 
   const ransomUsed = Boolean((g as any).ransomUsedThisTurn)
 
@@ -1118,8 +1121,10 @@ export function useVekkeController(opts: {
             warn("INVALID: Extra reinforcement already bought this turn.")
             return
           }
-          if (g.reserves[g.player] < EXTRA_REINFORCEMENT_COST) {
-            warn(`INVALID: Need ${EXTRA_REINFORCEMENT_COST} reserves to buy reinforcement.`)
+          if (g.reserves[g.player] < EXTRA_REINFORCEMENT_COST + 2) {
+            warn(
+              `INVALID: Need at least ${EXTRA_REINFORCEMENT_COST + 2} reserves to buy extra reinforcement (cost ${EXTRA_REINFORCEMENT_COST}, then you must still have 2 reserves to place both reinforcements).`
+            )
             return
           }
           warn("INVALID: Can't buy extra reinforcement right now.")
