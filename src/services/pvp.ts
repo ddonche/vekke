@@ -81,6 +81,35 @@ export async function createInvite(args: {
   return data as { inviteToken: string; expiresAt: string }
 }
 
+export async function createChallenge(args: {
+  invitedUserId: string
+  timeControlId: TimeControlId
+  isRanked?: boolean
+  initialState: any
+}) {
+  const invitedUserId = (args?.invitedUserId ?? "").trim()
+  if (!invitedUserId) throw new Error("createChallenge: invitedUserId is required")
+  if (!args?.initialState) throw new Error("createChallenge: initialState is required")
+
+  await debugAuth("createChallenge:before-requireSession")
+  await requireSession()
+  await debugAuth("createChallenge:before-invoke")
+
+  const { data, error } = await supabase.functions.invoke("create_challenge", {
+    body: {
+      invitedUserId,
+      timeControl: args.timeControlId,
+      isRanked: !!args.isRanked,
+      initialState: args.initialState,
+      vgnVersion: "1",
+      expiresInDays: 7,
+    },
+  })
+
+  if (error) throw new Error(toMessage(error))
+  return data as { reused: boolean; inviteId: string; inviteToken?: string; status: string }
+}
+
 export async function acceptInvite(inviteToken: string) {
   const t = (inviteToken ?? "").trim()
   if (!t) throw new Error("acceptInvite: inviteToken is required")

@@ -51,9 +51,9 @@ export type GameState = {
   extraReinforcementBoughtThisTurn: boolean
   turnInvades: { W: number; B: number }
 
-  evasionUsed: { W: boolean; B: boolean }  // once per game tracker
-  evasionArmed: boolean                     // player clicked "Evasion" and is now selecting token+destination
-  pendingEvasion: { tokenId: string | null; to: Coord | null }
+  evasionUsed: { W: boolean; B: boolean }  // once per game tracker -- DEPRECATED, kept for DB compat only
+  recoilArmed: boolean                      // player clicked "Recoil" and is now selecting token+destination
+  pendingRecoil: { tokenId: string | null; to: Coord | null }
 
   deck: Route[]
   routes: { W: Route[]; B: Route[] }
@@ -134,9 +134,9 @@ export function newGame(): GameState {
     extraReinforcementBoughtThisTurn: false,
     turnInvades: { W: 0, B: 0 },
 
-    evasionUsed: { W: false, B: false },
-    evasionArmed: false,
-    pendingEvasion: { tokenId: null, to: null },
+    evasionUsed: { W: false, B: false },  // deprecated — kept for DB compat
+    recoilArmed: false,
+    pendingRecoil: { tokenId: null, to: null },
 
     deck,
     routes: { W: [], B: [] },

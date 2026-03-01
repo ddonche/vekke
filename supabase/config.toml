@@ -11,6 +11,11 @@ verify_jwt = false
 import_map = "./functions/accept_invite/deno.json"
 entrypoint = "./functions/accept_invite/index.ts"
 
+[functions.create_challenge]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create_challenge/index.ts"
+
 [functions.finalize_game]
 enabled = true
 verify_jwt = false

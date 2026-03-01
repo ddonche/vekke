@@ -25,6 +25,8 @@ import {
   type ResolvedLoadout,
   DEFAULT_RESOLVED,
 } from "../services/skinService"
+import { NewGameModal } from "../NewGameModal"
+import { GameOverModal } from "../GameOverModal"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -110,13 +112,13 @@ export function GamePage(props: GamePageProps = {}) {
     canEarlySwap,
     canBuyExtraReinforcement,
     canUseRansom,
-    evasionArmed,
-    canUseEvasion,
-    pendingEvasion,
-    evasionSourcePos,
-    evasionPlayer,
+    recoilArmed,
+    canUseRecoil,
+    pendingRecoil,
+    recoilSourcePos,
+    recoilPlayer,
     clockPlayer,
-    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, RANSOM_COST_CAPTIVES, EVASION_COST_CAPTIVES, EVASION_COST_RESERVES },
+    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, RANSOM_COST_CAPTIVES, RECOIL_COST_CAPTIVES, RECOIL_COST_RESERVES },
     actions,
   } = useVekkeController({
     sounds,
@@ -155,7 +157,7 @@ export function GamePage(props: GamePageProps = {}) {
   const authReturnToRef = useRef<string | null>(null)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const [showHelpModal, setShowHelpModal] = useState<"currentPlayer" | "evasion" | null>(null)
+  const [showHelpModal, setShowHelpModal] = useState<"currentPlayer" | "recoil" | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<{
     username: string
@@ -1002,678 +1004,40 @@ if (wantsNewGame) {
         />
 
         {newGameOpen && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.85)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              padding: "20px",
+          <NewGameModal
+            isOpen={newGameOpen}
+            onClose={() => { setNewGameOpen(false); setNewGameMsg(null) }}
+            userProfile={userProfile}
+            myElo={myElo}
+            myPeak={myPeak}
+            formatLabel={formatLabel}
+            timeControlId={timeControlId}
+            aiDifficulty={aiDifficulty}
+            boardStyle={boardStyle}
+            loginWarn={loginWarn}
+            newGameMsg={newGameMsg}
+            onSetTimeControlId={(id) => actions.setTimeControlId(id)}
+            onSetAiDifficulty={(d) => actions.setAiDifficulty(d as any)}
+            onSetBoardStyle={setBoardStyle}
+            onStartGame={async () => {
+              try {
+                await actions.unlockAudio?.()
+                if (!currentUserId) { setNewGameMsg("You must be logged in to start a new game."); return }
+                setNewGameMsg(null)
+                await createAiGameAndGo()
+              } catch (err) {
+                const resp = err && typeof err === "object" && "context" in err
+                  ? ((err as any).context as Response | undefined) : undefined
+                if (resp) {
+                  try { const bodyText = await resp.text(); if (bodyText) { setNewGameMsg(bodyText); return } } catch {}
+                }
+                setNewGameMsg(err instanceof Error ? err.message : "Failed to create AI game.")
+              }
             }}
-          >
-            <div
-              style={{
-                backgroundColor: "rgba(184,150,106,0.18)",
-                border: "1px solid rgba(184,150,106,0.30)",
-                borderRadius: "12px",
-                padding: "16px",
-                maxWidth: "90vw",
-                width: "25rem",
-                color: "#e8e4d8",
-                position: "relative",
-              }}
-            >
-              {/* Close button */}
-              <button
-                onClick={() => {
-                  setNewGameOpen(false)
-                  setNewGameMsg(null)
-                }}
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  background: "none",
-                  border: "none",
-                  color: "#6b6558",
-                  fontSize: "1.5rem",
-                  cursor: "pointer",
-                  lineHeight: 1,
-                  padding: "4px",
-                  width: "32px",
-                  height: "32px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "4px",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent"
-                }}
-              >
-                ×
-              </button>
-
-              {/* Logo */}
-              <div style={{ textAlign: "center", marginBottom: "16px" }}>
-                <img 
-                  src="/logo.png" 
-                  alt="Vekke" 
-                  style={{ height: "48px", width: "auto" }}
-                />
-              </div>
-
-              {/* User section - Sign In or Welcome back */}
-              {userProfile ? (
-                // Logged in - compact horizontal layout
-                <div
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "0.625rem",
-                    border: "1px solid rgba(184,150,106,0.30)",
-                    backgroundColor: "#0d0d10",
-                    marginBottom: "12px",
-                    display: "flex",
-                    gap: "12px",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* Avatar */}
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "50%",
-                      backgroundColor: "#b0aa9e",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      overflow: "hidden",
-                      fontSize: "1.125rem",
-                      fontWeight: "bold",
-                      color: "#0d0d10",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {userProfile.avatar_url ? (
-                      <img
-                        src={`${userProfile.avatar_url}?t=${Date.now()}`}
-                        alt={userProfile.username}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      userProfile.username[0].toUpperCase()
-                    )}
-                  </div>
-                  
-                  {/* Info grid */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Top row: username and country */}
-                    <div style={{ display: "flex", gap: "12px", alignItems: "baseline", marginBottom: "4px" }}>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: "bold", color: "#e8e4d8" }}>
-                        {userProfile.username}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "#b0aa9e",
-                          fontWeight: 900,
-                          whiteSpace: "nowrap",
-                        }}
-                        title={`Rating for ${formatLabel} (peak ${myPeak})`}
-                      >
-                        {myElo} <span style={{ opacity: 0.7 }}>{formatLabel}</span>{" "}
-                        {myPeak !== myElo ? <span style={{ opacity: 0.6 }}>(peak {myPeak})</span> : null}
-                      </div>
-                      {userProfile.country_name && (
-                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6558" }}>
-                          {userProfile.country_name}
-                        </div>
-                      )}
-                    </div>
-                    {/* Bottom row: edit profile */}
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setShowProfileModal(true)
-                      }}
-                      style={{
-                        color: "#b0aa9e",
-                        fontSize: "0.9rem",
-                        textDecoration: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Edit Profile
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                // Not logged in - show Sign In button
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    borderRadius: "0.625rem",
-                    border: "2px solid #111",
-                    backgroundColor: "#ee484c",
-                    color: "white",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                    marginBottom: "12px",
-                  }}
-                >
-                  Sign In
-                </button>
-              )}
-
-              {/* Promotional text - only show when not logged in */}
-              {!userProfile && (
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    opacity: 0.75,
-                    marginBottom: "14px",
-                    lineHeight: 1.35,
-                    textAlign: "center",
-                    color: "#b0aa9e",
-                  }}
-                >
-                  Create an account to play vs others, get ranked, play friends, and do tournaments.
-                </div>
-              )}
-
-              {/* Separator */}
-              <div
-                style={{
-                  height: "1px",
-                  backgroundColor: "rgba(255,255,255,0.09)",
-                  marginBottom: "14px",
-                }}
-              />
-
-              {/* Time Control Selection */}
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                  marginBottom: "8px",
-                  color: "#b0aa9e",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Time Control
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-                {(["standard", "rapid", "blitz", "daily"] as const).map((id) => {
-                  const labels = {
-                    standard: "10 mins",
-                    rapid: "5 mins",
-                    blitz: "3 mins",
-                    daily: "24 hrs",
-                  } as const
-
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => actions.setTimeControlId(id)}
-                      style={{
-                        flex: 1,
-                        padding: "10px 12px",
-                        borderRadius: "8px",
-                        border: timeControlId === id ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                        background: timeControlId === id ? "#0d0d10" : "#0f0f14",
-                        color: timeControlId === id ? "#5de8f7" : "#e8e4d8",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      {labels[id]}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* AI Difficulty Selection */}
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                  marginBottom: "8px",
-                  color: "#b0aa9e",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Opponent Skill
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "8px",
-                  marginBottom: "8px",
-                }}
-              >
-                {/* Novice */}
-                <button
-                  onClick={() => actions.setAiDifficulty("novice")}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === "novice" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === "novice" ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === "novice" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#6b6558", // grey
-                          marginRight: 6,
-                          display: "inline-block",
-                        }}
-                      />
-                      <div>Novice</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>600</div>
-                  </div>
-                </button>
-
-                {/* Adept */}
-                <button
-                  onClick={() => actions.setAiDifficulty("adept")}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === "adept" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === "adept" ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === "adept" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#2563eb", // blue
-                          marginRight: 6,
-                          display: "inline-block",
-                        }}
-                      />
-                      <div>Adept</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>900</div>
-                  </div>
-                </button>
-
-                {/* Expert */}
-                <button
-                  onClick={() => actions.setAiDifficulty("expert")}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === "expert" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === "expert" ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === "expert" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#dc2626", // red
-                          marginRight: 6,
-                          display: "inline-block",
-                        }}
-                      />
-                      <div>Expert</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1200</div>
-                  </div>
-                </button>
-
-                {/* Master */}
-                <button
-                  onClick={() => actions.setAiDifficulty("master")}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === "master" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === "master" ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === "master" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#16a34a", // green
-                          marginRight: 6,
-                          display: "inline-block",
-                        }}
-                      />
-                      <div>Master</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1500</div>
-                  </div>
-                </button>
-
-                {/* Senior Master */}
-                <button
-                  onClick={() => actions.setAiDifficulty("senior_master" as any)}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === ("senior_master" as any) ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === ("senior_master" as any) ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === ("senior_master" as any) ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#7c2d12", // brown
-                          marginRight: 6,
-                          display: "inline-block",
-                        }}
-                      />
-                      <div>Senior Master</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>1750</div>
-                  </div>
-                </button>
-
-                {/* Grandmaster (NOT full width anymore) */}
-                <button
-                  onClick={() => actions.setAiDifficulty("grandmaster")}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: aiDifficulty === "grandmaster" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: aiDifficulty === "grandmaster" ? "#0d0d10" : "#0f0f14",
-                    color: aiDifficulty === "grandmaster" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: "#000000", // black
-                          marginRight: 6,
-                          display: "inline-block",
-                          boxShadow: "0 0 0 1px rgba(255,255,255,0.18)", // helps it read on dark bg
-                        }}
-                      />
-                      <div>Grandmaster</div>
-                    </div>
-                    <div style={{ fontSize: "0.65rem", opacity: 0.55, fontWeight: 300 }}>2000+</div>
-                  </div>
-                </button>
-
-                {/* Tutorial */}
-                <button
-                  onClick={() => {
-                    console.log("Learn to Play clicked")
-                  }}
-                  style={{
-                    gridColumn: "1 / -1",
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    background: "#0d0d10",
-                    border: "1px dashed rgba(255,255,255,0.09)",
-                    color: "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  Tutorial
-                </button>
-              </div>
-
-              {/* Board Style Selection */}
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                  marginBottom: "8px",
-                  color: "#b0aa9e",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Board Style
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-                <button
-                  onClick={() => setBoardStyle("grid")}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: boardStyle === "grid" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: boardStyle === "grid" ? "#0d0d10" : "#0f0f14",
-                    color: boardStyle === "grid" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  Grid Squares
-                </button>
-                <button
-                  onClick={() => setBoardStyle("intersection")}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: boardStyle === "intersection" ? "2px solid #5de8f7" : "1px solid rgba(184,150,106,0.30)",
-                    background: boardStyle === "intersection" ? "#0d0d10" : "#0f0f14",
-                    color: boardStyle === "intersection" ? "#5de8f7" : "#e8e4d8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  Intersections
-                </button>
-              </div>
-
-              <div
-                style={{
-                  fontSize: "0.9rem",
-                  opacity: 0.7,
-                  marginBottom: "14px",
-                  lineHeight: 1.35,
-                  textAlign: "center",
-                  color: "#b0aa9e",
-                }}
-              >
-                {boardStyle === "grid" 
-                  ? "Grid squares for learning and casual play"
-                  : "Go-style intersections for tournament play"}
-              </div>
-
-              {loginWarn && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: "10px 12px",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(255,255,255,0.06)",
-                    borderRadius: 10,
-                    fontSize: 13,
-                    opacity: 0.95,
-                  }}
-                >
-                  {loginWarn}
-                </div>
-              )}
-
-              {newGameMsg && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    textAlign: "center",
-                    color: "#ee484c",
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  {newGameMsg}
-                </div>
-              )}
-
-              <button
-                onClick={async () => {
-                  try {
-                    await actions.unlockAudio?.()
-
-                    if (!currentUserId) {
-                      setNewGameMsg("You must be logged in to start a new game.")
-                      return
-                    }
-
-                    setNewGameMsg(null)
-
-                    await createAiGameAndGo()
-                  } catch (err) {
-                    console.error("Failed to create AI game:", err)
-
-                    // Supabase edge function errors often include a Response in `context`.
-                    const resp =
-                      err && typeof err === "object" && "context" in err
-                        ? ((err as any).context as Response | undefined)
-                        : undefined
-
-                    if (resp) {
-                      try {
-                        const bodyText = await resp.text()
-                        if (bodyText) {
-                          console.error("create_ai_game error body:", bodyText)
-                          setNewGameMsg(bodyText)
-                          return
-                        }
-                      } catch {
-                        // ignore
-                      }
-                    }
-
-                    setNewGameMsg(err instanceof Error ? err.message : "Failed to create AI game.")
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "0.625rem",
-                  border: "2px solid #111",
-                  backgroundColor: "#ee484c",
-                  color: "white",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  fontSize: "0.875rem",
-                }}
-              >
-                Start Game
-              </button>
-
-              {/* Bottom links */}
-              <div
-                style={{
-                  marginTop: "16px",
-                  textAlign: "center",
-                  fontSize: "0.75rem",
-                  color: "#b0aa9e",
-                }}
-              >
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    console.log("Leaderboard clicked")
-                  }}
-                  style={{
-                    color: "#b0aa9e",
-                    textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Leaderboard
-                </a>
-                <span style={{ margin: "0 8px", opacity: 0.5 }}>•</span>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    console.log("Wiki clicked")
-                  }}
-                  style={{
-                    color: "#b0aa9e",
-                    textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Wiki
-                </a>
-              </div>
-            </div>
-          </div>
+            onSignIn={() => setShowAuthModal(true)}
+            onEditProfile={() => setShowProfileModal(true)}
+            onLeaderboard={() => navigate("/leaderboard")}
+          />
         )}
 
         {isMobile ? (
@@ -1953,23 +1317,23 @@ if (wantsNewGame) {
                       </button>
                     )}
 
-                    {/* Evasion - only show when it's opponent's turn */}
+                    {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== topPlayer.avatar && (
                       <button
-                        onClick={() => canUseEvasion && actions.armEvasion()}
-                        disabled={!canUseEvasion}
+                        onClick={() => canUseRecoil && actions.armRecoil()}
+                        disabled={!canUseRecoil}
                         style={{
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
                           backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
-                          cursor: canUseEvasion ? "pointer" : "default",
+                          cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseEvasion ? 1 : 0.5,
+                          opacity: canUseRecoil ? 1 : 0.5,
                         }}
                       >
                         <svg
@@ -1990,7 +1354,7 @@ if (wantsNewGame) {
 
                     {/* Help icon */}
                     <button
-                      onClick={() => setShowHelpModal(g.player === topPlayer.avatar ? "currentPlayer" : "evasion")}
+                      onClick={() => setShowHelpModal(g.player === topPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -2134,8 +1498,8 @@ if (wantsNewGame) {
                     </span>
                     <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 10 }}>—</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
-                      {evasionArmed
-                        ? `${g.player === "W" ? "B" : "W"} in Evasion`
+                      {recoilArmed
+                        ? `${g.player === "W" ? "B" : "W"} in Recoil`
                         : g.player !== human
                           ? "Waiting..."
                           : g.phase === "ACTION" ? "Make your moves"
@@ -2282,9 +1646,9 @@ if (wantsNewGame) {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={true}
-                    evasionSourcePos={evasionSourcePos}
-                    evasionDestPos={pendingEvasion?.to ?? null}
-                    evasionPlayer={evasionPlayer}
+                    recoilSourcePos={recoilSourcePos}
+                    recoilDestPos={pendingRecoil?.to ?? null}
+                    recoilPlayer={recoilPlayer}
                     tokenClass={tokenClass}
                   />
                 ) : (
@@ -2298,9 +1662,9 @@ if (wantsNewGame) {
                     GHOST_MS={GHOST_MS}
                     mobile={true}
                     dotColor={myOrderColors?.primary ?? "#ee484c"}
-                    evasionSourcePos={evasionSourcePos}
-                    evasionDestPos={pendingEvasion?.to ?? null}
-                    evasionPlayer={evasionPlayer}
+                    recoilSourcePos={recoilSourcePos}
+                    recoilDestPos={pendingRecoil?.to ?? null}
+                    recoilPlayer={recoilPlayer}
                     tokenClass={tokenClass}
                   />
                 )}
@@ -2542,23 +1906,23 @@ if (wantsNewGame) {
                       </button>
                     )}
 
-                    {/* Evasion - only show when it's opponent's turn */}
+                    {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== bottomPlayer.avatar && (
                       <button
-                        onClick={() => canUseEvasion && actions.armEvasion()}
-                        disabled={!canUseEvasion}
+                        onClick={() => canUseRecoil && actions.armRecoil()}
+                        disabled={!canUseRecoil}
                         style={{
                           width: "1.5rem",
                           height: "1.5rem",
                           borderRadius: "50%",
                           backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
-                          cursor: canUseEvasion ? "pointer" : "default",
+                          cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseEvasion ? 1 : 0.5,
+                          opacity: canUseRecoil ? 1 : 0.5,
                         }}
                       >
                         <svg
@@ -2578,7 +1942,7 @@ if (wantsNewGame) {
                     )}
 
                     <button
-                      onClick={() => setShowHelpModal(g.player === bottomPlayer.avatar ? "currentPlayer" : "evasion")}
+                      onClick={() => setShowHelpModal(g.player === bottomPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -2665,7 +2029,7 @@ if (wantsNewGame) {
               </div>
 
               {/* Action Buttons */}
-              {(g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
+              {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                   {g.phase === "SWAP" ? (
                     <button
@@ -2723,11 +2087,11 @@ if (wantsNewGame) {
                 </div>
               )}
 
-              {/* Evasion Confirm/Cancel */}
-              {evasionArmed && (
+              {/* Recoil Confirm/Cancel */}
+              {recoilArmed && (
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                   <button
-                    onClick={() => actions.confirmEvasion()}
+                    onClick={() => actions.confirmRecoil()}
                     style={{
                       flex: 1,
                       padding: 12,
@@ -2740,11 +2104,11 @@ if (wantsNewGame) {
                       color: "#e8e4d8",
                     }}
                   >
-                    Confirm Evasion
+                    Confirm Recoil
                   </button>
 
                   <button
-                    onClick={() => actions.cancelEvasion()}
+                    onClick={() => actions.cancelRecoil()}
                     style={{
                       padding: "12px 14px",
                       borderRadius: 8,
@@ -3006,23 +2370,23 @@ if (wantsNewGame) {
                       </button>
                     )}
 
-                    {/* Evasion - only show when it's opponent's turn */}
+                    {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== leftPlayer.avatar && (
                       <button
-                        onClick={() => canUseEvasion && actions.armEvasion()}
-                        disabled={!canUseEvasion}
+                        onClick={() => canUseRecoil && actions.armRecoil()}
+                        disabled={!canUseRecoil}
                         style={{
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
                           backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
-                          cursor: canUseEvasion ? "pointer" : "default",
+                          cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseEvasion ? 1 : 0.5,
+                          opacity: canUseRecoil ? 1 : 0.5,
                         }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3034,7 +2398,7 @@ if (wantsNewGame) {
                     )}
 
                     <button
-                      onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "evasion")}
+                      onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -3291,8 +2655,8 @@ if (wantsNewGame) {
                     </span>
                     <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 13 }}>—</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
-                      {evasionArmed
-                        ? `${g.player === "W" ? "B" : "W"} is currently in Evasion`
+                      {recoilArmed
+                        ? `${g.player === "W" ? "B" : "W"} is currently in Recoil`
                         : g.player !== human
                           ? "Waiting for opponent..."
                           : g.phase === "ACTION" ? "Make your moves"
@@ -3382,9 +2746,9 @@ if (wantsNewGame) {
                     onSquareClick={actions.onSquareClick}
                     GHOST_MS={GHOST_MS}
                     mobile={false}
-                    evasionSourcePos={evasionSourcePos}
-                    evasionDestPos={pendingEvasion?.to ?? null}
-                    evasionPlayer={evasionPlayer}
+                    recoilSourcePos={recoilSourcePos}
+                    recoilDestPos={pendingRecoil?.to ?? null}
+                    recoilPlayer={recoilPlayer}
                     tokenClass={tokenClass}
                   />
                 ) : (
@@ -3398,9 +2762,9 @@ if (wantsNewGame) {
                     GHOST_MS={GHOST_MS}
                     mobile={false}
                     dotColor={myOrderColors?.primary ?? "#ee484c"}
-                    evasionSourcePos={evasionSourcePos}
-                    evasionDestPos={pendingEvasion?.to ?? null}
-                    evasionPlayer={evasionPlayer}
+                    recoilSourcePos={recoilSourcePos}
+                    recoilDestPos={pendingRecoil?.to ?? null}
+                    recoilPlayer={recoilPlayer}
                     tokenClass={tokenClass}
                   />
                 )}
@@ -3411,7 +2775,7 @@ if (wantsNewGame) {
                 </div>
 
                 {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
-                {(g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
+                {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
                   <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
                     {g.phase === "SWAP" ? (
                       <button
@@ -3468,11 +2832,11 @@ if (wantsNewGame) {
                   </div>
                 )}
 
-                {/* Evasion Confirm/Cancel */}
-                {evasionArmed && (
+                {/* Recoil Confirm/Cancel */}
+                {recoilArmed && (
                   <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
                     <button
-                      onClick={() => actions.confirmEvasion()}
+                      onClick={() => actions.confirmRecoil()}
                       style={{
                         flex: 1,
                         padding: 12,
@@ -3485,11 +2849,11 @@ if (wantsNewGame) {
                         color: "#e8e4d8",
                       }}
                     >
-                      Confirm Evasion
+                      Confirm Recoil
                     </button>
 
                     <button
-                      onClick={() => actions.cancelEvasion()}
+                      onClick={() => actions.cancelRecoil()}
                       style={{
                         padding: "12px 14px",
                         borderRadius: 10,
@@ -3712,23 +3076,23 @@ if (wantsNewGame) {
                       </button>
                     )}
 
-                    {/* Evasion - only show when it's opponent's turn */}
+                    {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== rightPlayer.avatar && (
                       <button
-                        onClick={() => canUseEvasion && actions.armEvasion()}
-                        disabled={!canUseEvasion}
+                        onClick={() => canUseRecoil && actions.armRecoil()}
+                        disabled={!canUseRecoil}
                         style={{
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
                           backgroundColor: "#0d0d10",
                           border: "1px solid #6b7280",
-                          cursor: canUseEvasion ? "pointer" : "default",
+                          cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseEvasion ? 1 : 0.5,
+                          opacity: canUseRecoil ? 1 : 0.5,
                         }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3740,7 +3104,7 @@ if (wantsNewGame) {
                     )}
 
                     <button
-                      onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "evasion")}
+                      onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
                         border: "1px solid #6b7280",
@@ -3877,273 +3241,31 @@ if (wantsNewGame) {
 
         )}
 
-        {/* Game Over Modal */}
-        {g.gameOver && showGameOverModal && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.85)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              padding: "20px",
+        {g.gameOver && (
+          <GameOverModal
+            isOpen={showGameOverModal}
+            onClose={() => setShowGameOverModal(false)}
+            g={g}
+            whitePlayer={whitePlayer}
+            bluePlayer={bluePlayer}
+            opponentType={props.opponentType ?? "ai"}
+            onPlayComputer={() => {
+              if (props.opponentType === "pvp") {
+                if (props.onPlayComputer) { props.onPlayComputer(); return }
+              }
+              setShowGameOverModal(false)
+              setNewGameOpen(true)
             }}
-          >
-            <div
-              style={{
-                backgroundColor: "rgba(184,150,106,0.18)",
-                border: "1px solid rgba(184,150,106,0.30)",
-                borderRadius: "12px",
-                padding: "16px",
-                maxWidth: "90vw",
-                width: "25rem",
-                color: "#e8e4d8",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                }}
-              >
-                <div style={{ fontWeight: "bold", fontSize: "1.125rem", flex: 1, textAlign: "center" }}>
-                  GAME OVER
-                </div>
-                <button
-                  onClick={() => setShowGameOverModal(false)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#b0aa9e",
-                    fontSize: "1.25rem",
-                    cursor: "pointer",
-                    lineHeight: 1,
-                    padding: "4px",
-                    flexShrink: 0,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div
-                style={{
-                  textAlign: "center",
-                  fontSize: "1rem",
-                  marginBottom: "12px",
-                  fontWeight: 900,
-                }}
-              >
-                {(() => {
-                  const go = g.gameOver!
-                  const reason = (go as any).reason as string | undefined
-                  const winner = go.winner
-                  const winnerName = winner === "W" ? whitePlayer.username : bluePlayer.username
-                  const loserName  = winner === "W" ? bluePlayer.username  : whitePlayer.username
-                  const winnerColor = winner === "W" ? "#e8e4d8" : "#5de8f7"
-                  const loserColor = winner === "W" ? "#5de8f7" : "#e8e4d8"
-
-                  if (reason?.toLowerCase() === "timeout") {
-                    return (
-                      <span style={{ color: loserColor }}>
-                        {winnerName} wins by Timeout
-                      </span>
-                    )
-                  }
-                  if (reason?.toLowerCase() === "resignation") {
-                    return (
-                      <span style={{ color: winnerColor }}>
-                        {winnerName} wins by opponent Resignation
-                      </span>
-                    )
-                  }
-                  if (reason?.toLowerCase() === "siegemate") {
-                    return (
-                      <span style={{ color: winnerColor }}>
-                        {winnerName} wins by Siegemate
-                      </span>
-                    )
-                  }
-                  if (reason?.toLowerCase() === "collapse") {
-                    return (
-                      <span style={{ color: winnerColor }}>
-                        {winnerName} wins by Collapse
-                      </span>
-                    )
-                  }
-                  // elimination (or undefined for backwards compat)
-                  return (
-                    <span style={{ color: winnerColor }}>
-                      {winnerName} wins by Elimination
-                    </span>
-                  )
-                })()}
-              </div>
-
-              {/* Match summary */}
-              <div
-                style={{
-                  background: "#0d0d10",
-                  border: "1px solid rgba(184,150,106,0.30)",
-                  borderRadius: 10,
-                  padding: 10,
-                  marginBottom: 12,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  fontSize: 12,
-                  color: "#b0aa9e",
-                }}
-              >
-                <div>
-                  <div style={{ opacity: 0.75, fontWeight: 800 }}>Rounds</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#e8e4d8" }}>{g.round}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ opacity: 0.75, fontWeight: 800 }}>Mode</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#e8e4d8" }}>Tournament</div>
-                </div>
-              </div>
-
-              {/* Match stats */}
-              <div
-                style={{
-                  background: "#0d0d10",
-                  border: "1px solid rgba(184,150,106,0.30)",
-                  borderRadius: 10,
-                  padding: 12,
-                  marginBottom: 14,
-                  display: "grid",
-                  gap: 8,
-                  fontSize: 12,
-                  color: "#e8e4d8",
-                }}
-              >
-                <div style={{ fontWeight: 900, marginBottom: 2, color: "#e8e4d8" }}>Match Stats</div>
-
-                {[
-                  ["Sieges", (g as any).stats?.sieges?.W ?? 0, (g as any).stats?.sieges?.B ?? 0],
-                  ["Drafts", (g as any).stats?.drafts?.W ?? 0, (g as any).stats?.drafts?.B ?? 0],
-                  ["Captures", (g as any).stats?.captures?.W ?? 0, (g as any).stats?.captures?.B ?? 0],
-                  ["Invades", (g as any).stats?.invades?.W ?? 0, (g as any).stats?.invades?.B ?? 0],
-                ].map(([label, w, b]) => (
-                  <div
-                    key={String(label)}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(75,85,99,0.7)",
-                      background: "rgba(55,65,81,0.6)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900, color: "#e8e4d8" }}>{label as string}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 900 }}>
-                      <span style={{ color: "#e8e4d8" }}>W {String(w)}</span>
-                      <span style={{ opacity: 0.4 }}>|</span>
-                      <span style={{ color: "#5de8f7" }}>B {String(b)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {props.opponentType === "pvp" ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => {
-                      // PvP: "Play Computer" must be LOCAL-ONLY.
-                      // Do not call actions.newGame()/setStarted(false) here, because that can
-                      // mutate shared PvP state and dismiss the other player's game-over modal.
-                      if (props.onPlayComputer) {
-                        props.onPlayComputer()
-                        return
-                      }
-                      setShowGameOverModal(false)
-                      setNewGameOpen(true)
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "0.625rem",
-                      border: "2px solid #111",
-                      backgroundColor: "white",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    Play Computer
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowGameOverModal(false)
-                      props.onRequestRematch?.()
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "0.625rem",
-                      border: "2px solid #111",
-                      backgroundColor: "white",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    Rematch
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => {
-                      setShowGameOverModal(false)
-                      setNewGameOpen(true)
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "0.625rem",
-                      border: "2px solid #111",
-                      backgroundColor: "white",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    Play Computer
-                  </button>
-
-                  <button
-                    onClick={async () => {
-                      setShowGameOverModal(false)
-                      await createAiGameAndGo()
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "0.625rem",
-                      border: "2px solid #111",
-                      backgroundColor: "white",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    Rematch
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+            onRematch={() => {
+              if (props.opponentType === "pvp") {
+                setShowGameOverModal(false)
+                props.onRequestRematch?.()
+              } else {
+                setShowGameOverModal(false)
+                createAiGameAndGo()
+              }
+            }}
+          />
         )}
 
         {/* Auth Modal */}

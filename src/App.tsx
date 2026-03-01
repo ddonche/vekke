@@ -11,6 +11,7 @@ import OrdersPage from "./pages/OrdersPage"
 import { AuthGatePage } from "./pages/AuthGatePage"
 import { GamePage } from "./components/GamePage"
 import ProfilePage from "./pages/ProfilePage"
+import { LeaderboardPage } from "./pages/LeaderboardPage"
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
 
       <Route path="/skins" element={<SkinsPage />} />
       <Route path="/orders" element={<OrdersPage />} />
+      <Route path="/leaderboard" element={<LeaderboardPage />} />
     </Routes>
   )
 }

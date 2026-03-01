@@ -945,58 +945,57 @@ export function useRansom(state: GameState) {
 }
 
 // ------------------------------------------------------------
-// Evasion (once per game defensive move during opponent's turn)
+// Recoil (defensive interrupt during opponent's turn — unlimited uses)
 // ------------------------------------------------------------
-export const EVASION_COST_CAPTIVES = 1
-export const EVASION_COST_RESERVES = 1
+export const RECOIL_COST_CAPTIVES = 1
+export const RECOIL_COST_RESERVES = 1
 
-export function armEvasion(state: GameState) {
+export function armRecoil(state: GameState) {
   if (state.gameOver) {
     state.warning = "INVALID: Game is over."
     return
   }
   
-  // Evasion can only be used during opponent's ACTION phase
-  if (state.phase !== "ACTION") {
-    state.warning = "INVALID: Evasion only available during ACTION phase."
+  // Recoil can be used any time during the opponent's turn (ACTION, REINFORCE, or SWAP)
+  if (state.phase === "OPENING") {
+    state.warning = "INVALID: Recoil not available during opening."
     return
   }
   
   const opponent = state.player
   const defender = other(opponent)
   
-  // Check if defender already used evasion
-  if (state.evasionUsed[defender]) {
-    state.warning = "INVALID: You already used your evasion this game."
-    return
+  // Miracle Win protection: on turn 1 with only 1 token left, Recoil is free (defender has 0 captives)
+  const defenderTokensOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === defender).length
+  const isMiracleWinScenario = state.turn === 1 && defenderTokensOnBoard === 1
+
+  if (!isMiracleWinScenario) {
+    if (state.captives[defender] < RECOIL_COST_CAPTIVES) {
+      state.warning = `INVALID: need ${RECOIL_COST_CAPTIVES} captured token(s) to recoil.`
+      return
+    }
+    if (state.reserves[defender] < RECOIL_COST_RESERVES) {
+      state.warning = `INVALID: need ${RECOIL_COST_RESERVES} reserve token(s) to recoil.`
+      return
+    }
   }
-  
-  // Check if defender has enough resources
-  if (state.captives[defender] < EVASION_COST_CAPTIVES) {
-    state.warning = `INVALID: need ${EVASION_COST_CAPTIVES} captured token(s) to evade.`
-    return
-  }
-  if (state.reserves[defender] < EVASION_COST_RESERVES) {
-    state.warning = `INVALID: need ${EVASION_COST_RESERVES} reserve token(s) to evade.`
-    return
-  }
-  
+
   state.warning = null
-  state.evasionArmed = true
-  state.pendingEvasion = { tokenId: null, to: null }
-  state.log.unshift(`== ${defender} Evasion armed (cost: ${EVASION_COST_CAPTIVES} captive + ${EVASION_COST_RESERVES} reserve) ==`)
+  state.recoilArmed = true
+  state.pendingRecoil = { tokenId: null, to: null }
+  state.log.unshift(`== ${defender} Recoil armed (cost: ${isMiracleWinScenario ? "free" : `${RECOIL_COST_CAPTIVES} captive + ${RECOIL_COST_RESERVES} reserve`}) ==`)
 }
 
-export function cancelEvasion(state: GameState) {
-  if (!state.evasionArmed) return
-  state.evasionArmed = false
-  state.pendingEvasion = { tokenId: null, to: null }
+export function cancelRecoil(state: GameState) {
+  if (!state.recoilArmed) return
+  state.recoilArmed = false
+  state.pendingRecoil = { tokenId: null, to: null }
   state.warning = null
 }
 
-export function selectEvasionToken(state: GameState, tokenId: string) {
-  if (!state.evasionArmed) {
-    state.warning = "INVALID: Evasion not armed."
+export function selectRecoilToken(state: GameState, tokenId: string) {
+  if (!state.recoilArmed) {
+    state.warning = "INVALID: Recoil not armed."
     return
   }
   
@@ -1010,7 +1009,7 @@ export function selectEvasionToken(state: GameState, tokenId: string) {
   }
   
   if (token.owner !== defender) {
-    state.warning = "INVALID: You can only evade with your own tokens."
+    state.warning = "INVALID: You can only recoil with your own tokens."
     return
   }
   
@@ -1018,31 +1017,31 @@ export function selectEvasionToken(state: GameState, tokenId: string) {
   if (token.in === "BOARD") {
     // If on board, cannot be sieged
     if (isTokenLockedBySiege(state, token)) {
-      state.warning = "INVALID: Cannot evade with a sieged token."
+      state.warning = "INVALID: Cannot recoil with a sieged token."
       return
     }
   } else if (token.in === "CAPTIVE") {
-    // If captured, must be the most recent capture to evade with it
+    // If captured, must be the most recent capture to recoil with it
     if (!state.lastMove || state.lastMove.tokenId !== tokenId) {
-      state.warning = "INVALID: Can only evade with recently captured tokens."
+      state.warning = "INVALID: Can only recoil with recently captured tokens."
       return
     }
   } else {
-    state.warning = "INVALID: Cannot evade with a token in the void."
+    state.warning = "INVALID: Cannot recoil with a token in the void."
     return
   }
   
   state.warning = null
-  state.pendingEvasion.tokenId = tokenId
+  state.pendingRecoil.tokenId = tokenId
 }
 
-export function selectEvasionDestination(state: GameState, to: Coord) {
-  if (!state.evasionArmed) {
-    state.warning = "INVALID: Evasion not armed."
+export function selectRecoilDestination(state: GameState, to: Coord) {
+  if (!state.recoilArmed) {
+    state.warning = "INVALID: Recoil not armed."
     return
   }
   
-  const tokenId = state.pendingEvasion.tokenId
+  const tokenId = state.pendingRecoil.tokenId
   if (!tokenId) {
     state.warning = "INVALID: Select a token first."
     return
@@ -1059,7 +1058,7 @@ export function selectEvasionDestination(state: GameState, to: Coord) {
   if (token.in === "BOARD") {
     from = token.pos
   } else if (token.in === "CAPTIVE") {
-    // Must be last move's capture (validated in selectEvasionToken)
+    // Must be last move's capture (validated in selectRecoilToken)
     if (state.lastMove && state.lastMove.tokenId === tokenId) {
       from = state.lastMove.to
     } else {
@@ -1087,27 +1086,27 @@ export function selectEvasionDestination(state: GameState, to: Coord) {
   // Destination must be empty (no capture allowed)
   const occupied = tokenAt(state, to.x, to.y)
   if (occupied) {
-    state.warning = "INVALID: Cannot evade to an occupied square."
+    state.warning = "INVALID: Cannot recoil to an occupied square."
     return
   }
   
   state.warning = null
-  state.pendingEvasion.to = to
+  state.pendingRecoil.to = to
 }
 
-export function confirmEvasion(state: GameState) {
+export function confirmRecoil(state: GameState) {
   if (state.gameOver) {
     state.warning = "INVALID: Game is over."
     return
   }
   
-  if (!state.evasionArmed) {
-    state.warning = "INVALID: Evasion not armed."
+  if (!state.recoilArmed) {
+    state.warning = "INVALID: Recoil not armed."
     return
   }
   
-  const tokenId = state.pendingEvasion.tokenId
-  const to = state.pendingEvasion.to
+  const tokenId = state.pendingRecoil.tokenId
+  const to = state.pendingRecoil.to
   
   if (!tokenId || !to) {
     state.warning = "INVALID: Select a token and destination first."
@@ -1123,24 +1122,28 @@ export function confirmEvasion(state: GameState) {
     return
   }
   
-  // Pay the cost
-  state.captives[defender] -= EVASION_COST_CAPTIVES
-  state.reserves[defender] -= EVASION_COST_RESERVES
-  state.void[defender] += EVASION_COST_CAPTIVES + EVASION_COST_RESERVES
-  
+  // Pay the cost — free in Miracle Win scenario (turn 1, defender's last token)
+  const defenderTokensOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === defender).length
+  const isMiracleWinScenario = state.turn === 1 && defenderTokensOnBoard === 1
+  if (!isMiracleWinScenario) {
+    state.captives[defender] -= RECOIL_COST_CAPTIVES
+    state.reserves[defender] -= RECOIL_COST_RESERVES
+    state.void[defender] += RECOIL_COST_CAPTIVES + RECOIL_COST_RESERVES
+  }
+
   // Get source position for logging
   const from = token.in === "BOARD" ? token.pos : (state.lastMove?.to ?? { x: -1, y: -1 })
-  
+
   // Move the token
   token.in = "BOARD"
   token.pos = to
-  
-  // Mark evasion as used
-  state.evasionUsed[defender] = true
-  state.evasionArmed = false
-  state.pendingEvasion = { tokenId: null, to: null }
-  
+
+  // Disarm recoil (no per-game usage limit)
+  state.recoilArmed = false
+  state.pendingRecoil = { tokenId: null, to: null }
+
   const fromSq = from.x >= 0 ? toSq(from) : "CAPTIVE"
-  state.log.unshift(`${defender} EVADED: moved ${tokenId} from ${fromSq} to ${toSq(to)} (paid ${EVASION_COST_CAPTIVES} captive + ${EVASION_COST_RESERVES} reserve → Void).`)
+  const costStr = isMiracleWinScenario ? "free" : `paid ${RECOIL_COST_CAPTIVES} captive + ${RECOIL_COST_RESERVES} reserve → Void`
+  state.log.unshift(`${defender} RECOIL: moved ${tokenId} from ${fromSq} to ${toSq(to)} (${costStr}).`)
   state.warning = null
 }

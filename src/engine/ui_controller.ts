@@ -32,13 +32,13 @@ import {
   isTokenLockedBySiege,
   useRansom,
   RANSOM_COST_CAPTIVES,
-  armEvasion,
-  cancelEvasion,
-  selectEvasionToken,
-  selectEvasionDestination,
-  confirmEvasion,
-  EVASION_COST_CAPTIVES,
-  EVASION_COST_RESERVES,
+  armRecoil,
+  cancelRecoil,
+  selectRecoilToken,
+  selectRecoilDestination,
+  confirmRecoil,
+  RECOIL_COST_CAPTIVES,
+  RECOIL_COST_RESERVES,
 } from "./game"
 
 type SoundHandle = { stop: () => void; play: () => number; load?: () => void }
@@ -220,7 +220,7 @@ export function useVekkeController(opts: {
 
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
-  const evasionAutoSelectedRef = useRef(false)
+  const recoilAutoSelectedRef = useRef(false)
 
   // ------------------------------------------------------------
   // VGN recording (pure state-transition ledger)
@@ -235,6 +235,7 @@ export function useVekkeController(opts: {
   // Timer refs
   const lastTickAtRef = useRef<number>(0)
   const prevTurnPlayerRef = useRef<Player | null>(null)
+  const clockPlayerRef = useRef<Player>("W")
 
   const playSound = useCallback((h: SoundHandle) => {
     try {
@@ -338,26 +339,31 @@ export function useVekkeController(opts: {
     g.captives[g.player] >= RANSOM_COST_CAPTIVES &&
     g.void[g.player] >= 1
 
-  const evasionArmed = Boolean((g as any).evasionArmed)
-  const evasionUsed = (g as any).evasionUsed as { W: boolean; B: boolean } | undefined
+  const recoilArmed = Boolean((g as any).recoilArmed)
   const defender = other(g.player) // The player who is NOT currently moving
-  const hasUsedEvasion = evasionUsed?.[defender] ?? false
 
   // Whose clock should be ticking?
-  // During evasion interrupt, defender's clock ticks. Otherwise, current player's clock ticks.
-  const clockPlayer = evasionArmed ? defender : g.player
+  // During recoil interrupt, defender's clock ticks. Otherwise, current player's clock ticks.
+  const clockPlayer = recoilArmed ? defender : g.player
+  clockPlayerRef.current = clockPlayer
 
-  const canUseEvasion =
-    g.phase === "ACTION" &&
+  // Miracle Win protection: on turn 1, Recoil available only when defender is down to 1 token on the board
+  // In that scenario it's free (defender has 0 captives on turn 1)
+  const defenderTokensOnBoard = g.tokens.filter((t) => t.in === "BOARD" && t.owner === defender).length
+  const isMiracleWinScenario = g.turn === 1 && defenderTokensOnBoard === 1
+  const canUseRecoil =
     !g.gameOver &&
-    !evasionArmed &&
-    !hasUsedEvasion &&
-    g.captives[defender] >= EVASION_COST_CAPTIVES &&
-    g.reserves[defender] >= EVASION_COST_RESERVES
+    !recoilArmed &&
+    g.phase !== "OPENING" &&
+    (isMiracleWinScenario || (
+      g.captives[defender] >= RECOIL_COST_CAPTIVES &&
+      g.reserves[defender] >= RECOIL_COST_RESERVES
+    ))
+
 
   // Evasion visualization data
-  const pendingEvasion = (g as any).pendingEvasion as { tokenId: string | null; to: Coord | null } | undefined
-  const evasionSourcePos = evasionArmed && selectedTokenId
+  const pendingRecoil = (g as any).pendingRecoil as { tokenId: string | null; to: Coord | null } | undefined
+  const recoilSourcePos = recoilArmed && selectedTokenId
     ? (() => {
         const token = g.tokens.find((t) => t.id === selectedTokenId)
         if (token?.in === "BOARD") return token.pos
@@ -454,7 +460,7 @@ export function useVekkeController(opts: {
       lastTickAtRef.current = now
 
       setClocks((prev) => {
-        const p = clockPlayer
+        const p = clockPlayerRef.current
         const nextVal = Math.max(0, prev[p] - dt)
         return { ...prev, [p]: nextVal }
       })
@@ -508,7 +514,7 @@ export function useVekkeController(opts: {
       if (!started) return
       // PvP: block input when it's not your turn (except during evasion which is defender's action)
       if (opponentType === "pvp" && mySide) {
-        const activePlayer = evasionArmed ? other(g.player) : g.player
+        const activePlayer = recoilArmed ? other(g.player) : g.player
         if (activePlayer !== mySide) return
       }
       if ((g as any).warning) update((s) => ((s as any).warning = "" as any))
@@ -528,14 +534,14 @@ export function useVekkeController(opts: {
       }
 
       // Handle evasion clicks
-      if (evasionArmed) {
+      if (recoilArmed) {
         // --- EVASION: allow selecting the last-captured token by clicking its capture square ---
         if (g.lastMove) {
           const captured = g.tokens.find((t) => t.id === g.lastMove!.tokenId && t.in === "CAPTIVE")
 
           // Only when we haven't selected an evasion token yet
-          if (captured && !pendingEvasion?.tokenId && x === g.lastMove.to.x && y === g.lastMove.to.y) {
-            update((s) => selectEvasionToken(s, captured.id))
+          if (captured && !pendingRecoil?.tokenId && x === g.lastMove.to.x && y === g.lastMove.to.y) {
+            update((s) => selectRecoilToken(s, captured.id))
             setSelectedTokenId(captured.id) // so your UI highlights correctly
             playSound(sounds.click)
             return
@@ -545,12 +551,12 @@ export function useVekkeController(opts: {
         const t = boardMap.get(`${x},${y}`)
         if (t) {
           // Clicking on a token - select it for evasion
-          update((s) => selectEvasionToken(s, t.id))
+          update((s) => selectRecoilToken(s, t.id))
           setSelectedTokenId(t.id) // Update visual selection
           playSound(sounds.click)
         } else {
           // Clicking on empty square - select as destination
-          update((s) => selectEvasionDestination(s, coord))
+          update((s) => selectRecoilDestination(s, coord))
           playSound(sounds.click)
         }
         return
@@ -566,13 +572,13 @@ export function useVekkeController(opts: {
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, evasionArmed, pendingEvasion]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil]
   )
 
   useEffect(() => {
     // Auto-select for evasion - only on initial arm
-    if (evasionArmed && !evasionAutoSelectedRef.current) {
-      evasionAutoSelectedRef.current = true
+    if (recoilArmed && !recoilAutoSelectedRef.current) {
+      recoilAutoSelectedRef.current = true
 
       // If last move captured defender's token, select that captured token
       if (g.lastMove) {
@@ -580,7 +586,7 @@ export function useVekkeController(opts: {
         if (capturedToken) {
           setSelectedTokenId(capturedToken.id)
           // Also set in game engine
-          update((s) => selectEvasionToken(s, capturedToken.id))
+          update((s) => selectRecoilToken(s, capturedToken.id))
           return
         }
       }
@@ -590,18 +596,18 @@ export function useVekkeController(opts: {
       if (defenderTokens.length > 0) {
         setSelectedTokenId(defenderTokens[0].id)
         // Also set in game engine
-        update((s) => selectEvasionToken(s, defenderTokens[0].id))
+        update((s) => selectRecoilToken(s, defenderTokens[0].id))
       }
       return
     }
 
     // Reset ref when evasion ends
-    if (!evasionArmed) {
-      evasionAutoSelectedRef.current = false
+    if (!recoilArmed) {
+      recoilAutoSelectedRef.current = false
     }
 
     // Normal auto-selection for regular turns
-    if (!evasionArmed) {
+    if (!recoilArmed) {
       const sel = selectedTokenId ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId) : null
 
       if (g.phase === "ACTION" || g.phase === "SWAP") {
@@ -611,14 +617,14 @@ export function useVekkeController(opts: {
         }
       }
     }
-  }, [g.player, g.phase, g.tokens, evasionArmed, g.lastMove, defender, update, selectedTokenId])
+  }, [g.player, g.phase, g.tokens, recoilArmed, g.lastMove, defender, update, selectedTokenId])
 
   useEffect(() => {
       if (!started) return
       if (g.gameOver) return
       if (opponentType !== "ai") return // Skip AI in PvP mode
       if (g.player !== ai) return
-      if (evasionArmed) return // Don't let AI move during evasion interrupt
+      if (recoilArmed) return // Don't let AI move during evasion interrupt
 
       // --- AI "thinking" delay ---
       // Human pacing: ~1–5 seconds per AI action, regardless of level/time control.
@@ -665,7 +671,7 @@ export function useVekkeController(opts: {
       aiDifficulty,
       update,
       AI_DELAY_MS,
-      evasionArmed,
+      recoilArmed,
       opponentType,
       timeControlId,
       opts.aiDelayMs,
@@ -987,7 +993,7 @@ export function useVekkeController(opts: {
         }
 
         // Block current player from playing routes during evasion interrupt
-        if (evasionArmed && owner === g.player) {
+        if (recoilArmed && owner === g.player) {
           warn("INVALID: Opponent is currently in evasion.")
           return
         }
@@ -1099,6 +1105,11 @@ export function useVekkeController(opts: {
           warn("INVALID: Game is over.")
           return
         }
+        // Freeze: recoil interrupt takes priority — attacker must wait
+        if (recoilArmed) {
+          warn("INVALID: Opponent is using Recoil — wait for them to resolve.")
+          return
+        }
         update((s) => confirmEarlySwap(s))
       },
 
@@ -1176,68 +1187,64 @@ export function useVekkeController(opts: {
         update((s) => yieldForcedIfNoUsableRoutes(s))
       },
 
-      armEvasion: () => {
+      armRecoil: () => {
         if (!started) return
         if (g.gameOver) {
           warn("INVALID: Game is over.")
           return
         }
 
-        if (!canUseEvasion) {
+        if (!canUseRecoil) {
           if (g.phase !== "ACTION") {
-            warn("INVALID: Evasion is only available during ACTION phase.")
+            warn("INVALID: Recoil is only available during ACTION phase.")
             return
           }
-          if (evasionArmed) {
-            warn("INVALID: Evasion is already armed.")
+          if (recoilArmed) {
+            warn("INVALID: Recoil is already armed.")
             return
           }
-          if (hasUsedEvasion) {
-            warn("INVALID: Evasion already used this game.")
+          if (!isMiracleWinScenario && g.captives[defender] < RECOIL_COST_CAPTIVES) {
+            warn(`INVALID: Need ${RECOIL_COST_CAPTIVES} captives to recoil.`)
             return
           }
-          if (g.captives[defender] < EVASION_COST_CAPTIVES) {
-            warn(`INVALID: Need ${EVASION_COST_CAPTIVES} captives to evade.`)
+          if (!isMiracleWinScenario && g.reserves[defender] < RECOIL_COST_RESERVES) {
+            warn(`INVALID: Need ${RECOIL_COST_RESERVES} reserves to recoil.`)
             return
           }
-          if (g.reserves[defender] < EVASION_COST_RESERVES) {
-            warn(`INVALID: Need ${EVASION_COST_RESERVES} reserves to evade.`)
-            return
-          }
-          warn("INVALID: Evasion not available right now.")
+          warn("INVALID: Recoil not available right now.")
           return
         }
 
-        update((s) => armEvasion(s))
+        update((s) => armRecoil(s))
       },
 
-      cancelEvasion: () => update((s) => cancelEvasion(s)),
+      cancelRecoil: () => update((s) => cancelRecoil(s)),
 
-      selectEvasionToken: (tokenId: string) => {
+      selectRecoilToken: (tokenId: string) => {
         if (!started) return
         if (g.gameOver) {
           warn("INVALID: Game is over.")
           return
         }
-        update((s) => selectEvasionToken(s, tokenId))
+        update((s) => selectRecoilToken(s, tokenId))
       },
 
-      selectEvasionDestination: (to: Coord) => {
+      selectRecoilDestination: (to: Coord) => {
         if (!started) return
         if (g.gameOver) {
           warn("INVALID: Game is over.")
           return
         }
-        update((s) => selectEvasionDestination(s, to))
+        update((s) => selectRecoilDestination(s, to))
       },
 
-      confirmEvasion: () => {
+      confirmRecoil: () => {
         if (!started) return
         if (g.gameOver) {
           warn("INVALID: Game is over.")
           return
         }
-        update((s) => confirmEvasion(s))
+        update((s) => confirmRecoil(s))
       },
 
       loadState: (state: GameState) => {
@@ -1261,9 +1268,8 @@ export function useVekkeController(opts: {
     extraReinfBought,
     canUseRansom,
     ransomUsed,
-    evasionArmed,
-    hasUsedEvasion,
-    canUseEvasion,
+    recoilArmed,
+    canUseRecoil,
     defender,
     selectedTokenId,
     warn,
@@ -1291,11 +1297,11 @@ export function useVekkeController(opts: {
     canEarlySwap,
     canBuyExtraReinforcement,
     canUseRansom,
-    evasionArmed,
-    canUseEvasion,
-    pendingEvasion,
-    evasionSourcePos,
-    evasionPlayer: evasionArmed ? defender : null,
+    recoilArmed,
+    canUseRecoil,
+    pendingRecoil,
+    recoilSourcePos,
+    recoilPlayer: recoilArmed ? defender : null,
     clockPlayer,
 
     timeControlId,
@@ -1306,8 +1312,8 @@ export function useVekkeController(opts: {
       EARLY_SWAP_COST,
       EXTRA_REINFORCEMENT_COST,
       RANSOM_COST_CAPTIVES,
-      EVASION_COST_CAPTIVES,
-      EVASION_COST_RESERVES,
+      RECOIL_COST_CAPTIVES,
+      RECOIL_COST_RESERVES,
     },
     actions,
   }

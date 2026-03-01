@@ -192,6 +192,27 @@ export class VgnRecorder {
         this.lines.push(this.mkLine(t, `p=${p}|from=CAPTIVE|to=VOID|ransom=2`))
         this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=RESERVE|ransomed=1`))
       }
+
+      // Recoil pattern: exactly -1 captives, -1 reserves, +2 void,
+      // AND a token moved on board for the defender (p = defender, not active player)
+      // We detect via the recoilArmed flag transitioning false and a token moving
+      const prevRecoilArmed = (prev as any).recoilArmed ?? false
+      const nextRecoilArmed = (next as any).recoilArmed ?? false
+      const recoilFired = prevRecoilArmed && !nextRecoilArmed
+
+      if (recoilFired && captivesDelta === -1 && reservesDelta === -1 && voidDelta === 2) {
+        // Find where the recoiling token moved
+        for (const tok of next.tokens) {
+          if (tok.owner !== p || tok.in !== "BOARD") continue
+          const old = prevById.get(tokenKey(tok))
+          if (!old || old.in !== "BOARD") continue
+          const fromLoc = tokenLoc(old)
+          const toLoc = tokenLoc(tok)
+          if (fromLoc === toLoc) continue
+          this.lines.push(this.mkLine(t, `p=${p}|RECOIL|token=${tok.id}|from=${fromLoc}|to=${toLoc}`))
+          break
+        }
+      }
     }
 
     // ---- ROUTES: diff hand/queue/deck ----

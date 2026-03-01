@@ -19,9 +19,9 @@ interface GridBoardProps {
   onSquareClick: (x: number, y: number) => void
   GHOST_MS: number
   mobile?: boolean
-  evasionSourcePos?: { x: number; y: number } | null
-  evasionDestPos?: { x: number; y: number } | null
-  evasionPlayer?: Player | null
+  recoilSourcePos?: { x: number; y: number } | null
+  recoilDestPos?: { x: number; y: number } | null
+  recoilPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
   cellColor?: string
@@ -36,9 +36,9 @@ export function GridBoard({
   onSquareClick,
   GHOST_MS,
   mobile = false,
-  evasionSourcePos = null,
-  evasionDestPos = null,
-  evasionPlayer = null,
+  recoilSourcePos = null,
+  recoilDestPos = null,
+  recoilPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
   cellColor,
@@ -79,8 +79,8 @@ export function GridBoard({
           const key = `${x},${y}`
           const t = boardMap.get(key)
           const isSelected = t && t.id === selectedTokenId
-          const isEvasionSource = evasionSourcePos && x === evasionSourcePos.x && y === evasionSourcePos.y
-          const isEvasionDest = evasionDestPos && x === evasionDestPos.x && y === evasionDestPos.y
+          const isRecoilSource = recoilSourcePos && x === recoilSourcePos.x && y === recoilSourcePos.y
+          const isRecoilDest = recoilDestPos && x === recoilDestPos.x && y === recoilDestPos.y
 
           const col = String.fromCharCode(65 + x)
           const row = y + 1
@@ -93,11 +93,11 @@ export function GridBoard({
               style={{
                 width: mobile ? 56 : 90,
                 height: mobile ? 56 : 90,
-                backgroundColor: isSelected || isEvasionSource ? "rgba(0,0,0,0.35)" : (cellColor ? `${cellColor}30` : "rgba(184,150,106,0.28)"),
+                backgroundColor: isSelected || isRecoilSource ? "rgba(0,0,0,0.35)" : (cellColor ? `${cellColor}30` : "rgba(184,150,106,0.28)"),
                 borderRadius: cellBorderRadius,
-                boxShadow: isSelected || isEvasionSource
+                boxShadow: isSelected || isRecoilSource
                   ? `0 0 0 ${mobile ? "2px" : "3px"} #5de8f7`
-                  : isEvasionDest
+                  : isRecoilDest
                     ? `0 0 0 ${mobile ? "2px" : "3px"} #a78bfa`
                     : "0 2px 4px rgba(0,0,0,0.2)",
                 display: "flex",
@@ -105,7 +105,7 @@ export function GridBoard({
                 justifyContent: "center",
                 position: "relative",
                 cursor:
-                  started && (phase === "OPENING" || Boolean(t) || evasionSourcePos != null)
+                  started && (phase === "OPENING" || Boolean(t) || recoilSourcePos != null)
                     ? "pointer"
                     : "default",
               }}
@@ -124,8 +124,8 @@ export function GridBoard({
                 {notation}
               </div>
 
-              {/* Evasion source ghost - faded token showing where captured token was (only when no token there) */}
-              {isEvasionSource && !t && evasionPlayer && (
+              {/* Recoil source ghost - faded token showing where captured token was (only when no token there) */}
+              {isRecoilSource && !t && recoilPlayer && (
                 <div
                   style={{
                     position: "absolute",
@@ -136,14 +136,14 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
+                    className={tokenClass(recoilPlayer === "B" ? "B" : "W")}
                     style={{ width: tokenSize, height: tokenSize, borderRadius: "50%", opacity: 0.35 }}
                   />
                 </div>
               )}
 
-              {/* Evasion destination ghost - purple tint shows where token will land */}
-              {isEvasionDest && evasionPlayer && (
+              {/* Recoil destination ghost - purple tint shows where token will land */}
+              {isRecoilDest && recoilPlayer && (
                 <div
                   style={{
                     position: "absolute",
@@ -154,7 +154,7 @@ export function GridBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
+                    className={tokenClass(recoilPlayer === "B" ? "B" : "W")}
                     style={{
                       width: tokenSize,
                       height: tokenSize,

@@ -19,9 +19,9 @@ interface IntersectionBoardProps {
   onSquareClick: (x: number, y: number) => void
   GHOST_MS: number
   mobile?: boolean
-  evasionSourcePos?: { x: number; y: number } | null
-  evasionDestPos?: { x: number; y: number } | null
-  evasionPlayer?: Player | null
+  recoilSourcePos?: { x: number; y: number } | null
+  recoilDestPos?: { x: number; y: number } | null
+  recoilPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
   dotColor?: string
@@ -36,9 +36,9 @@ export function IntersectionBoard({
   onSquareClick,
   GHOST_MS,
   mobile = false,
-  evasionSourcePos = null,
-  evasionDestPos = null,
-  evasionPlayer = null,
+  recoilSourcePos = null,
+  recoilDestPos = null,
+  recoilPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
   dotColor = "#ee484c",
@@ -165,8 +165,8 @@ export function IntersectionBoard({
       const key = `${boardX},${boardY}`
       const t = boardMap.get(key)
       const isSelected = t && t.id === selectedTokenId
-      const isEvasionSource = evasionSourcePos && boardX === evasionSourcePos.x && boardY === evasionSourcePos.y
-      const isEvasionDest = evasionDestPos && boardX === evasionDestPos.x && boardY === evasionDestPos.y
+      const isRecoilSource = recoilSourcePos && boardX === recoilSourcePos.x && boardY === recoilSourcePos.y
+      const isRecoilDest = recoilDestPos && boardX === recoilDestPos.x && boardY === recoilDestPos.y
 
       // Clickable area
       intersections.push(
@@ -176,7 +176,7 @@ export function IntersectionBoard({
           cy={y}
           r={cellSize / 2}
           fill="transparent"
-          cursor={started && (phase === "OPENING" || Boolean(t) || evasionSourcePos != null) ? "pointer" : "default"}
+          cursor={started && (phase === "OPENING" || Boolean(t) || recoilSourcePos != null) ? "pointer" : "default"}
           onClick={() => started && onSquareClick(boardX, boardY)}
         />
       )
@@ -210,12 +210,12 @@ export function IntersectionBoard({
         )
       }
 
-      // Evasion source ring - cyan, marks where captured token came from
-      if (isEvasionSource) {
+      // Recoil source ring - cyan, marks where captured token came from
+      if (isRecoilSource) {
         const highlightRadius = (mobile ? 21 : 35) + (mobile ? 6 : 8)
         intersections.push(
           <circle
-            key={`evasion-src-${key}`}
+            key={`recoil-src-${key}`}
             cx={x}
             cy={y}
             r={highlightRadius}
@@ -228,12 +228,12 @@ export function IntersectionBoard({
         )
       }
 
-      // Evasion dest ring - purple, marks selected destination
-      if (isEvasionDest) {
+      // Recoil dest ring - purple, marks selected destination
+      if (isRecoilDest) {
         const highlightRadius = (mobile ? 21 : 35) + (mobile ? 6 : 8)
         intersections.push(
           <circle
-            key={`evasion-dest-${key}`}
+            key={`recoil-dest-${key}`}
             cx={x}
             cy={y}
             r={highlightRadius}
@@ -267,8 +267,8 @@ export function IntersectionBoard({
           const isSelected = t && t.id === selectedTokenId
           const row = y
           const col = x
-          const isEvasionSource = evasionSourcePos && x === evasionSourcePos.x && y === evasionSourcePos.y
-          const isEvasionDest = evasionDestPos && x === evasionDestPos.x && y === evasionDestPos.y
+          const isRecoilSource = recoilSourcePos && x === recoilSourcePos.x && y === recoilSourcePos.y
+          const isRecoilDest = recoilDestPos && x === recoilDestPos.x && y === recoilDestPos.y
 
           const posX = padding + col * cellSize
           const posY = padding + ((playableSize - 1 - row)) * cellSize
@@ -416,8 +416,8 @@ export function IntersectionBoard({
                 )
               })()}
 
-              {/* Evasion source ghost - faded token showing where captured token was (only when no token there) */}
-              {isEvasionSource && !t && evasionPlayer && (
+              {/* Recoil source ghost - faded token showing where captured token was (only when no token there) */}
+              {isRecoilSource && !t && recoilPlayer && (
                 <div
                   style={{
                     position: "absolute",
@@ -427,7 +427,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
+                    className={tokenClass(recoilPlayer === "B" ? "B" : "W")}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,
@@ -438,8 +438,8 @@ export function IntersectionBoard({
                 </div>
               )}
 
-              {/* Evasion destination ghost - shows where token will land */}
-              {isEvasionDest && evasionPlayer && (
+              {/* Recoil destination ghost - shows where token will land */}
+              {isRecoilDest && recoilPlayer && (
                 <div
                   style={{
                     position: "absolute",
@@ -449,7 +449,7 @@ export function IntersectionBoard({
                   }}
                 >
                   <div
-                    className={tokenClass(evasionPlayer === "B" ? "B" : "W")}
+                    className={tokenClass(recoilPlayer === "B" ? "B" : "W")}
                     style={{
                       width: tokenRadius * 2,
                       height: tokenRadius * 2,

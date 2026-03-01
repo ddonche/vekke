@@ -1,6 +1,6 @@
 import React from "react"
 
-type HelpTopic = "currentPlayer" | "evasion"
+type HelpTopic = "currentPlayer" | "recoil"
 
 type HelpModalProps = {
   topic: HelpTopic
@@ -52,11 +52,11 @@ export function HelpModal({ topic, onClose }: HelpModalProps) {
         }
       ]
     },
-    evasion: {
-      title: "Evasion",
+    recoil: {
+      title: "Recoil",
       sections: [
         {
-          heading: "Escape During Opponent's Turn",
+          heading: "Act During Opponent's Turn",
           icon: (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2">
               <path d="M9 10h.01" />
@@ -64,9 +64,9 @@ export function HelpModal({ topic, onClose }: HelpModalProps) {
               <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
             </svg>
           ),
-          cost: "Cost: 1 Captive + 1 Reserve → Void (Once Per Game)",
-          description: "The only move you can do during your opponent's turn. You must yield 1 captured token and 1 reserve token to the void to use it. Move 1 token 1 space in any direction. You cannot move a sieged token. You cannot invade or capture with this move. You CAN undo a capture on that token with this.",
-          strategy: "Use when: A critical token was just captured or is about to be fully sieged. This is your emergency escape—use it wisely since you only get one per game."
+          cost: "Cost: 1 Captive + 1 Reserve → Void",
+          description: "The only move you can do during your opponent's turn. You must yield 1 captured token and 1 reserve token to the void to use it. Move 1 token 1 space in any direction. You cannot move a sieged token. You cannot invade or capture with this move. This is not an undo; you cannot undo a capture on your token with this.",
+          strategy: "Use when: A critical token is about to be captured or is about to be fully sieged. Bait an opponent into moving and set a trap or siege."
         }
       ]
     }
