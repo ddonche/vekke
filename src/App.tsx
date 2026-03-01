@@ -12,9 +12,10 @@ import { AuthGatePage } from "./pages/AuthGatePage"
 import { GamePage } from "./components/GamePage"
 import ProfilePage from "./pages/ProfilePage"
 import { LeaderboardPage } from "./pages/LeaderboardPage"
+import { BoardEditorPage } from "./pages/BoardEditorPage"
 
 function RulesRedirect() {
-  window.location.replace("http://localhost:4242")
+  window.location.replace("/rules/index.html")
   return null
 }
 
@@ -51,6 +52,7 @@ function App() {
       <Route path="/leaderboard" element={<LeaderboardPage />} />
 
       <Route path="/rules" element={<RulesRedirect />} />
+      <Route path="/board-editor" element={<BoardEditorPage />} />
       <Route path="/rules/*" element={<RulesRedirect />} />
     </Routes>
   )

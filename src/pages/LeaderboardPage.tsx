@@ -3,6 +3,8 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { createChallenge } from "../services/pvp"
+import { newGame } from "../engine/state"
 
 type Format = "standard" | "rapid" | "blitz" | "daily"
 
@@ -136,6 +138,10 @@ export function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
+  // per-row challenge state
+  const [challenging, setChallenging] = useState<Record<string, boolean>>({})
+  const [challenged, setChallenged] = useState<Record<string, boolean>>({})
+
   // Auth
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -162,7 +168,6 @@ export function LeaderboardPage() {
             : "elo_standard"
 
     ;(async () => {
-      // Fetch top 100 from player_stats ordered by chosen elo col
       const { data: statsData, error: statsErr } = await supabase
         .from("player_stats")
         .select(`
@@ -188,7 +193,6 @@ export function LeaderboardPage() {
         return
       }
 
-      // Fetch profiles for those user_ids — exclude AI accounts unless toggled on
       const ids = statsData.map((r: any) => r.user_id)
       let profileQuery = supabase.from("profiles").select("id, username, avatar_url, country_code, is_ai").in("id", ids)
       if (!showAI) profileQuery = profileQuery.eq("is_ai", false)
@@ -288,17 +292,41 @@ export function LeaderboardPage() {
     if (!userId) return false
     if (r.user_id === userId) return false
     if (r.is_ai) return false
+    if (challenged[r.user_id]) return false
+    if (challenging[r.user_id]) return false
     return true
   }
 
-  function onChallengeClick(e: React.MouseEvent, r: LeaderboardRow) {
+  async function onChallengeClick(e: React.MouseEvent, r: LeaderboardRow) {
     e.preventDefault()
     e.stopPropagation()
 
-    // We do NOT create the invite here because we would need the exact initialState builder you use elsewhere.
-    // So we route to the player's profile and let the profile page handle "Challenge" (same flow you’ll reuse there).
-    // tc is passed so the modal/button can default correctly.
-    navigate(`/u/${encodeURIComponent(r.username)}?challenge=1&tc=${encodeURIComponent(format)}`)
+    if (!userId) return
+    if (r.user_id === userId) return
+    if (r.is_ai) return
+    if (challenged[r.user_id]) return
+
+    const invitedUserId = r.user_id
+
+    setErr(null)
+    setChallenging((m) => ({ ...m, [invitedUserId]: true }))
+
+    try {
+      const initialState = newGame()
+
+      await createChallenge({
+        invitedUserId,
+        timeControlId: format,
+        isRanked: true,
+        initialState,
+      })
+
+      setChallenged((m) => ({ ...m, [invitedUserId]: true }))
+    } catch (ex: any) {
+      setErr(ex?.message ?? String(ex))
+    } finally {
+      setChallenging((m) => ({ ...m, [invitedUserId]: false }))
+    }
   }
 
   return (
@@ -417,7 +445,6 @@ export function LeaderboardPage() {
 
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ padding: "28px 24px 60px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
-          {/* Page header */}
           <div style={{ marginBottom: 24 }}>
             <div
               style={{
@@ -432,7 +459,6 @@ export function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Format tabs + AI toggle */}
           <div
             style={{
               display: "flex",
@@ -471,7 +497,6 @@ export function LeaderboardPage() {
             </button>
           </div>
 
-          {/* Error */}
           {err && (
             <div
               style={{
@@ -489,7 +514,6 @@ export function LeaderboardPage() {
             </div>
           )}
 
-          {/* Section label */}
           <div
             style={{
               fontFamily: "'Cinzel', serif",
@@ -508,7 +532,6 @@ export function LeaderboardPage() {
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
           </div>
 
-          {/* Table */}
           <div
             style={{
               border: "1px solid rgba(255,255,255,0.07)",
@@ -575,6 +598,8 @@ export function LeaderboardPage() {
                       const losses = rowLosses(r)
                       const wr = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null
                       const isMe = r.user_id === userId
+                      const isChallenged = !!challenged[r.user_id]
+                      const isChallenging = !!challenging[r.user_id]
                       const canChallenge = canChallengeRow(r)
 
                       return (
@@ -584,15 +609,12 @@ export function LeaderboardPage() {
                           style={{ cursor: "pointer" }}
                           onClick={() => navigate(`/u/${encodeURIComponent(r.username)}`)}
                         >
-                          {/* Rank */}
                           <td className="lb-td" style={{ paddingLeft: 16 }}>
                             <RankBadge rank={i + 1} />
                           </td>
 
-                          {/* Player */}
                           <td className="lb-td">
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              {/* Avatar */}
                               <div
                                 style={{
                                   width: 32,
@@ -675,14 +697,12 @@ export function LeaderboardPage() {
                             </div>
                           </td>
 
-                          {/* Elo */}
                           <td className="lb-td">
                             <span style={{ fontFamily: "monospace", fontSize: "1rem", fontWeight: 700, color: eloColor(elo) }}>
                               {elo}
                             </span>
                           </td>
 
-                          {/* Title */}
                           <td className="lb-td">
                             <span
                               style={{
@@ -697,12 +717,10 @@ export function LeaderboardPage() {
                             </span>
                           </td>
 
-                          {/* Games */}
                           <td className="lb-td">
                             <span style={{ fontFamily: "monospace", fontSize: "0.95rem" }}>{games}</span>
                           </td>
 
-                          {/* W / L */}
                           <td className="lb-td">
                             <span style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>
                               <span style={{ color: "#6ee7b7" }}>{wins}</span>
@@ -711,7 +729,6 @@ export function LeaderboardPage() {
                             </span>
                           </td>
 
-                          {/* Win % */}
                           <td className="lb-td">
                             {wr !== null ? (
                               <span
@@ -728,7 +745,6 @@ export function LeaderboardPage() {
                             )}
                           </td>
 
-                          {/* Challenge */}
                           <td className="lb-td">
                             <button
                               className="challenge-btn"
@@ -741,10 +757,14 @@ export function LeaderboardPage() {
                                     ? "AI cannot be challenged"
                                     : r.user_id === userId
                                       ? "You cannot challenge yourself"
-                                      : `Challenge (${FORMAT_LABELS[format]})`
+                                      : isChallenged
+                                        ? "Challenge sent"
+                                        : isChallenging
+                                          ? "Sending..."
+                                          : `Challenge (${FORMAT_LABELS[format]})`
                               }
                             >
-                              Challenge
+                              {isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
                             </button>
                           </td>
                         </tr>
@@ -756,7 +776,6 @@ export function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Signature stats row */}
           {!loading && rows.length > 0 && (
             <div style={{ marginTop: 28 }}>
               <div

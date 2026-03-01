@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { createChallenge, type TimeControlId } from "../services/pvp"
+import { newGame } from "../engine/state"
 
 type ProfileRow = {
   id: string
@@ -13,6 +15,7 @@ type ProfileRow = {
   account_tier: string | null
   order_id: string | null
   order_joined_at: string | null
+  is_ai: boolean
 }
 
 type PlayerStatsRow = {
@@ -119,7 +122,7 @@ function StatPill({
   label,
   value,
   tone,
-  customColor, // ← new optional prop for dynamic color
+  customColor,
 }: {
   label: string
   value: string
@@ -201,6 +204,11 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [order, setOrder] = useState<OrderLite | null>(null)
 
+  // Challenge UI (same feel as leaderboard)
+  const [challengeTc, setChallengeTc] = useState<TimeControlId>("standard")
+  const [challenging, setChallenging] = useState(false)
+  const [challenged, setChallenged] = useState(false)
+
   useEffect(() => {
     isMountedRef.current = true
     return () => {
@@ -214,6 +222,8 @@ export default function ProfilePage() {
     setProfile(null)
     setStats(null)
     setOrder(null)
+    setChallenged(false)
+    setChallenging(false)
 
     // viewer session
     const { data: sess, error: sessErr } = await supabase.auth.getSession()
@@ -239,7 +249,7 @@ export default function ProfilePage() {
 
     const { data: p, error: pErr } = await supabase
       .from("profiles")
-      .select("id,username,avatar_url,country_code,country_name,account_tier,order_id,order_joined_at")
+      .select("id,username,avatar_url,country_code,country_name,account_tier,order_id,order_joined_at,is_ai")
       .eq("username", targetUsername)
       .maybeSingle()
 
@@ -313,6 +323,58 @@ export default function ProfilePage() {
     const accent = ["wolf", "raven", "fox"].includes(id) ? order.primary_color : order.secondary_color
     return accent || "#b8966a"
   }, [order])
+
+  const FORMAT_LABELS: Record<TimeControlId, string> = {
+    standard: "Standard",
+    rapid: "Rapid",
+    blitz: "Blitz",
+    daily: "Daily",
+  }
+
+  function canChallengeTarget() {
+    if (!userId) return false
+    if (!profile) return false
+    if (profile.id === userId) return false
+    if (profile.is_ai) return false
+    if (challenged) return false
+    if (challenging) return false
+    return true
+  }
+
+  async function onChallengeClick(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!profile) return
+
+    if (!userId) {
+      const rt = encodeURIComponent(`/u/${encodeURIComponent(targetUsername)}`)
+      window.location.assign(`/?openAuth=1&returnTo=${rt}`)
+      return
+    }
+
+    if (!canChallengeTarget()) return
+
+    setErr(null)
+    setChallenging(true)
+
+    try {
+      const initialState = newGame()
+
+      await createChallenge({
+        invitedUserId: profile.id,
+        timeControlId: challengeTc,
+        isRanked: true,
+        initialState,
+      })
+
+      setChallenged(true)
+    } catch (ex: any) {
+      setErr(ex?.message ?? String(ex))
+    } finally {
+      setChallenging(false)
+    }
+  }
 
   return (
     <div
@@ -389,6 +451,47 @@ export default function ProfilePage() {
           border-bottom: 1px solid rgba(255,255,255,0.07);
           color: #b0aa9e;
           white-space: nowrap;
+        }
+
+        .format-tab {
+          font-family: 'Cinzel', serif;
+          font-size: 0.6rem;
+          font-weight: 600;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          padding: 6px 10px;
+          border-radius: 4px;
+          border: 1px solid transparent;
+          cursor: pointer;
+          transition: all 0.12s;
+          background: transparent;
+          color: #6b6558;
+          white-space: nowrap;
+        }
+        .format-tab:hover { color: #b0aa9e; background: rgba(255,255,255,0.04); }
+        .format-tab.active {
+          color: #d4af7a;
+          background: rgba(184,150,106,0.10);
+          border-color: rgba(184,150,106,0.30);
+        }
+
+        .challenge-btn {
+          font-family: 'Cinzel', serif;
+          background: rgba(184,150,106,0.10);
+          border: 1px solid rgba(184,150,106,0.35);
+          color: #d4af7a;
+          border-radius: 4px;
+          padding: 8px 12px;
+          font-size: 0.55rem;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .challenge-btn:disabled {
+          opacity: 0.35;
+          cursor: default;
         }
       `}</style>
 
@@ -469,9 +572,20 @@ export default function ProfilePage() {
                       }}
                     >
                       {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt={profile.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img
+                          src={profile.avatar_url}
+                          alt={profile.username}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
                       ) : (
-                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.9rem", fontWeight: 700, color: "#b0aa9e" }}>
+                        <span
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontSize: "0.9rem",
+                            fontWeight: 700,
+                            color: "#b0aa9e",
+                          }}
+                        >
                           {(profile?.username ?? "??").slice(0, 2).toUpperCase()}
                         </span>
                       )}
@@ -515,6 +629,56 @@ export default function ProfilePage() {
                         {countryLabel}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Challenge controls */}
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                      {(["standard", "rapid", "blitz", "daily"] as TimeControlId[]).map((tc) => (
+                        <button
+                          key={tc}
+                          className={`format-tab${challengeTc === tc ? " active" : ""}`}
+                          onClick={() => setChallengeTc(tc)}
+                          disabled={loading}
+                          title={`Challenge (${FORMAT_LABELS[tc]})`}
+                        >
+                          {FORMAT_LABELS[tc]}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      className="challenge-btn"
+                      disabled={!canChallengeTarget()}
+                      onClick={onChallengeClick}
+                      title={
+                        !userId
+                          ? "Sign in to challenge"
+                          : !profile
+                            ? "Loading..."
+                            : profile.is_ai
+                              ? "AI cannot be challenged"
+                              : profile.id === userId
+                                ? "You cannot challenge yourself"
+                                : challenged
+                                  ? "Challenge sent"
+                                  : challenging
+                                    ? "Sending..."
+                                    : `Challenge (${FORMAT_LABELS[challengeTc]})`
+                      }
+                    >
+                      {challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
+                    </button>
                   </div>
 
                   <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
@@ -606,12 +770,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="stats-grid">
-                {/* Updated: pass dynamic eloColor instead of fixed tone */}
-                <StatPill
-                  label="ELO"
-                  value={loading ? "—" : String(derived.elo)}
-                  customColor={eloColor(derived.elo)}
-                />
+                <StatPill label="ELO" value={loading ? "—" : String(derived.elo)} customColor={eloColor(derived.elo)} />
                 <StatPill label="Games" value={loading ? "—" : String(derived.games)} />
                 <StatPill label="Win%" value={loading ? "—" : derived.wr == null ? "—" : pct(derived.wr)} tone="gold" />
                 <StatPill label="Wins" value={loading ? "—" : String(derived.wins)} />
@@ -670,34 +829,10 @@ export default function ProfilePage() {
                       </thead>
                       <tbody>
                         {[
-                          {
-                            mode: "Blitz",
-                            elo: stats?.elo_blitz,
-                            g: stats?.games_blitz,
-                            w: stats?.wins_blitz,
-                            l: stats?.losses_blitz,
-                          },
-                          {
-                            mode: "Rapid",
-                            elo: stats?.elo_rapid,
-                            g: stats?.games_rapid,
-                            w: stats?.wins_rapid,
-                            l: stats?.losses_rapid,
-                          },
-                          {
-                            mode: "Standard",
-                            elo: stats?.elo_standard,
-                            g: stats?.games_standard,
-                            w: stats?.wins_standard,
-                            l: stats?.losses_standard,
-                          },
-                          {
-                            mode: "Daily",
-                            elo: stats?.elo_daily,
-                            g: stats?.games_daily,
-                            w: stats?.wins_daily,
-                            l: stats?.losses_daily,
-                          },
+                          { mode: "Blitz", elo: stats?.elo_blitz, g: stats?.games_blitz, w: stats?.wins_blitz, l: stats?.losses_blitz },
+                          { mode: "Rapid", elo: stats?.elo_rapid, g: stats?.games_rapid, w: stats?.wins_rapid, l: stats?.losses_rapid },
+                          { mode: "Standard", elo: stats?.elo_standard, g: stats?.games_standard, w: stats?.wins_standard, l: stats?.losses_standard },
+                          { mode: "Daily", elo: stats?.elo_daily, g: stats?.games_daily, w: stats?.wins_daily, l: stats?.losses_daily },
                         ].map((r) => {
                           const w = safeInt(r.w)
                           const l = safeInt(r.l)
@@ -724,7 +859,9 @@ export default function ProfilePage() {
                   </div>
 
                   {!loading && profile && !stats ? (
-                    <div style={{ marginTop: 10, color: "#6b6558", fontStyle: "italic" }}>No stats yet (player_stats row missing).</div>
+                    <div style={{ marginTop: 10, color: "#6b6558", fontStyle: "italic" }}>
+                      No stats yet (player_stats row missing).
+                    </div>
                   ) : null}
                 </div>
               </div>
