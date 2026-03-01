@@ -476,7 +476,7 @@ export function Header(props: HeaderProps) {
   const goMyGames = props.onMyGames ?? (() => navigate("/challenges"))
   const goLeaderboard = props.onLeaderboard ?? (() => navigate("/leaderboard"))
   const goOrders = props.onOrders ?? (() => navigate("/orders"))
-  const goRules = props.onRules ?? (() => navigate("/rules"))
+  const goRules = props.onRules ?? (() => { window.location.href = "http://localhost:4242" })
   const goTutorial = props.onTutorial ?? (() => navigate("/tutorial"))
 
   // Some sites separate "My Games" and "Challenges"; yours currently maps My Games → Challenges page.
@@ -655,7 +655,7 @@ export function Header(props: HeaderProps) {
         <button className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`} onClick={() => { goLeaderboard(); setMobileOpen(false) }}>Leaderboard</button>
         <button className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`} onClick={() => { goOrders(); setMobileOpen(false) }}>Orders</button>
         <div className="vekke-mobile-divider" />
-        <button className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`} onClick={() => { goRules(); setMobileOpen(false) }}>Rules</button>
+        <button className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`} onClick={() => { window.location.href = "http://localhost:4242"; setMobileOpen(false) }}>Rules</button>
         <button className={`vekke-mobile-nav-item${activePage === "tutorial" ? " active" : ""}`} onClick={() => { goTutorial(); setMobileOpen(false) }}>Tutorial</button>
       </div>
 

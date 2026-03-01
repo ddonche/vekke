@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+</head>
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                
+    <img class="sheriff-logo-mark" src="/public/logo.png" alt="VEKKE">
+    
+                <div class="sheriff-logo-text-wrap">
+                  
+    <div class="sheriff-logo-text">VEKKE</div>
+    
+                  <span class="sheriff-version-badge">1.0</span>
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13zM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061zM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8zM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-dark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display: none;">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+    </button>
+
+    <script>
+    (function() {
+      var KEY = 'brindle-theme';
+      var root = document.documentElement;
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+
+      var lightIcon = toggle.querySelector('.theme-icon-light');
+      var darkIcon  = toggle.querySelector('.theme-icon-dark');
+
+      function apply(theme) {
+        root.dataset.theme = theme; // "dark" or "light"
+        if (theme === 'dark') {
+          lightIcon.style.display = 'inline-block';
+          darkIcon.style.display  = 'none';
+        } else {
+          lightIcon.style.display = 'none';
+          darkIcon.style.display  = 'inline-block';
+        }
+        try { localStorage.setItem(KEY, theme); } catch(e) {}
+      }
+
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch(e) {}
+      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+      apply(initial);
+
+      toggle.addEventListener('click', function() {
+        var current = root.dataset.theme || 'dark';
+        apply(current === 'dark' ? 'light' : 'dark');
+      });
+    })();
+    </script>
+    
+              
+    <div class="sheriff-version-select">
+      <span class="sheriff-version-select-label">v2.0</span>
+      <span class="sheriff-version-select-chevron">&#9662;</span>
+    </div>
+    
+              
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    
+              
+<a href="https://github.com/ddonche/sheriff" class="sheriff-github-badge">
+  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
+  </svg>
+  <div class="sheriff-github-info">
+    <div class="sheriff-github-repo">ddonche/sheriff</div>
+    <div class="sheriff-github-stats">
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        1.0
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        1
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+          <path d="M12 12v3"/>
+        </svg>
+        0
+      </div>
+    </div>
+  </div>
+</a>
+
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </header>
+        <div class="sheriff-main-layout-two">
+            <section class="sheriff-article">
+                <p><div class="campfire-post-index"><div class="campfire-post"><div class="campfire-post-row"><div class="campfire-post-main"><div class="campfire-post-title"><a class="sheriff-link" href="/blog/mtg-horde-format.html">Horde Format Official Rules</a></div><div class="campfire-post-meta"><a class="campfire-author sheriff-link" href="#"><img class="campfire-author-avatar" src="/public/avatars/dan.png" alt="Dan Donche"><span class="campfire-author-name">Dan Donche</span></a><span class="campfire-meta-dot" aria-hidden="true"></span><span class="campfire-date">2015-12-05</span></div><p class="campfire-post-preview">Horde Format is a Goblin-Lang-themed Magic: The Gathering variant, just for fun.</p><div class="campfire-post-footer"><div class="campfire-post-readmore"><a class="sheriff-link" href="/blog/mtg-horde-format.html">Read more →</a></div></div></div><div class="campfire-post-aside"><a class="campfire-thumb" href="/blog/mtg-horde-format.html"><img src="/public/images/blog/mtg-goblin.png" alt="Horde Format Official Rules"></a></div></div></div><div class="campfire-post"><div class="campfire-post-row"><div class="campfire-post-main"><div class="campfire-post-title"><a class="sheriff-link" href="/blog/why-I-made-Sheriff.html">Why I Made Sheriff</a></div><div class="campfire-post-meta"><a class="campfire-author sheriff-link" href="#"><img class="campfire-author-avatar" src="/public/avatars/dan.png" alt="Dan Donche"><span class="campfire-author-name">Dan Donche</span></a><span class="campfire-meta-dot" aria-hidden="true"></span><span class="campfire-date">2025-11-16</span></div><p class="campfire-post-preview">The entire reason I created Sheriff, along with why I created it like this.</p><div class="campfire-post-footer"><div class="campfire-post-readmore"><a class="sheriff-link" href="/blog/why-I-made-Sheriff.html">Read more →</a></div></div></div><div class="campfire-post-aside"><a class="campfire-thumb" href="/blog/why-I-made-Sheriff.html"><img src="/public/images/blog/test.png" alt="Why I Made Sheriff"></a></div></div></div></div></p>
+
+            </section>
+            <aside class="sheriff-sidebar">
+                
+                <ul class="campfire-blog-list"><li><a class="sheriff-link" href="/blog/mtg-horde-format.html">Horde Format Official Rules</a></li><li><a class="sheriff-link" href="/blog/why-I-made-Sheriff.html">Why I Made Sheriff</a></li></ul>
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+</body>
+</html>

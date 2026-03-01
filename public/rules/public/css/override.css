@@ -1,0 +1,27 @@
+/* site/portals/vekke/override.css */
+
+/* Dark (default) */
+:root{
+  --sheriff-accent: #3296ab !important;
+  --sheriff-link: #3296ab !important;
+  --sheriff-link-hover: #74b8c6 !important;
+}
+
+/* Light */
+:root[data-theme="light"]{
+  --sheriff-accent: #3296ab !important;
+  --sheriff-link: #3296ab !important;
+  --sheriff-link-hover: #74b8c6 !important;
+}
+
+/* site/portals/vekke/override.css (or goblin/override.css) */
+
+/* Missing-page links — HARD CODED COLOR TEST */
+.sheriff-article a.sheriff-missing-link{
+  color: #ee484c !important;
+}
+
+.sheriff-article a.sheriff-missing-link:hover{
+  color: #ee484c !important;
+  text-decoration: underline;
+}

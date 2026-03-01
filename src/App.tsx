@@ -13,6 +13,11 @@ import { GamePage } from "./components/GamePage"
 import ProfilePage from "./pages/ProfilePage"
 import { LeaderboardPage } from "./pages/LeaderboardPage"
 
+function RulesRedirect() {
+  window.location.replace("http://localhost:4242")
+  return null
+}
+
 function App() {
   return (
     <Routes>
@@ -44,6 +49,9 @@ function App() {
       <Route path="/skins" element={<SkinsPage />} />
       <Route path="/orders" element={<OrdersPage />} />
       <Route path="/leaderboard" element={<LeaderboardPage />} />
+
+      <Route path="/rules" element={<RulesRedirect />} />
+      <Route path="/rules/*" element={<RulesRedirect />} />
     </Routes>
   )
 }

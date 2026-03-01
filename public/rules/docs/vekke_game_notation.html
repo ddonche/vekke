@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vekke Game Notation</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+</head>
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                
+    <img class="sheriff-logo-mark" src="/public/logo.png" alt="VEKKE">
+    
+                <div class="sheriff-logo-text-wrap">
+                  
+    <div class="sheriff-logo-text">VEKKE</div>
+    
+                  <span class="sheriff-version-badge">1.0</span>
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13zM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061zM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8zM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-dark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display: none;">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+    </button>
+
+    <script>
+    (function() {
+      var KEY = 'brindle-theme';
+      var root = document.documentElement;
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+
+      var lightIcon = toggle.querySelector('.theme-icon-light');
+      var darkIcon  = toggle.querySelector('.theme-icon-dark');
+
+      function apply(theme) {
+        root.dataset.theme = theme; // "dark" or "light"
+        if (theme === 'dark') {
+          lightIcon.style.display = 'inline-block';
+          darkIcon.style.display  = 'none';
+        } else {
+          lightIcon.style.display = 'none';
+          darkIcon.style.display  = 'inline-block';
+        }
+        try { localStorage.setItem(KEY, theme); } catch(e) {}
+      }
+
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch(e) {}
+      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+      apply(initial);
+
+      toggle.addEventListener('click', function() {
+        var current = root.dataset.theme || 'dark';
+        apply(current === 'dark' ? 'light' : 'dark');
+      });
+    })();
+    </script>
+    
+              
+    <div class="sheriff-version-select">
+      <span class="sheriff-version-select-label">v2.0</span>
+      <span class="sheriff-version-select-chevron">&#9662;</span>
+    </div>
+    
+              
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    
+              
+<a href="https://github.com/ddonche/sheriff" class="sheriff-github-badge">
+  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
+  </svg>
+  <div class="sheriff-github-info">
+    <div class="sheriff-github-repo">ddonche/sheriff</div>
+    <div class="sheriff-github-stats">
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        1.0
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        1
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+          <path d="M12 12v3"/>
+        </svg>
+        0
+      </div>
+    </div>
+  </div>
+</a>
+
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </header>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+<div class="section-header">
+  <span>DOCUMENTATION</span>
+</div>
+
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/index.html">Introduction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/pnp.html">Print and Play</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/basics.html">Basics</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/board.html">Board</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/components.html">Components</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/drafting.html">Drafting</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/early_route_swap.html">Early Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ending.html">Ending the Game</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/extra_reinforcement.html">Extra Reinforcement</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/flanking.html">Flanking</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/illegal.html">Illegal Actions</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/korochev.html">Korochev Maneuver</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ransom.html">Ransom</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/recoil.html">Recoil</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reference_cards.html">Reference Cards</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reinforcements.html">Reinforcements</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reserves.html">Reserves</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/routes.html">Routes</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_hand.html">Route Hand</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_markers.html">Route Markers</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_queue.html">Route Queue</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_swap.html">Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/segura.html">Segura</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/siege.html">Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/space.html">Space</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/unit.html">Units</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wildcards.html">Wildcards</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/dragon_order.html">Order of the Dragon</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wolf_order.html">Order of the Wolf</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/serpent_order.html">Order of the Serpent</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/spider_order.html">Order of the Spider</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/raven_order.html">Order of the Raven</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/kraken_order.html">Order of the Kraken</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/turtle_order.html">Order of the Turtle</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/stag_order.html">Order of the Stag</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/fox_order.html">Order of the Fox</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wild_format.html">Wild</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/explorer_format.html">Explorer</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            </ul>
+
+
+</aside>
+
+            <article class="sheriff-article">
+              <!-- Page header (meta strip + title + byline) -->
+              <header class="sheriff-page-header">
+                <!-- Top meta strip -->
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">specification</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">docs</span>
+        </span>
+        
+                    <!-- e.g. THEME PREVIEW · ARTICLE -->
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[vekke-game-notation]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[vekke-game-notation]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                    <!-- e.g. canonical wikilink + copy icon -->
+                  </div>
+                </div>
+                <!-- Title (your existing .sheriff-article h1 + ::after underline) -->
+                <h1>
+                  Vekke Game Notation
+                </h1>
+                <div class="sheriff-title-underline"></div>
+                <!-- Byline / meta row -->
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">
+                      Intl. Vekke Council
+                    </span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 8 min read
+        </span>
+        
+                    <!-- e.g. " · " + BADGE::READTIME -->
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                    <!-- e.g. BADGE::UTILICONS -->
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <!-- Markdown / main content -->
+              <h2><a href="#vekke-game-notation-vgn--v1" aria-hidden="true" class="anchor" id="vekke-game-notation-vgn--v1"></a>Vekke Game Notation (VGN) — v1</h2>
+<p>This explains the Vekke Game Notation system.</p>
+<h2><a href="#core-principle" aria-hidden="true" class="anchor" id="core-principle"></a>Core Principle</h2>
+<p><strong>VGN is a pure state-transition ledger.</strong></p>
+<p>Each non-META line records <strong>only factual state changes</strong>:</p>
+<ul>
+<li>time (<code>t</code>)</li>
+<li>player (<code>p</code>, if applicable)</li>
+<li>an object (token or route)</li>
+<li>a transfer from one location to another</li>
+</ul>
+<p><strong>Game semantics are never encoded as events.</strong></p>
+<p>All named game concepts (invade, siege, evasion, mulligan, draft, early swap, etc.) appear <strong>only</strong> in <code>NOTE</code> lines.</p>
+<p>This guarantees:</p>
+<ul>
+<li>full replayability</li>
+<li>rule-agnostic logs</li>
+<li>long-term stability</li>
+<li>zero semantic drift</li>
+</ul>
+<hr />
+<h2><a href="#line-format" aria-hidden="true" class="anchor" id="line-format"></a>Line Format</h2>
+<p>Each line is a single state change or annotation:</p>
+<pre><code>t=&lt;ms&gt;|key=value|key=value|...
+</code></pre>
+<h3><a href="#rules" aria-hidden="true" class="anchor" id="rules"></a>Rules</h3>
+<ul>
+<li><code>t</code> = milliseconds since game start</li>
+<li>Fields are pipe-delimited (<code>|</code>)</li>
+<li>Field order is not significant unless stated</li>
+<li>No whitespace unless inside quoted values</li>
+<li><code>to=</code> is always used for transfers</li>
+<li>Coordinates (<code>A1–F6</code>) <strong>imply BOARD</strong></li>
+</ul>
+<h3><a href="#player-field-p" aria-hidden="true" class="anchor" id="player-field-p"></a>Player Field (<code>p</code>)</h3>
+<ul>
+<li>For any line that mutates a player-owned object (tokens, hands), <code>p</code> is <strong>required</strong>.</li>
+<li>For global/system operations that are not attributable to a player (ex: queue refill from the deck), <code>p</code> is <strong>omitted</strong>.</li>
+</ul>
+<h3><a href="#optional-readability-fields" aria-hidden="true" class="anchor" id="optional-readability-fields"></a>Optional Readability Fields</h3>
+<p>These fields do not change state and may be included on any non-META line:</p>
+<ul>
+<li><code>r=&lt;n&gt;</code> — the current round number (ties events to the most recent <code>ROUND|n=&lt;n&gt;</code> marker)</li>
+<li><code>dt=&lt;ms&gt;</code> — elapsed milliseconds since the previous non-META line (redundant with <code>t</code>, provided for human scanning)</li>
+</ul>
+<hr />
+<h2><a href="#canonical-locations" aria-hidden="true" class="anchor" id="canonical-locations"></a>Canonical Locations</h2>
+<pre><code>BOARD (implicit via coordinates)
+RESERVE
+CAPTIVE
+VOID
+HAND
+QUEUE
+DECK
+</code></pre>
+<h3><a href="#player-scoped-vs-global-locations" aria-hidden="true" class="anchor" id="player-scoped-vs-global-locations"></a>Player-Scoped vs Global Locations</h3>
+<ul>
+<li>
+<p><strong>Player-scoped locations</strong> exist <strong>per player</strong> and are always interpreted in the context of <code>p=</code>:</p>
+<ul>
+<li><code>RESERVE</code></li>
+<li><code>CAPTIVE</code></li>
+<li><code>HAND</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Global locations</strong> are shared and have no player ownership:</p>
+<ul>
+<li><code>BOARD</code> (implicit)</li>
+<li><code>QUEUE</code></li>
+<li><code>DECK</code></li>
+<li><code>VOID</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>Rule:</strong> When a player-scoped location is used, <code>p</code> <strong>must</strong> be present, and the location refers to that player’s pool.</p>
+<p>Example:</p>
+<pre><code>t=...|p=B|from=E5|to=CAPTIVE
+</code></pre>
+<p>This always means: <em>the token is moved into <strong>Blue’s</strong> CAPTIVE pool (the capturer)</em>.</p>
+<p>Notes:</p>
+<ul>
+<li>BOARD is <strong>never written explicitly</strong></li>
+<li>Any grid coordinate implies BOARD</li>
+<li>All non-board locations are written verbatim</li>
+</ul>
+<hr />
+<h2><a href="#tokens-critical" aria-hidden="true" class="anchor" id="tokens-critical"></a>Tokens (Critical)</h2>
+<p><strong>TOKENS HAVE NO IDS.</strong></p>
+<p>Tokens are indistinguishable and tracked only by:</p>
+<ul>
+<li>owner (<code>p=W</code> or <code>p=B</code>)</li>
+<li>location (coordinate or named location)</li>
+<li>counts (when not on board)</li>
+</ul>
+<p>Therefore:</p>
+<ul>
+<li>Board interactions reference coordinates</li>
+<li>Off-board interactions reference counts</li>
+</ul>
+<hr />
+<h2><a href="#routes" aria-hidden="true" class="anchor" id="routes"></a>Routes</h2>
+<p>Routes are immutable values written as:</p>
+<pre><code>dir/dist
+</code></pre>
+<ul>
+<li><code>dir ∈ 1–8</code> (compass order, clockwise from North)</li>
+<li><code>dist ∈ 1–4</code></li>
+<li>Orthogonal directions may use distance 4</li>
+</ul>
+<p>Routes move between:</p>
+<ul>
+<li>HAND</li>
+<li>QUEUE</li>
+<li>DECK</li>
+</ul>
+<p>Routes are always transferred explicitly between locations.</p>
+<hr />
+<h2><a href="#required-header-meta" aria-hidden="true" class="anchor" id="required-header-meta"></a>Required Header (META)</h2>
+<p>These lines must appear before gameplay:</p>
+<pre><code>META|GAME|id=&lt;uuid&gt;|ruleset=&lt;name&gt;|version=1
+META|PLAYERS|W=&lt;player_id&gt;|B=&lt;player_id&gt;
+META|TOKENS|W=18|B=18
+META|TC|mode=&lt;standard|rapid|blitz&gt;|base=&lt;ms&gt;|inc=&lt;ms&gt;
+</code></pre>
+<hr />
+<h2><a href="#round-marker" aria-hidden="true" class="anchor" id="round-marker"></a>Round Marker</h2>
+<p>Rounds are explicitly marked:</p>
+<pre><code>t=...|ROUND|n=1
+</code></pre>
+<p>This line has no state effect and exists for:</p>
+<ul>
+<li>turn structure</li>
+<li>clocks</li>
+<li>analysis</li>
+</ul>
+<hr />
+<h2><a href="#state-transfers" aria-hidden="true" class="anchor" id="state-transfers"></a>State Transfers</h2>
+<h3><a href="#board-placement" aria-hidden="true" class="anchor" id="board-placement"></a>Board Placement</h3>
+<p>Opening placement uses the same explicit transfer format as reinforcement:</p>
+<pre><code>t=...|p=W|from=RESERVE|to=A3
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li>Opening placement is no longer implicit</li>
+<li>This keeps <strong>all placements uniform</strong> and removes special cases</li>
+</ul>
+<hr />
+<h3><a href="#board-movement" aria-hidden="true" class="anchor" id="board-movement"></a>Board Movement</h3>
+<pre><code>t=...|p=W|from=A3|route=6/1|to=A2
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li>Path is never logged</li>
+<li>There is no MOVE event</li>
+</ul>
+<hr />
+<h3><a href="#capture-board-removal" aria-hidden="true" class="anchor" id="capture-board-removal"></a>Capture (Board Removal)</h3>
+<pre><code>t=...|p=B|from=E5|to=CAPTIVE
+</code></pre>
+<p>Meaning:</p>
+<ul>
+<li>Token at <code>E5</code> is removed from board and moved to CAPTIVE</li>
+</ul>
+<p>Game meaning (optional annotation):</p>
+<pre><code>t=...|NOTE|text=&quot;Siege at E5&quot;
+</code></pre>
+<hr />
+<h3><a href="#reinforcement" aria-hidden="true" class="anchor" id="reinforcement"></a>Reinforcement</h3>
+<pre><code>t=...|p=W|from=RESERVE|to=C3
+</code></pre>
+<hr />
+<h3><a href="#yield-generic" aria-hidden="true" class="anchor" id="yield-generic"></a>Yield (Generic)</h3>
+<p>All costs are expressed as explicit transfers to VOID, and <strong>the source location is always written</strong>:</p>
+<pre><code>t=...|p=W|from=RESERVE|to=VOID|yield=4
+</code></pre>
+<p>Rules:</p>
+<ul>
+<li><code>yield</code> is used only for transfers whose destination is <code>VOID</code>.</li>
+<li>The yield source is <strong>never implied</strong>; it is always expressed via <code>from=&lt;LOCATION&gt;</code>.</li>
+</ul>
+<p>Canonical yield meanings (early swap vs reinforce vs evasion, etc.) are determined by the ruleset and may be annotated with <code>NOTE</code>, but the VGN line remains a plain transfer.</p>
+<hr />
+<h2><a href="#route-transfers" aria-hidden="true" class="anchor" id="route-transfers"></a>Route Transfers</h2>
+<h3><a href="#queue-to-hand" aria-hidden="true" class="anchor" id="queue-to-hand"></a>Queue to Hand</h3>
+<pre><code>t=...|p=W|route=3/2|from=QUEUE|to=HAND
+</code></pre>
+<h3><a href="#hand-to-deck" aria-hidden="true" class="anchor" id="hand-to-deck"></a>Hand to Deck</h3>
+<pre><code>t=...|p=W|route=1/4|from=HAND|to=DECK
+</code></pre>
+<h3><a href="#deck-to-queue-refill" aria-hidden="true" class="anchor" id="deck-to-queue-refill"></a>Deck to Queue (Refill)</h3>
+<p>Queue refill is a global/system transfer (no player attribution):</p>
+<pre><code>t=...|route=5/1|from=DECK|to=QUEUE
+</code></pre>
+<hr />
+<h2><a href="#early-reinforcement-state-only" aria-hidden="true" class="anchor" id="early-reinforcement-state-only"></a>Early Reinforcement (State Only)</h2>
+<p>Early reinforcement is expressed only as state transitions:</p>
+<pre><code>t=...|p=W|from=RESERVE|to=C3
+t=...|p=W|from=RESERVE|to=VOID|yield=4
+</code></pre>
+<p>Optional annotation:</p>
+<pre><code>t=...|NOTE|text=&quot;Early reinforcement&quot;
+</code></pre>
+<hr />
+<h2><a href="#early-route-swap-state-only" aria-hidden="true" class="anchor" id="early-route-swap-state-only"></a>Early Route Swap (State Only)</h2>
+<p>Early route swap is expressed only as state transitions:</p>
+<pre><code>t=...|p=B|route=7/2|from=QUEUE|to=HAND
+t=...|p=B|route=1/4|from=HAND|to=DECK
+t=...|p=B|from=CAPTIVE|to=VOID|yield=4
+</code></pre>
+<p>Optional annotation:</p>
+<pre><code>t=...|NOTE|text=&quot;Early route swap&quot;
+</code></pre>
+<hr />
+<h2><a href="#mulligan-state-only" aria-hidden="true" class="anchor" id="mulligan-state-only"></a>Mulligan (State Only)</h2>
+<pre><code>t=...|p=W|from=D4|to=RESERVE
+t=...|p=W|route=1/2|from=HAND|to=DECK
+t=...|p=W|route=6/2|from=DECK|to=HAND
+</code></pre>
+<p>Optional annotation:</p>
+<pre><code>t=...|NOTE|text=&quot;Mulligan&quot;
+</code></pre>
+<hr />
+<h2><a href="#draft-void-recovery" aria-hidden="true" class="anchor" id="draft-void-recovery"></a>Draft (Void Recovery)</h2>
+<p>Draft is <strong>not a yield</strong> (it is recovery). Use <code>count</code> for non-VOID multi-token transfers:</p>
+<pre><code>t=...|p=W|from=VOID|to=RESERVE|count=2
+</code></pre>
+<p>Optional annotation:</p>
+<pre><code>t=...|NOTE|text=&quot;Draft&quot;
+</code></pre>
+<hr />
+<h2><a href="#evasion-state-only" aria-hidden="true" class="anchor" id="evasion-state-only"></a>Evasion (State Only)</h2>
+<pre><code>t=...|p=B|from=RESERVE|to=VOID|yield=2
+t=...|p=B|from=CAPTIVE|to=VOID|yield=2
+t=...|p=B|from=D5|to=C6
+</code></pre>
+<p>Optional annotation:</p>
+<pre><code>t=...|NOTE|text=&quot;Evasion&quot;
+</code></pre>
+<hr />
+<h2><a href="#notes" aria-hidden="true" class="anchor" id="notes"></a>Notes</h2>
+<p>Notes are human-readable annotations ignored by engines:</p>
+<pre><code>t=...|NOTE|text=&quot;White invaded E5&quot;
+</code></pre>
+<p>Rules:</p>
+<ul>
+<li>Notes never change state</li>
+<li>Text must be quoted</li>
+<li>Any game terminology belongs here</li>
+</ul>
+<hr />
+<h2><a href="#game-end" aria-hidden="true" class="anchor" id="game-end"></a>Game End</h2>
+<p>Game end is recorded explicitly and symmetrically, with both winner and loser identified.</p>
+<h3><a href="#win--loss" aria-hidden="true" class="anchor" id="win--loss"></a>WIN / LOSS</h3>
+<pre><code>t=...|WIN|type=RESIGN|winner=B|loser=W
+t=...|WIN|type=ELIMINATION|winner=W|loser=B
+t=...|LOSS|type=TIMEOUT|winner=B|loser=W
+</code></pre>
+<p>Rules:</p>
+<ul>
+<li>
+<p><code>WIN</code> and <code>LOSS</code> are terminal state markers</p>
+</li>
+<li>
+<p><code>type</code> is required and must be one of:</p>
+<ul>
+<li><code>RESIGN</code></li>
+<li><code>ELIMINATION</code></li>
+<li><code>TIMEOUT</code></li>
+</ul>
+</li>
+<li>
+<p>Both <code>winner</code> and <code>loser</code> must be specified explicitly</p>
+</li>
+<li>
+<p>These lines do not move tokens or routes</p>
+</li>
+<li>
+<p>Optional <code>NOTE</code> lines may further annotate context</p>
+</li>
+</ul>
+<hr />
+<h2><a href="#design-guarantees" aria-hidden="true" class="anchor" id="design-guarantees"></a>Design Guarantees</h2>
+<ul>
+<li>Fully replayable from state alone</li>
+<li>Rule-agnostic and future-proof</li>
+<li>Deterministic across engines</li>
+<li>Human-readable without sacrificing rigor</li>
+<li>No token IDs, no semantic coupling</li>
+</ul>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Vekke Game Notation</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#vekke-game-notation-vgn--v1">Vekke Game Notation (VGN) — v1</a></li>
+<li class="toc-item toc-level-2"><a href="#core-principle">Core Principle</a></li>
+<li class="toc-item toc-level-2"><a href="#line-format">Line Format</a></li>
+<li class="toc-item toc-level-3"><a href="#rules">Rules</a></li>
+<li class="toc-item toc-level-3"><a href="#player-field-p">Player Field (</a></li>
+<li class="toc-item toc-level-3"><a href="#optional-readability-fields">Optional Readability Fields</a></li>
+<li class="toc-item toc-level-2"><a href="#canonical-locations">Canonical Locations</a></li>
+<li class="toc-item toc-level-3"><a href="#player-scoped-vs-global-locations">Player-Scoped vs Global Locations</a></li>
+<li class="toc-item toc-level-2"><a href="#tokens-critical">Tokens (Critical)</a></li>
+<li class="toc-item toc-level-2"><a href="#routes">Routes</a></li>
+<li class="toc-item toc-level-2"><a href="#required-header-meta">Required Header (META)</a></li>
+<li class="toc-item toc-level-2"><a href="#round-marker">Round Marker</a></li>
+<li class="toc-item toc-level-2"><a href="#state-transfers">State Transfers</a></li>
+<li class="toc-item toc-level-3"><a href="#board-placement">Board Placement</a></li>
+<li class="toc-item toc-level-3"><a href="#board-movement">Board Movement</a></li>
+<li class="toc-item toc-level-3"><a href="#capture-board-removal">Capture (Board Removal)</a></li>
+<li class="toc-item toc-level-3"><a href="#reinforcement">Reinforcement</a></li>
+<li class="toc-item toc-level-3"><a href="#yield-generic">Yield (Generic)</a></li>
+<li class="toc-item toc-level-2"><a href="#route-transfers">Route Transfers</a></li>
+<li class="toc-item toc-level-3"><a href="#queue-to-hand">Queue to Hand</a></li>
+<li class="toc-item toc-level-3"><a href="#hand-to-deck">Hand to Deck</a></li>
+<li class="toc-item toc-level-3"><a href="#deck-to-queue-refill">Deck to Queue (Refill)</a></li>
+<li class="toc-item toc-level-2"><a href="#early-reinforcement-state-only">Early Reinforcement (State Only)</a></li>
+<li class="toc-item toc-level-2"><a href="#early-route-swap-state-only">Early Route Swap (State Only)</a></li>
+<li class="toc-item toc-level-2"><a href="#mulligan-state-only">Mulligan (State Only)</a></li>
+<li class="toc-item toc-level-2"><a href="#draft-void-recovery">Draft (Void Recovery)</a></li>
+<li class="toc-item toc-level-2"><a href="#evasion-state-only">Evasion (State Only)</a></li>
+<li class="toc-item toc-level-2"><a href="#notes">Notes</a></li>
+<li class="toc-item toc-level-2"><a href="#game-end">Game End</a></li>
+<li class="toc-item toc-level-3"><a href="#win--loss">WIN / LOSS</a></li>
+<li class="toc-item toc-level-2"><a href="#design-guarantees">Design Guarantees</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    
+</body>
+</html>

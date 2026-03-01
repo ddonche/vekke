@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Standard Format Rules</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+</head>
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                
+    <img class="sheriff-logo-mark" src="/public/logo.png" alt="VEKKE">
+    
+                <div class="sheriff-logo-text-wrap">
+                  
+    <div class="sheriff-logo-text">VEKKE</div>
+    
+                  <span class="sheriff-version-badge">1.0</span>
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13zM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061zM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8zM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-dark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display: none;">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+    </button>
+
+    <script>
+    (function() {
+      var KEY = 'brindle-theme';
+      var root = document.documentElement;
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+
+      var lightIcon = toggle.querySelector('.theme-icon-light');
+      var darkIcon  = toggle.querySelector('.theme-icon-dark');
+
+      function apply(theme) {
+        root.dataset.theme = theme; // "dark" or "light"
+        if (theme === 'dark') {
+          lightIcon.style.display = 'inline-block';
+          darkIcon.style.display  = 'none';
+        } else {
+          lightIcon.style.display = 'none';
+          darkIcon.style.display  = 'inline-block';
+        }
+        try { localStorage.setItem(KEY, theme); } catch(e) {}
+      }
+
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch(e) {}
+      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+      apply(initial);
+
+      toggle.addEventListener('click', function() {
+        var current = root.dataset.theme || 'dark';
+        apply(current === 'dark' ? 'light' : 'dark');
+      });
+    })();
+    </script>
+    
+              
+    <div class="sheriff-version-select">
+      <span class="sheriff-version-select-label">v2.0</span>
+      <span class="sheriff-version-select-chevron">&#9662;</span>
+    </div>
+    
+              
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    
+              
+<a href="https://github.com/ddonche/sheriff" class="sheriff-github-badge">
+  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
+  </svg>
+  <div class="sheriff-github-info">
+    <div class="sheriff-github-repo">ddonche/sheriff</div>
+    <div class="sheriff-github-stats">
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        1.0
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        1
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+          <path d="M12 12v3"/>
+        </svg>
+        0
+      </div>
+    </div>
+  </div>
+</a>
+
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </header>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+<div class="section-header">
+  <span>DOCUMENTATION</span>
+</div>
+
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/index.html">Introduction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/pnp.html">Print and Play</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/basics.html">Basics</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/board.html">Board</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/components.html">Components</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/drafting.html">Drafting</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/early_route_swap.html">Early Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ending.html">Ending the Game</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/extra_reinforcement.html">Extra Reinforcement</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/flanking.html">Flanking</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/illegal.html">Illegal Actions</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/korochev.html">Korochev Maneuver</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ransom.html">Ransom</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/recoil.html">Recoil</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reference_cards.html">Reference Cards</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reinforcements.html">Reinforcements</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reserves.html">Reserves</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/routes.html">Routes</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_hand.html">Route Hand</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_markers.html">Route Markers</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_queue.html">Route Queue</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_swap.html">Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/segura.html">Segura</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/siege.html">Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/space.html">Space</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/unit.html">Units</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wildcards.html">Wildcards</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/dragon_order.html">Order of the Dragon</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wolf_order.html">Order of the Wolf</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/serpent_order.html">Order of the Serpent</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/spider_order.html">Order of the Spider</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/raven_order.html">Order of the Raven</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/kraken_order.html">Order of the Kraken</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/turtle_order.html">Order of the Turtle</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/stag_order.html">Order of the Stag</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/fox_order.html">Order of the Fox</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wild_format.html">Wild</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/explorer_format.html">Explorer</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            </ul>
+
+
+</aside>
+
+            <article class="sheriff-article">
+              <!-- Page header (meta strip + title + byline) -->
+              <header class="sheriff-page-header">
+                <!-- Top meta strip -->
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">rules</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">docs</span>
+        </span>
+        
+                    <!-- e.g. THEME PREVIEW · ARTICLE -->
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[standard-format]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[standard-format]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                    <!-- e.g. canonical wikilink + copy icon -->
+                  </div>
+                </div>
+                <!-- Title (your existing .sheriff-article h1 + ::after underline) -->
+                <h1>
+                  Standard Format Rules
+                </h1>
+                <div class="sheriff-title-underline"></div>
+                <!-- Byline / meta row -->
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">
+                      Intl. Vekke Council
+                    </span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 7 min read
+        </span>
+        
+                    <!-- e.g. " · " + BADGE::READTIME -->
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                    <!-- e.g. BADGE::UTILICONS -->
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <!-- Markdown / main content -->
+              <p>Welcome to <strong>Vekke</strong>, the Game of Routes. These rules are for Standard Format. This is the simplest format, if you are looking for the easiest to learn. If you are looking for the rules for the other formats, see the bottom of the left navigation panel.</p>
+<hr />
+<h1><a href="#vekke--standard-format" aria-hidden="true" class="anchor" id="vekke--standard-format"></a>Vekke — Standard Format</h1>
+<h2><a href="#introduction" aria-hidden="true" class="anchor" id="introduction"></a>Introduction</h2>
+<p>Vekke is a turn-based strategy game played on a 6×6 grid; sides are typically blue (brake) and white (wake). Each turn, players must use three route markers that dictate how their tokens move. The object is to eliminate or immobilize your opponent's tokens. The game can end several ways, but the most common are by elimination — removing all your opponent's tokens — and siegemate — surrounding your opponent's tokens such that they cannot move.*</p>
+<hr />
+<h2><a href="#setup" aria-hidden="true" class="anchor" id="setup"></a>Setup</h2>
+<p>Players alternate placing one token at a time until each has placed 3 (brake places first). After placing these 3, each player has 15 tokens remaining in reserve. Reserves are the tokens on your side of the board waiting to enter play. Each player then receives 3 route markers, placed face-up on their side of the board. Place 3 route markers face-up beside the board as the route queue, with the remaining markers face-down as the route deck. Wake moves first.</p>
+<hr />
+<h2><a href="#turn-sequence" aria-hidden="true" class="anchor" id="turn-sequence"></a>Turn Sequence</h2>
+<p>Each turn follows three phases: MOVE → REINFORCE → SWAP.</p>
+<hr />
+<h2><a href="#movement" aria-hidden="true" class="anchor" id="movement"></a>Movement</h2>
+<p>You make exactly one move per route — three routes means three moves, applied to any of your tokens in any order. Each route dictates a direction (1–8) and a distance (pips). Directions use compass style from brake's perspective: 1 = north, then continuing clockwise up to 8 = northwest.</p>
+<p>A token may never land on a friendly token. Landing on an enemy token invades it — remove it from the board and place it in your captives. Captives are enemy tokens you have taken out of play, kept on your side of the board.</p>
+<p>A token surrounded on 4 or more adjacent spaces by enemy tokens is sieged and cannot move. A token surrounded on all 8 adjacent spaces is captured — this is called a Perfect siege. Edge spaces have only 5 adjacent spaces and therefore a Perfect siege is not possible there. Corner spaces have only 3 adjacent spaces and cannot be sieged at all. Only immediately adjacent spaces count — flanking does not create adjacency.</p>
+<p>When a token reaches the edge of the board with distance remaining, it continues from the opposite end of the same row, column, or diagonal it is already traveling on. For example, a token moving north that exits the top of the board reappears at the bottom of the same column and keeps going. A token moving diagonally that exits one edge reappears at the opposite end of the same diagonal. The path never changes direction — it simply wraps.</p>
+<p>If a route cannot legally be used, you must yield one token from your reserves to the Void per unusable route. The Void is a neutral out-of-play area; tokens there belong to neither player. If you cannot yield (because you have no reserves), you are at risk of collapse (see Ending the Game).</p>
+<hr />
+<h2><a href="#reinforcement" aria-hidden="true" class="anchor" id="reinforcement"></a>Reinforcement</h2>
+<p>After you have used all your routes, place one token from your reserves onto any empty space.</p>
+<hr />
+<h2><a href="#swap" aria-hidden="true" class="anchor" id="swap"></a>Swap</h2>
+<p>Once your reinforcement is in play, choose one route from your set, discard it, and take one from the queue. Refill the queue from the deck. This ends your turn.</p>
+<hr />
+<h2><a href="#ending-the-game" aria-hidden="true" class="anchor" id="ending-the-game"></a>Ending the Game</h2>
+<p>You win by:</p>
+<ul>
+<li><strong>Elimination:</strong> All enemy tokens removed.</li>
+<li><strong>Siegemate:</strong> Opponent cannot move and has no reserves.*</li>
+<li><strong>Collapse:</strong> Opponent cannot use all required routes and has no reserves to yield.</li>
+<li><strong>Resignation or timeout.</strong></li>
+</ul>
+<p><em>Siegemate requires the opponent to have no reinforcements in reserve.</em></p>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Standard Format</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-1"><a href="#vekke--standard-format">Vekke — Standard Format</a></li>
+<li class="toc-item toc-level-2"><a href="#introduction">Introduction</a></li>
+<li class="toc-item toc-level-2"><a href="#setup">Setup</a></li>
+<li class="toc-item toc-level-2"><a href="#turn-sequence">Turn Sequence</a></li>
+<li class="toc-item toc-level-2"><a href="#movement">Movement</a></li>
+<li class="toc-item toc-level-2"><a href="#reinforcement">Reinforcement</a></li>
+<li class="toc-item toc-level-2"><a href="#swap">Swap</a></li>
+<li class="toc-item toc-level-2"><a href="#ending-the-game">Ending the Game</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    
+</body>
+</html>

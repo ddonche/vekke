@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Focus Panels</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+</head>
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                
+    <img class="sheriff-logo-mark" src="/public/logo.png" alt="VEKKE">
+    
+                <div class="sheriff-logo-text-wrap">
+                  
+    <div class="sheriff-logo-text">VEKKE</div>
+    
+                  <span class="sheriff-version-badge">1.0</span>
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
+        <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13zM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061zM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8zM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0z"/>
+        </svg>
+        <svg class="theme-icon theme-icon-dark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display: none;">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+    </button>
+
+    <script>
+    (function() {
+      var KEY = 'brindle-theme';
+      var root = document.documentElement;
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
+
+      var lightIcon = toggle.querySelector('.theme-icon-light');
+      var darkIcon  = toggle.querySelector('.theme-icon-dark');
+
+      function apply(theme) {
+        root.dataset.theme = theme; // "dark" or "light"
+        if (theme === 'dark') {
+          lightIcon.style.display = 'inline-block';
+          darkIcon.style.display  = 'none';
+        } else {
+          lightIcon.style.display = 'none';
+          darkIcon.style.display  = 'inline-block';
+        }
+        try { localStorage.setItem(KEY, theme); } catch(e) {}
+      }
+
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch(e) {}
+      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+      apply(initial);
+
+      toggle.addEventListener('click', function() {
+        var current = root.dataset.theme || 'dark';
+        apply(current === 'dark' ? 'light' : 'dark');
+      });
+    })();
+    </script>
+    
+              
+    <div class="sheriff-version-select">
+      <span class="sheriff-version-select-label">v2.0</span>
+      <span class="sheriff-version-select-chevron">&#9662;</span>
+    </div>
+    
+              
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    
+              
+<a href="https://github.com/ddonche/sheriff" class="sheriff-github-badge">
+  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
+  </svg>
+  <div class="sheriff-github-info">
+    <div class="sheriff-github-repo">ddonche/sheriff</div>
+    <div class="sheriff-github-stats">
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        1.0
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        1
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+          <path d="M12 12v3"/>
+        </svg>
+        0
+      </div>
+    </div>
+  </div>
+</a>
+
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </header>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+<div class="section-header">
+  <span>DOCUMENTATION</span>
+</div>
+
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/index.html">Introduction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/pnp.html">Print and Play</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/basics.html">Basics</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/board.html">Board</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/components.html">Components</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/drafting.html">Drafting</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/early_route_swap.html">Early Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ending.html">Ending the Game</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/extra_reinforcement.html">Extra Reinforcement</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/flanking.html">Flanking</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/illegal.html">Illegal Actions</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/korochev.html">Korochev Maneuver</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/ransom.html">Ransom</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/recoil.html">Recoil</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reference_cards.html">Reference Cards</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reinforcements.html">Reinforcements</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/reserves.html">Reserves</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/routes.html">Routes</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_hand.html">Route Hand</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_markers.html">Route Markers</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_queue.html">Route Queue</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/route_swap.html">Route Swap</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/segura.html">Segura</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/siege.html">Siege</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/space.html">Space</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/unit.html">Units</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wildcards.html">Wildcards</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/dragon_order.html">Order of the Dragon</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wolf_order.html">Order of the Wolf</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/serpent_order.html">Order of the Serpent</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/spider_order.html">Order of the Spider</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/raven_order.html">Order of the Raven</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/kraken_order.html">Order of the Kraken</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/turtle_order.html">Order of the Turtle</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/stag_order.html">Order of the Stag</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/fox_order.html">Order of the Fox</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/wild_format.html">Wild</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/explorer_format.html">Explorer</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            </ul>
+
+
+</aside>
+
+            <article class="sheriff-article">
+              <!-- Page header (meta strip + title + byline) -->
+              <header class="sheriff-page-header">
+                <!-- Top meta strip -->
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">tutorial</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">docs</span>
+        </span>
+        
+                    <!-- e.g. THEME PREVIEW · ARTICLE -->
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[focus-panels]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[focus-panels]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                    <!-- e.g. canonical wikilink + copy icon -->
+                  </div>
+                </div>
+                <!-- Title (your existing .sheriff-article h1 + ::after underline) -->
+                <h1>
+                  Focus Panels
+                </h1>
+                <div class="sheriff-title-underline"></div>
+                <!-- Byline / meta row -->
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">
+                      Sheriff Docs
+                    </span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 6 min read
+        </span>
+        
+                    <!-- e.g. " · " + BADGE::READTIME -->
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                    <!-- e.g. BADGE::UTILICONS -->
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <!-- Markdown / main content -->
+              <p></p>
+<p>A <strong>Focus Panel</strong> is a sticky image card that lives beside the article while you scroll.
+When you hover or click <strong>focus links</strong>, the panel swaps to whatever image you’re talking about <em>right now</em>.</p>
+<p>This page has a real focus panel at the top — so you can test it immediately.
+Hover these links:</p>
+<ul>
+<li><span class="sheriff-link sheriff-focus-link" data-focus-src="/public/images/blog/mtg-goblin-guide.jpg" data-focus-caption="Goblin Guide" tabindex="0" role="link">Goblin Guide</span></li>
+<li><span class="sheriff-link sheriff-focus-link" data-focus-src="/public/images/blog/mtg-horde-of-notions.jpg" data-focus-caption="Horde of Notions" tabindex="0" role="link">Horde of Notions</span></li>
+<li><span class="sheriff-link sheriff-focus-link" data-focus-src="/public/images/blog/mtg-burn-trail.jpg" data-focus-caption="Burn Trail" tabindex="0" role="link">Burn Trail</span></li>
+<li><span class="sheriff-link sheriff-focus-link" data-focus-src="/public/images/blog/mtg-provoke-the-trolls.jpg" data-focus-caption="Provoke the Trolls" tabindex="0" role="link">Provoke the Trolls</span></li>
+</ul>
+<hr />
+<h2><a href="#the-one-rule-you-cant-ignore" aria-hidden="true" class="anchor" id="the-one-rule-you-cant-ignore"></a>The one rule you can’t ignore</h2>
+<p><strong>Focus panels require exactly 4 parts.</strong></p>
+<p>If you don’t include all four pipe-separated fields, Trailboss will not have the indexes it expects (e.g. <code>parts[2]</code>) and your build can crash.</p>
+<p><strong>Always use this shape:</strong></p>
+<ul>
+<li><code>[[focuspanel:&lt;filename&gt;|&lt;size&gt;|&lt;align&gt;|&lt;caption&gt;]]</code></li>
+</ul>
+<h3><a href="#the-4-parts" aria-hidden="true" class="anchor" id="the-4-parts"></a>The 4 parts</h3>
+<ol>
+<li><strong>filename</strong> — image file path under the portal’s images directory (typically <code>public/images/</code>)</li>
+<li><strong>size</strong> — <code>thumb</code> or <code>full</code> (whatever your theme supports)</li>
+<li><strong>align</strong> — <code>left</code>, <code>right</code>, or <code>center</code></li>
+<li><strong>caption</strong> — the text shown under the image</li>
+</ol>
+<h3><a href="#example-copypaste" aria-hidden="true" class="anchor" id="example-copypaste"></a>Example (copy/paste)</h3>
+<ul>
+<li><code>[[focuspanel:blog/mtg-goblin-guide.jpg|full|right|Goblin Guide]]</code></li>
+</ul>
+<hr />
+<h2><a href="#add-a-focus-panel-to-a-page" aria-hidden="true" class="anchor" id="add-a-focus-panel-to-a-page"></a>Add a focus panel to a page</h2>
+<p>Put <strong>one</strong> focus panel directive anywhere in the markdown.
+It <strong>will not render inline</strong> in your article — Sheriff captures it and places it in the layout’s focus slot.</p>
+<p><strong>Example</strong></p>
+<ul>
+<li><code>[[focuspanel:ui/login-screen.png|full|right|Login screen]]</code></li>
+</ul>
+<p>Rules:</p>
+<ul>
+<li>Only <strong>one</strong> focus panel per page (the <strong>first</strong> one wins)</li>
+<li>If a page has <strong>no</strong> focus panel directive, the layout slot stays empty</li>
+</ul>
+<hr />
+<h2><a href="#add-focus-links-the-things-that-swap-the-panel" aria-hidden="true" class="anchor" id="add-focus-links-the-things-that-swap-the-panel"></a>Add focus links (the things that swap the panel)</h2>
+<p>Focus links are what swap the panel image and caption.</p>
+<p><strong>Syntax (2 parts, required):</strong></p>
+<ul>
+<li><code>[[focus:image:&lt;filename&gt;|&lt;label&gt;]]</code></li>
+</ul>
+<h3><a href="#the-2-parts" aria-hidden="true" class="anchor" id="the-2-parts"></a>The 2 parts</h3>
+<ol>
+<li><strong>filename</strong> — image file path under the portal’s images directory</li>
+<li><strong>label</strong> — what the link shows, and what becomes the panel caption when swapped</li>
+</ol>
+<p><strong>Example</strong></p>
+<ul>
+<li><code>[[focus:image:ui/login-screen.png|Login screen]]</code></li>
+</ul>
+<hr />
+<h2><a href="#behavior-rules" aria-hidden="true" class="anchor" id="behavior-rules"></a>Behavior rules</h2>
+<ul>
+<li>If a page has <strong>no</strong> <code>focuspanel:</code> directive, focus links do nothing.</li>
+<li>If a page has multiple <code>focuspanel:</code> directives, only the <strong>first</strong> one is used.</li>
+<li>Focus links swap the panel on <strong>hover</strong>, <strong>focus</strong>, and <strong>click</strong> (mobile-friendly).</li>
+</ul>
+<hr />
+<h2><a href="#troubleshooting" aria-hidden="true" class="anchor" id="troubleshooting"></a>Troubleshooting</h2>
+<h3><a href="#the-focus-panel-doesnt-show-up" aria-hidden="true" class="anchor" id="the-focus-panel-doesnt-show-up"></a>The focus panel doesn’t show up</h3>
+<ul>
+<li>Confirm you used <strong>exactly 4 parts</strong>:
+<code>[[focuspanel:file.png|full|right|Caption]]</code></li>
+<li>Confirm the image file exists under <code>public/images/</code> for that portal.</li>
+</ul>
+<h3><a href="#the-panel-shows-up-but-doesnt-swap" aria-hidden="true" class="anchor" id="the-panel-shows-up-but-doesnt-swap"></a>The panel shows up but doesn’t swap</h3>
+<ul>
+<li>Confirm <code>/public/js/focus_panel.js</code> is included.</li>
+<li>Confirm your focus links render with <code>.sheriff-focus-link</code> and <code>data-focus-src</code> / <code>data-focus-caption</code>.</li>
+</ul>
+<h3><a href="#sticky-is-weird--shifts-a-few-pixels" aria-hidden="true" class="anchor" id="sticky-is-weird--shifts-a-few-pixels"></a>Sticky is weird / shifts a few pixels</h3>
+<p>That’s layout/CSS interaction (float + sticky + container widths). We’ll tune the theme CSS once the feature is locked.</p>
+<hr />
+<h2><a href="#quick-copypaste" aria-hidden="true" class="anchor" id="quick-copypaste"></a>Quick copy/paste</h2>
+<p><strong>Focus panel (4 parts):</strong></p>
+<ul>
+<li><code>[[focuspanel:blog/mtg-goblin-guide.jpg|full|right|Goblin Guide]]</code></li>
+</ul>
+<p><strong>Focus link (2 parts):</strong></p>
+<ul>
+<li><code>[[focus:image:blog/mtg-burn-trail.jpg|Burn Trail]]</code></li>
+</ul>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  <div class="sheriff-focus-panel" data-focus-panel data-default-src="/public/images/blog/mtg-goblin-guide.jpg" data-default-caption="Goblin Guide"><img class="sheriff-focus-panel-img" src="/public/images/blog/mtg-goblin-guide.jpg" alt="Goblin Guide"><div class="sheriff-focus-panel-caption">Goblin Guide</div></div>
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Guides</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Focus Panels</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#the-one-rule-you-cant-ignore">The one rule you can’t ignore</a></li>
+<li class="toc-item toc-level-3"><a href="#the-4-parts">The 4 parts</a></li>
+<li class="toc-item toc-level-3"><a href="#example-copypaste">Example (copy/paste)</a></li>
+<li class="toc-item toc-level-2"><a href="#add-a-focus-panel-to-a-page">Add a focus panel to a page</a></li>
+<li class="toc-item toc-level-2"><a href="#add-focus-links-the-things-that-swap-the-panel">Add focus links (the things that swap the panel)</a></li>
+<li class="toc-item toc-level-3"><a href="#the-2-parts">The 2 parts</a></li>
+<li class="toc-item toc-level-2"><a href="#behavior-rules">Behavior rules</a></li>
+<li class="toc-item toc-level-2"><a href="#troubleshooting">Troubleshooting</a></li>
+<li class="toc-item toc-level-3"><a href="#the-focus-panel-doesnt-show-up">The focus panel doesn’t show up</a></li>
+<li class="toc-item toc-level-3"><a href="#the-panel-shows-up-but-doesnt-swap">The panel shows up but doesn’t swap</a></li>
+<li class="toc-item toc-level-3"><a href="#sticky-is-weird--shifts-a-few-pixels">Sticky is weird / shifts a few pixels</a></li>
+<li class="toc-item toc-level-2"><a href="#quick-copypaste">Quick copy/paste</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    
+</body>
+</html>
