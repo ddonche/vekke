@@ -26,6 +26,7 @@ export type GameStats = {
   drafts: { W: number; B: number }
   captures: { W: number; B: number }
   invades: { W: number; B: number }
+  defections: { W: number; B: number }
 }
 
 export type GameOverReason = "elimination" | "siegemate" | "resignation" | "timeout"
@@ -49,6 +50,9 @@ export type GameState = {
   earlySwapArmed: boolean      // player clicked "Early Swap" and is now selecting hand+queue
   earlySwapUsedThisTurn: boolean // prevents 2 swaps, and skips end-of-turn SWAP phase
   extraReinforcementBoughtThisTurn: boolean
+  ransomUsedThisTurn: boolean
+  defectionArmed: boolean
+  defectionUsedThisTurn: boolean
   turnInvades: { W: number; B: number }
 
   evasionUsed: { W: boolean; B: boolean }  // once per game tracker -- DEPRECATED, kept for DB compat only
@@ -121,6 +125,7 @@ export function newGame(): GameState {
       drafts: { W: 0, B: 0 },
       captures: { W: 0, B: 0 },
       invades: { W: 0, B: 0 },
+      defections: { W: 0, B: 0 },
     },
 
     tokens: [],
@@ -132,6 +137,9 @@ export function newGame(): GameState {
     earlySwapArmed: false,
     earlySwapUsedThisTurn: false,
     extraReinforcementBoughtThisTurn: false,
+    ransomUsedThisTurn: false,
+    defectionArmed: false,
+    defectionUsedThisTurn: false,
     turnInvades: { W: 0, B: 0 },
 
     evasionUsed: { W: false, B: false },  // deprecated — kept for DB compat

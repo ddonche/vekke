@@ -213,6 +213,26 @@ export class VgnRecorder {
           break
         }
       }
+
+      // Defection pattern: defectionUsedThisTurn transitions false -> true
+      // One of p's tokens moves BOARD -> VOID, enemy void decreases, p's captives increase
+      const prevDefectionUsed = (prev as any).defectionUsedThisTurn ?? false
+      const nextDefectionUsed = (next as any).defectionUsedThisTurn ?? false
+      const defectionFired = !prevDefectionUsed && nextDefectionUsed
+
+      if (defectionFired) {
+        // Find the sacrificed token: p's token that moved from BOARD to VOID
+        for (const tok of next.tokens) {
+          if (tok.owner !== p || tok.in !== "VOID") continue
+          const old = prevById.get(tokenKey(tok))
+          if (!old || old.in !== "BOARD") continue
+          const sacrificedSq = sq(old.pos.x, old.pos.y)
+          this.lines.push(this.mkLine(t, `p=${p}|DEFECT|token=${tok.id}|from=${sacrificedSq}|to=VOID`))
+          break
+        }
+        // Claim 1 enemy token from their void into p's captives
+        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|defected=1`))
+      }
     }
 
     // ---- ROUTES: diff hand/queue/deck ----

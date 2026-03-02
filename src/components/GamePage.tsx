@@ -91,6 +91,8 @@ type GamePageProps = {
 export function GamePage(props: GamePageProps = {}) {
   const lastProcessedMoveRef = useRef<string | number>(-1)
   const [skinsOpen, setSkinsOpen] = useState(false)
+  // Screenshot/tutorial helper: allow hiding the selection highlight without affecting gameplay.
+  const [hideSelection, setHideSelection] = useState(false)
   
   const {
     g,
@@ -117,8 +119,11 @@ export function GamePage(props: GamePageProps = {}) {
     pendingRecoil,
     recoilSourcePos,
     recoilPlayer,
+    defectionArmed,
+    canUseDefection,
+    allRoutesUsed,
     clockPlayer,
-    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, RANSOM_COST_CAPTIVES, RECOIL_COST_CAPTIVES, RECOIL_COST_RESERVES },
+    constants: { EARLY_SWAP_COST, EXTRA_REINFORCEMENT_COST, RANSOM_COST_CAPTIVES, RECOIL_COST_CAPTIVES, RECOIL_COST_RESERVES, DEFECTION_BOARD_COST, DEFECTION_VOID_GAIN },
     actions,
   } = useVekkeController({
     sounds,
@@ -193,6 +198,29 @@ export function GamePage(props: GamePageProps = {}) {
   const [myLoadoutIds, setMyLoadoutIds] = useState<PlayerLoadout | null>(null)
   const [opponentLoadoutIds, setOpponentLoadoutIds] = useState<PlayerLoadout | null>(null)
   const [skinImageById, setSkinImageById] = useState<Record<string, string | null>>({})
+
+  // Keyboard shortcuts:
+  //  - H: toggle selection highlight visibility
+  //  - Esc: hide selection highlight (useful for screenshots)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Don't steal keys from form fields.
+      const el = e.target as HTMLElement | null
+      const tag = (el?.tagName || "").toLowerCase()
+      const isTyping = tag === "input" || tag === "textarea" || (el as any)?.isContentEditable
+      if (isTyping) return
+
+      if (e.key === "Escape") {
+        setHideSelection(true)
+        return
+      }
+      if (e.key === "h" || e.key === "H") {
+        setHideSelection((v) => !v)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   const eloForFormat = (ps: PlayerStats | null, tc: typeof timeControlId): number => {
     if (!ps) return 1200
@@ -945,6 +973,9 @@ if (wantsNewGame) {
 
   const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
 
+  // Render-only selection; keeps gameplay selection intact, but lets tutorials/screenshots hide the highlight.
+  const selectedTokenIdForRender = hideSelection ? null : selectedTokenId
+
   // OPTIONAL helper (only needed if your board token element expects per-token vars like --token-img)
   // If you're using page-root vars (--w-token-img/--b-token-img), you can delete tokenVars entirely.
   const tokenVars = (side: "W" | "B") => {
@@ -1317,6 +1348,58 @@ if (wantsNewGame) {
                       </button>
                     )}
 
+                    {/* Ransom - only show when it's this player's turn */}
+                    {g.player === topPlayer.avatar && (
+                      <button
+                        onClick={() => canUseRansom && actions.useRansom()}
+                        disabled={!canUseRansom}
+                        style={{
+                          width: "1.5rem",
+                          height: "1.5rem",
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseRansom ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseRansom ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                          <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Defection - only show when it's this player's turn */}
+                    {g.player === topPlayer.avatar && (
+                      <button
+                        onClick={() => canUseDefection && actions.armDefection()}
+                        disabled={!canUseDefection}
+                        style={{
+                          width: "1.5rem",
+                          height: "1.5rem",
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseDefection ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseDefection ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="9" cy="9" r="7"/>
+                          <circle cx="15" cy="15" r="7"/>
+                        </svg>
+                      </button>
+                    )}
+
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== topPlayer.avatar && (
                       <button
@@ -1502,7 +1585,7 @@ if (wantsNewGame) {
                         ? `${g.player === "W" ? "B" : "W"} in Recoil`
                         : g.player !== human
                           ? "Waiting..."
-                          : g.phase === "ACTION" ? "Make your moves"
+                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Finishe actions and proceed when ready" : "Make your moves")
                           : g.phase === "REINFORCE"
                             ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                                 Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
@@ -1576,6 +1659,41 @@ if (wantsNewGame) {
                       </svg>
                       <span>Resign</span>
                     </button>
+
+                    {/* Screenshot/tutorial helper: hide selection highlight */}
+                    <button
+                      onClick={() => setHideSelection((v) => !v)}
+                      disabled={!started}
+                      title="Hide/show selected token highlight (H toggles, Esc hides)"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: hideSelection ? "#b8966a" : "#e8e4d8",
+                        fontSize: 11,
+                        cursor: started ? "pointer" : "default",
+                        padding: 0,
+                        fontWeight: 900,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        opacity: started ? 1 : 0.5,
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke={hideSelection ? "#b8966a" : "#e8e4d8"}
+                        strokeWidth="2"
+                      >
+                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                        {hideSelection && <path d="M4 4l16 16" />}
+                      </svg>
+                      <span>{hideSelection ? "Show" : "Hide"}</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1639,7 +1757,7 @@ if (wantsNewGame) {
                 {boardStyle === "grid" ? (
                   <GridBoard
                     boardMap={boardMap}
-                    selectedTokenId={selectedTokenId}
+                    selectedTokenId={selectedTokenIdForRender}
                     ghost={ghost}
                     started={started}
                     phase={g.phase}
@@ -1649,12 +1767,14 @@ if (wantsNewGame) {
                     recoilSourcePos={recoilSourcePos}
                     recoilDestPos={pendingRecoil?.to ?? null}
                     recoilPlayer={recoilPlayer}
+                    defectionArmed={defectionArmed}
+                    defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
                   />
                 ) : (
                   <IntersectionBoard
                     boardMap={boardMap}
-                    selectedTokenId={selectedTokenId}
+                    selectedTokenId={selectedTokenIdForRender}
                     ghost={ghost}
                     started={started}
                     phase={g.phase}
@@ -1665,6 +1785,8 @@ if (wantsNewGame) {
                     recoilSourcePos={recoilSourcePos}
                     recoilDestPos={pendingRecoil?.to ?? null}
                     recoilPlayer={recoilPlayer}
+                    defectionArmed={defectionArmed}
+                    defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
                   />
                 )}
@@ -1906,6 +2028,58 @@ if (wantsNewGame) {
                       </button>
                     )}
 
+                    {/* Ransom - only show when it's this player's turn */}
+                    {g.player === bottomPlayer.avatar && (
+                      <button
+                        onClick={() => canUseRansom && actions.useRansom()}
+                        disabled={!canUseRansom}
+                        style={{
+                          width: "1.5rem",
+                          height: "1.5rem",
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseRansom ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseRansom ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                          <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Defection - only show when it's this player's turn */}
+                    {g.player === bottomPlayer.avatar && (
+                      <button
+                        onClick={() => canUseDefection && actions.armDefection()}
+                        disabled={!canUseDefection}
+                        style={{
+                          width: "1.5rem",
+                          height: "1.5rem",
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseDefection ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseDefection ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="9" cy="9" r="7"/>
+                          <circle cx="15" cy="15" r="7"/>
+                        </svg>
+                      </button>
+                    )}
+
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== bottomPlayer.avatar && (
                       <button
@@ -2027,6 +2201,50 @@ if (wantsNewGame) {
                   </div>
                 </div>
               </div>
+
+              {/* Defection Cancel */}
+              {defectionArmed && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <button
+                    onClick={() => actions.cancelDefection()}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "1px solid rgba(184,150,106,0.30)",
+                      background: "transparent",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "#e8e4d8",
+                    }}
+                  >
+                    Cancel Defection
+                  </button>
+                </div>
+              )}
+
+              {/* Advance from ACTION -> Reinforcements/Swap */}
+              {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <button
+                    onClick={() => actions.advanceFromAction()}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "2px solid #3296ab",
+                      background: "rgba(184,150,106,0.18)",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: "#e8e4d8",
+                    }}
+                  >
+                    Proceed to next phase →
+                  </button>
+                </div>
+              )}
 
               {/* Action Buttons */}
               {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
@@ -2370,6 +2588,32 @@ if (wantsNewGame) {
                       </button>
                     )}
 
+                    {/* Defection - only show when it's this player's turn */}
+                    {g.player === leftPlayer.avatar && (
+                      <button
+                        onClick={() => canUseDefection && actions.armDefection()}
+                        disabled={!canUseDefection}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseDefection ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseDefection ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="9" cy="9" r="7"/>
+                          <circle cx="15" cy="15" r="7"/>
+                        </svg>
+                      </button>
+                    )}
+
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== leftPlayer.avatar && (
                       <button
@@ -2659,7 +2903,7 @@ if (wantsNewGame) {
                         ? `${g.player === "W" ? "B" : "W"} is currently in Recoil`
                         : g.player !== human
                           ? "Waiting for opponent..."
-                          : g.phase === "ACTION" ? "Make your moves"
+                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Finish actions and proceed when ready" : "Make your moves")
                           : g.phase === "REINFORCE"
                             ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                                 Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
@@ -2701,45 +2945,82 @@ if (wantsNewGame) {
                         {g.log[0].replace(/==/g, '').trim()}
                       </div>
                     )}
-                    <button
-                      onClick={() => actions.resign()}
-                      disabled={!started || !!g.gameOver}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ee484c",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        padding: 0,
-                        fontWeight: 900,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        opacity: (!started || !!g.gameOver) ? 0.5 : 1,
-                      }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#ee484c"
-                        strokeWidth="2"
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <button
+                        onClick={() => actions.resign()}
+                        disabled={!started || !!g.gameOver}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#ee484c",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          padding: 0,
+                          fontWeight: 900,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          opacity: (!started || !!g.gameOver) ? 0.5 : 1,
+                        }}
                       >
-                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                        <path d="M12 8v4" />
-                        <path d="M12 16h.01" />
-                      </svg>
-                      <span>Resign</span>
-                    </button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ee484c"
+                          strokeWidth="2"
+                        >
+                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                          <path d="M12 8v4" />
+                          <path d="M12 16h.01" />
+                        </svg>
+                        <span>Resign</span>
+                      </button>
+
+                      {/* Screenshot/tutorial helper: hide selection highlight */}
+                      <button
+                        onClick={() => setHideSelection((v) => !v)}
+                        disabled={!started}
+                        title="Hide/show selected token highlight (H toggles, Esc hides)"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: hideSelection ? "#b8966a" : "#e8e4d8",
+                          fontSize: 13,
+                          cursor: started ? "pointer" : "default",
+                          padding: 0,
+                          fontWeight: 900,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          opacity: started ? 1 : 0.5,
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={hideSelection ? "#b8966a" : "#e8e4d8"}
+                          strokeWidth="2"
+                        >
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                          {hideSelection && <path d="M4 4l16 16" />}
+                        </svg>
+                        <span>{hideSelection ? "Show" : "Hide"}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {boardStyle === "grid" ? (
                   <GridBoard
                     boardMap={boardMap}
-                    selectedTokenId={selectedTokenId}
+                    selectedTokenId={selectedTokenIdForRender}
                     ghost={ghost}
                     started={started}
                     phase={g.phase}
@@ -2749,12 +3030,14 @@ if (wantsNewGame) {
                     recoilSourcePos={recoilSourcePos}
                     recoilDestPos={pendingRecoil?.to ?? null}
                     recoilPlayer={recoilPlayer}
+                    defectionArmed={defectionArmed}
+                    defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
                   />
                 ) : (
                   <IntersectionBoard
                     boardMap={boardMap}
-                    selectedTokenId={selectedTokenId}
+                    selectedTokenId={selectedTokenIdForRender}
                     ghost={ghost}
                     started={started}
                     phase={g.phase}
@@ -2765,6 +3048,8 @@ if (wantsNewGame) {
                     recoilSourcePos={recoilSourcePos}
                     recoilDestPos={pendingRecoil?.to ?? null}
                     recoilPlayer={recoilPlayer}
+                    defectionArmed={defectionArmed}
+                    defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
                   />
                 )}
@@ -2773,6 +3058,50 @@ if (wantsNewGame) {
                 <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em", color: "#6b6558", textAlign: "center" }}>
                   Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
                 </div>
+
+                {/* Defection Cancel */}
+                {defectionArmed && (
+                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
+                    <button
+                      onClick={() => actions.cancelDefection()}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "1px solid rgba(184,150,106,0.30)",
+                        background: "transparent",
+                        fontWeight: 900,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "#e8e4d8",
+                      }}
+                    >
+                      Cancel Defection
+                    </button>
+                  </div>
+                )}
+
+                {/* Advance from ACTION -> Reinforcements/Swap */}
+                {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
+                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
+                    <button
+                      onClick={() => actions.advanceFromAction()}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "2px solid #3296ab",
+                        background: "rgba(184,150,106,0.18)",
+                        fontWeight: 900,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        color: "#e8e4d8",
+                      }}
+                    >
+                      Proceed to next phase →
+                    </button>
+                  </div>
+                )}
 
                 {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
                 {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
@@ -3072,6 +3401,32 @@ if (wantsNewGame) {
                           <circle cx="6" cy="19" r="3" />
                           <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
                           <circle cx="18" cy="5" r="3" />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Defection - only show when it's this player's turn */}
+                    {g.player === rightPlayer.avatar && (
+                      <button
+                        onClick={() => canUseDefection && actions.armDefection()}
+                        disabled={!canUseDefection}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: "#0d0d10",
+                          border: "1px solid #6b7280",
+                          cursor: canUseDefection ? "pointer" : "default",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: canUseDefection ? 1 : 0.5,
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="9" cy="9" r="7"/>
+                          <circle cx="15" cy="15" r="7"/>
                         </svg>
                       </button>
                     )}

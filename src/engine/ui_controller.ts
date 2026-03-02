@@ -39,6 +39,12 @@ import {
   confirmRecoil,
   RECOIL_COST_CAPTIVES,
   RECOIL_COST_RESERVES,
+  advanceFromAction,
+  armDefection,
+  cancelDefection,
+  confirmDefection,
+  DEFECTION_BOARD_COST,
+  DEFECTION_VOID_GAIN,
 } from "./game"
 
 type SoundHandle = { stop: () => void; play: () => number; load?: () => void }
@@ -361,7 +367,24 @@ export function useVekkeController(opts: {
     ))
 
 
-  // Evasion visualization data
+  // Defection
+  const defectionArmed = Boolean(g.defectionArmed)
+  const defectionUsedThisTurn = Boolean(g.defectionUsedThisTurn)
+
+  const canUseDefection =
+    g.phase === "ACTION" &&
+    !g.gameOver &&
+    !defectionArmed &&
+    !defectionUsedThisTurn &&
+    g.tokens.filter((t) => t.in === "BOARD" && t.owner === g.player).length >= 2 &&
+    g.void[other(g.player)] >= DEFECTION_VOID_GAIN
+
+  // True when all routes have been used — UI shows "Proceed to Reinforcements" button
+  const allRoutesUsed =
+    g.phase === "ACTION" &&
+    !g.gameOver &&
+    g.usedRoutes.length >= g.routes[g.player].length &&
+    g.routes[g.player].length > 0
   const pendingRecoil = (g as any).pendingRecoil as { tokenId: string | null; to: Coord | null } | undefined
   const recoilSourcePos = recoilArmed && selectedTokenId
     ? (() => {
@@ -533,6 +556,18 @@ export function useVekkeController(opts: {
         return
       }
 
+      // Handle defection clicks — player clicks one of their own board tokens to sacrifice
+      if (defectionArmed) {
+        const t = boardMap.get(`${x},${y}`)
+        if (t && t.owner === g.player && t.in === "BOARD") {
+          update((s) => confirmDefection(s, t.id))
+          playSound(sounds.click)
+        } else {
+          warn("INVALID: Click one of your own board tokens to sacrifice for Defection.")
+        }
+        return
+      }
+
       // Handle evasion clicks
       if (recoilArmed) {
         // --- EVASION: allow selecting the last-captured token by clicking its capture square ---
@@ -572,7 +607,7 @@ export function useVekkeController(opts: {
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil, defectionArmed]
   )
 
   useEffect(() => {
@@ -1247,6 +1282,56 @@ export function useVekkeController(opts: {
         update((s) => confirmRecoil(s))
       },
 
+      advanceFromAction: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
+        if (!allRoutesUsed) {
+          warn("INVALID: You still have routes to use before advancing.")
+          return
+        }
+        update((s) => advanceFromAction(s))
+      },
+
+      armDefection: () => {
+        if (!started) return
+        if (g.gameOver) {
+          warn("INVALID: Game is over.")
+          return
+        }
+        if (opponentType === "pvp" && mySide && g.player !== mySide) return
+        if (!canUseDefection) {
+          if (g.phase !== "ACTION") {
+            warn("INVALID: Defection only available during ACTION.")
+            return
+          }
+          if (defectionArmed) {
+            warn("INVALID: Defection is already armed.")
+            return
+          }
+          if (defectionUsedThisTurn) {
+            warn("INVALID: Defection already used this turn.")
+            return
+          }
+          if (g.tokens.filter((t) => t.in === "BOARD" && t.owner === g.player).length < 2) {
+            warn("INVALID: Need at least 2 of your own tokens on the board.")
+            return
+          }
+          if (g.void[other(g.player)] < DEFECTION_VOID_GAIN) {
+            warn("INVALID: No enemy tokens in the void to claim.")
+            return
+          }
+          warn("INVALID: Defection not available right now.")
+          return
+        }
+        update((s) => armDefection(s))
+      },
+
+      cancelDefection: () => update((s) => cancelDefection(s)),
+
       loadState: (state: GameState) => {
         setG(state)
       },
@@ -1271,6 +1356,10 @@ export function useVekkeController(opts: {
     recoilArmed,
     canUseRecoil,
     defender,
+    defectionArmed,
+    defectionUsedThisTurn,
+    canUseDefection,
+    allRoutesUsed,
     selectedTokenId,
     warn,
     timeControlId,
@@ -1302,6 +1391,9 @@ export function useVekkeController(opts: {
     pendingRecoil,
     recoilSourcePos,
     recoilPlayer: recoilArmed ? defender : null,
+    defectionArmed,
+    canUseDefection,
+    allRoutesUsed,
     clockPlayer,
 
     timeControlId,
@@ -1314,6 +1406,8 @@ export function useVekkeController(opts: {
       RANSOM_COST_CAPTIVES,
       RECOIL_COST_CAPTIVES,
       RECOIL_COST_RESERVES,
+      DEFECTION_BOARD_COST,
+      DEFECTION_VOID_GAIN,
     },
     actions,
   }

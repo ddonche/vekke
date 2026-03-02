@@ -22,6 +22,8 @@ interface GridBoardProps {
   recoilSourcePos?: { x: number; y: number } | null
   recoilDestPos?: { x: number; y: number } | null
   recoilPlayer?: Player | null
+  defectionArmed?: boolean
+  defectionPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
   cellColor?: string
@@ -39,6 +41,8 @@ export function GridBoard({
   recoilSourcePos = null,
   recoilDestPos = null,
   recoilPlayer = null,
+  defectionArmed = false,
+  defectionPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
   cellColor,
@@ -105,7 +109,7 @@ export function GridBoard({
                 justifyContent: "center",
                 position: "relative",
                 cursor:
-                  started && (phase === "OPENING" || Boolean(t) || recoilSourcePos != null)
+                  started && (phase === "OPENING" || Boolean(t) || recoilSourcePos != null || defectionArmed)
                     ? "pointer"
                     : "default",
               }}
@@ -273,6 +277,7 @@ export function GridBoard({
                 }
                 
                 const locked = enemyNeighbors >= 4
+                const isDefectionTarget = defectionArmed && t.owner === defectionPlayer
                 
                 return (
                   <div style={{ position: "relative", width: tokenSize, height: tokenSize }}>
@@ -295,6 +300,19 @@ export function GridBoard({
                           inset: mobile ? "-3px" : "-4px",
                           borderRadius: "50%",
                           border: `${mobile ? "2px" : "2px"} dashed var(--route-border, #ee484c)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                    )}
+
+                    {/* Defection ring - amber dashed, marks all friendly tokens as sacrifice candidates */}
+                    {isDefectionTarget && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: mobile ? "-4px" : "-5px",
+                          borderRadius: "50%",
+                          border: `${mobile ? "2px" : "3px"} dashed #f59e0b`,
                           pointerEvents: "none",
                         }}
                       />

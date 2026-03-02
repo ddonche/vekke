@@ -1,5 +1,5 @@
 // src/App.tsx
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { DevInvitePage } from "./pages/DevInvitePage"
 import { InviteAcceptPage } from "./pages/InviteAcceptPage"
 import { InvitePage } from "./pages/InvitePage"
@@ -13,10 +13,21 @@ import { GamePage } from "./components/GamePage"
 import ProfilePage from "./pages/ProfilePage"
 import { LeaderboardPage } from "./pages/LeaderboardPage"
 import { BoardEditorPage } from "./pages/BoardEditorPage"
+import { TutorialPage } from "./pages/TutorialPage"
 
 function RulesRedirect() {
   window.location.replace("/rules/index.html")
   return null
+}
+
+function TutorialWrapper() {
+  const navigate = useNavigate()
+  return (
+    <TutorialPage
+      onComplete={() => navigate("/ai/new")}
+      onSkip={() => navigate("/")}
+    />
+  )
 }
 
 function App() {
@@ -54,6 +65,8 @@ function App() {
       <Route path="/rules" element={<RulesRedirect />} />
       <Route path="/board-editor" element={<BoardEditorPage />} />
       <Route path="/rules/*" element={<RulesRedirect />} />
+
+      <Route path="/tutorial" element={<TutorialWrapper />} />
     </Routes>
   )
 }

@@ -104,6 +104,8 @@ function endTurnCommon(state: GameState, reasonLog: string) {
   state.earlySwapUsedThisTurn = false
   state.extraReinforcementBoughtThisTurn = false
   state.ransomUsedThisTurn = false
+  state.defectionArmed = false
+  state.defectionUsedThisTurn = false
 }
 
 function endTurnNoSwap(state: GameState) {
@@ -212,6 +214,90 @@ function resolveFullSieges(state: GameState, siegers: Player): number {
 // ------------------------------------------------------------
 // ACTION completion -> REINFORCE or SWAP or END (skip swap)
 // ------------------------------------------------------------
+// finishActionIfDone is now a no-op. Auto-advance has been removed.
+// The player manually triggers advanceFromAction via the UI button
+// after using all routes. This lets them fire special actions after
+// their last move before committing to reinforcements.
+function finishActionIfDone(_state: GameState) {
+  // intentionally empty — timing is now player-controlled
+}
+
+// Player explicitly advances from ACTION -> REINFORCE/SWAP/END.
+// All end-of-action resolution (siege, draft, opponent dead-on-arrival)
+// happens here rather than automatically after the last route.
+export function advanceFromAction(state: GameState) {
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Not in ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+
+  const p = state.player
+
+  if (state.usedRoutes.length < state.routes[p].length) {
+    state.warning = "INVALID: You still have routes to use this turn."
+    return
+  }
+
+  state.warning = null
+
+  // End-of-action full siege resolution (catches any lingering 8-sided sieges)
+  const capturedByFullSiege = resolveFullSieges(state, p)
+  if (capturedByFullSiege > 0) {
+    state.log.unshift(`${p} captured ${capturedByFullSiege} token(s) by full siege (8-sided).`)
+  }
+
+  checkWinner(state)
+  if (state.gameOver) {
+    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    return
+  }
+
+  // Draft: invaded 3+ times this turn → recover up to 2 tokens from void
+  if (state.turnInvades[p] >= 3 && state.void[p] > 0) {
+    const refund = Math.min(2, state.void[p])
+    state.void[p] -= refund
+    state.reserves[p] += refund
+    state.stats.drafts[p] += 1
+    state.log.unshift(
+      `${p} Draft: invaded 3+ this turn, returned ${refund} ${p} token(s) from Void to reserves.`
+    )
+  }
+
+  // Opponent dead-on-arrival check
+  const opp = other(p)
+  const deadReason = noMoveReasonAtTurnStart(state, opp)
+  if (deadReason) {
+    state.gameOver = { winner: p, reason: deadReason }
+    if (deadReason === "siegemate") {
+      state.log.unshift(`== SIEGEMATE: ${p} wins (opponent has no legal continuation) ==`)
+    } else {
+      state.log.unshift(`== COLLAPSE: ${p} wins (opponent cannot pay unusable-route tax) ==`)
+    }
+    return
+  }
+
+  // Reinforcements: 1 automatic + optional purchased extra
+  const extra = state.extraReinforcementBoughtThisTurn ? 1 : 0
+  const totalToPlace = 1 + extra
+  state.reinforcementsToPlace = Math.min(totalToPlace, state.reserves[p])
+
+  if (state.reinforcementsToPlace > 0) {
+    state.phase = "REINFORCE"
+    state.log.unshift(`== ${p} place ${state.reinforcementsToPlace} reinforcement(s) ==`)
+  } else {
+    if (state.earlySwapUsedThisTurn) {
+      endTurnNoSwap(state)
+    } else {
+      state.phase = "SWAP"
+      state.pendingSwap = { handRouteId: null, queueIndex: null }
+      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+    }
+  }
+}
 
 function hasAnyLegalMove(state: GameState, p: Player): boolean {
   // Check if player p would have any legal continuation on their next turn.
@@ -264,68 +350,6 @@ function noMoveReasonAtTurnStart(state: GameState, p: Player): "siegemate" | "co
 
   const allSieged = tokens.every((t) => isTokenLockedBySiege(state, t))
   return allSieged ? "siegemate" : "collapse"
-}
-
-function finishActionIfDone(state: GameState) {
-  const p = state.player
-
-  if (state.usedRoutes.length !== state.routes[p].length) return
-
-  // Resolve any FULL sieges (8-sided) created during ACTION
-  const capturedByFullSiege = resolveFullSieges(state, p)
-  if (capturedByFullSiege > 0) {
-    state.log.unshift(`${p} captured ${capturedByFullSiege} token(s) by full siege (8-sided).`)
-  }
-
-  checkWinner(state)
-  if (state.gameOver) {
-    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
-    return
-  }
-
-  if (state.turnInvades[p] >= 3 && state.void[p] > 0) {
-    const refund = Math.min(2, state.void[p])
-    state.void[p] -= refund
-    state.reserves[p] += refund
-    state.stats.drafts[p] += 1
-    state.log.unshift(
-      `${p} Draft: invaded 3+ this turn, returned ${refund} ${p} token(s) from Void to reserves.`
-    )
-  }
-
-  // Opponent may already be dead-on-arrival for their next turn:
-  // - SIEGEMATE: all tokens sieged and cannot reinforce
-  // - COLLAPSE: cannot fulfill mandatory route usage and cannot pay the unusable-route tax
-  const opp = other(p)
-  const deadReason = noMoveReasonAtTurnStart(state, opp)
-  if (deadReason) {
-    state.gameOver = { winner: p, reason: deadReason }
-    if (deadReason === "siegemate") {
-      state.log.unshift(`== SIEGEMATE: ${p} wins (opponent has no legal continuation) ==`)
-    } else {
-      state.log.unshift(`== COLLAPSE: ${p} wins (opponent cannot pay unusable-route tax) ==`)
-    }
-    return
-  }
-
-  // Reinforcements: 1 automatic + (optional purchased), limited by reserves
-  const extra = state.extraReinforcementBoughtThisTurn ? 1 : 0
-  const totalToPlace = 1 + extra
-  state.reinforcementsToPlace = Math.min(totalToPlace, state.reserves[p])
-
-  if (state.reinforcementsToPlace > 0) {
-    state.phase = "REINFORCE"
-    state.log.unshift(`== ${p} place ${state.reinforcementsToPlace} reinforcement(s) ==`)
-  } else {
-    // If an early swap was purchased/confirmed this turn, the end-of-turn swap is skipped.
-    if (state.earlySwapUsedThisTurn) {
-      endTurnNoSwap(state)
-    } else {
-      state.phase = "SWAP"
-      state.pendingSwap = { handRouteId: null, queueIndex: null }
-      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
-    }
-  }
 }
 
 // ------------------------------------------------------------
@@ -1146,4 +1170,110 @@ export function confirmRecoil(state: GameState) {
   const costStr = isMiracleWinScenario ? "free" : `paid ${RECOIL_COST_CAPTIVES} captive + ${RECOIL_COST_RESERVES} reserve → Void`
   state.log.unshift(`${defender} RECOIL: moved ${tokenId} from ${fromSq} to ${toSq(to)} (${costStr}).`)
   state.warning = null
+}
+
+// ------------------------------------------------------------
+// Defection (once per turn: sacrifice 1 board token to claim 1 enemy token from void)
+// ------------------------------------------------------------
+export const DEFECTION_BOARD_COST = 1  // board tokens sacrificed
+export const DEFECTION_VOID_GAIN = 1   // enemy void tokens claimed as captives
+
+export function armDefection(state: GameState) {
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Defection only available during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+
+  const p = state.player
+  const enemy = other(p)
+
+  if (state.defectionUsedThisTurn) {
+    state.warning = "INVALID: Defection already used this turn."
+    return
+  }
+
+  const boardTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+  if (boardTokens.length < 2) {
+    state.warning = "INVALID: need at least 2 of your own tokens on the board to defect."
+    return
+  }
+
+  if (state.void[enemy] < DEFECTION_VOID_GAIN) {
+    state.warning = "INVALID: no enemy tokens in the void to claim."
+    return
+  }
+
+  state.defectionArmed = true
+  state.warning = null
+  state.log.unshift(`== ${p} Defection armed — click one of your board tokens to sacrifice ==`)
+}
+
+export function cancelDefection(state: GameState) {
+  state.defectionArmed = false
+  state.warning = null
+}
+
+export function confirmDefection(state: GameState, tokenId: string) {
+  if (!state.defectionArmed) {
+    state.warning = "INVALID: Defection is not armed."
+    return
+  }
+  if (state.phase !== "ACTION") {
+    state.warning = "INVALID: Defection only available during ACTION phase."
+    return
+  }
+  if (state.gameOver) {
+    state.warning = "INVALID: Game is over."
+    return
+  }
+
+  const p = state.player
+  const enemy = other(p)
+
+  if (state.defectionUsedThisTurn) {
+    state.warning = "INVALID: Defection already used this turn."
+    return
+  }
+
+  const boardTokens = state.tokens.filter((t) => t.in === "BOARD" && t.owner === p)
+  if (boardTokens.length < 2) {
+    state.warning = "INVALID: need at least 2 of your own tokens on the board to defect."
+    return
+  }
+
+  if (state.void[enemy] < DEFECTION_VOID_GAIN) {
+    state.warning = "INVALID: no enemy tokens in the void to claim."
+    return
+  }
+
+  const token = state.tokens.find((t) => t.id === tokenId)
+  if (!token || token.owner !== p || token.in !== "BOARD") {
+    state.warning = "INVALID: must select one of your own board tokens to sacrifice."
+    return
+  }
+
+  // Execute:
+  // 1. Sacrifice the selected board token — it leaves the board permanently (spent as cost)
+  token.in = "VOID"
+  state.void[p] += 1
+
+  // 2. Claim 1 enemy token from their void into your captives
+  state.void[enemy] -= DEFECTION_VOID_GAIN
+  state.captives[p] += DEFECTION_VOID_GAIN
+
+  // 3. Bookkeeping
+  // Guard: games loaded from DB before defections was added won't have this field
+  if (!state.stats.defections) state.stats.defections = { W: 0, B: 0 }
+  state.stats.defections[p] += 1
+  state.defectionArmed = false
+  state.defectionUsedThisTurn = true
+  state.warning = null
+
+  state.log.unshift(
+    `${p} DEFECTION: sacrificed ${tokenId} (board → void) — claimed ${DEFECTION_VOID_GAIN} ${enemy} token(s) from void into captives.`
+  )
 }

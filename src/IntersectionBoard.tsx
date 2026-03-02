@@ -22,6 +22,8 @@ interface IntersectionBoardProps {
   recoilSourcePos?: { x: number; y: number } | null
   recoilDestPos?: { x: number; y: number } | null
   recoilPlayer?: Player | null
+  defectionArmed?: boolean
+  defectionPlayer?: Player | null
   tokenClass?: (side: "W" | "B") => string
   routeClass?: string
   dotColor?: string
@@ -39,6 +41,8 @@ export function IntersectionBoard({
   recoilSourcePos = null,
   recoilDestPos = null,
   recoilPlayer = null,
+  defectionArmed = false,
+  defectionPlayer = null,
   tokenClass = (side: "W" | "B") => side === "W" ? "skin-token-default-w" : "skin-token-default-b",
   routeClass = "skin-route-default",
   dotColor = "#ee484c",
@@ -167,6 +171,7 @@ export function IntersectionBoard({
       const isSelected = t && t.id === selectedTokenId
       const isRecoilSource = recoilSourcePos && boardX === recoilSourcePos.x && boardY === recoilSourcePos.y
       const isRecoilDest = recoilDestPos && boardX === recoilDestPos.x && boardY === recoilDestPos.y
+      const isDefectionTarget = defectionArmed && t && t.owner === defectionPlayer
 
       // Clickable area
       intersections.push(
@@ -244,6 +249,24 @@ export function IntersectionBoard({
           />
         )
       }
+
+      // Defection ring - amber dashed, marks all friendly tokens as sacrifice candidates
+      if (isDefectionTarget) {
+        const highlightRadius = (mobile ? 21 : 35) + (mobile ? 6 : 8)
+        intersections.push(
+          <circle
+            key={`defect-${key}`}
+            cx={x}
+            cy={y}
+            r={highlightRadius}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth={mobile ? 2 : 3}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )
+      }
     }
   }
 
@@ -269,6 +292,7 @@ export function IntersectionBoard({
           const col = x
           const isRecoilSource = recoilSourcePos && x === recoilSourcePos.x && y === recoilSourcePos.y
           const isRecoilDest = recoilDestPos && x === recoilDestPos.x && y === recoilDestPos.y
+          const isDefectionTarget = defectionArmed && t && t.owner === defectionPlayer
 
           const posX = padding + col * cellSize
           const posY = padding + ((playableSize - 1 - row)) * cellSize
@@ -379,6 +403,7 @@ export function IntersectionBoard({
                 }
                 
                 const locked = enemyNeighbors >= 4
+                const isDefectionTargetToken = defectionArmed && t.owner === defectionPlayer
                 
                 return (
                   <div
