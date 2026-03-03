@@ -901,19 +901,135 @@ if (wantsNewGame) {
   // ------------------------------------------------------------
   type ChatMsg = { id: string; at: number; from: "W" | "B" | "SYS"; text: string }
   const [chatInput, setChatInput] = useState("")
-  const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>(() => [
-    { id: "seed-1", at: Date.now(), from: (human === "W" ? "B" : "W") as "W" | "B", text: "Good luck!" },
-    { id: "seed-2", at: Date.now(), from: human as "W" | "B", text: "Thanks, you too!" },
-  ])
+  const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([])
+  const [myChatDisabled, setMyChatDisabled] = useState(false)
+  const [opponentChatDisabled, setOpponentChatDisabled] = useState(false)
+  const [showChatInfo, setShowChatInfo] = useState(false)
+  const [reportSent, setReportSent] = useState(false)
+  const chatChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const gameId = props.externalGameData?.id ?? null
+  const resolvedOpponentUserId =
+    props.opponentUserId ??
+    (props.externalGameData && props.mySide
+      ? (props.mySide === "W" ? props.externalGameData.brake_id : props.externalGameData.wake_id)
+      : null)
+
+  // Fetch my chat_disabled on load
+  useEffect(() => {
+    if (!currentUserId) return
+    supabase
+      .from("profiles")
+      .select("chat_disabled")
+      .eq("id", currentUserId)
+      .single()
+      .then(({ data }) => { if (data) setMyChatDisabled(!!data.chat_disabled) })
+  }, [currentUserId])
+
+  // Fetch opponent chat_disabled and subscribe to live changes
+  useEffect(() => {
+    if (!resolvedOpponentUserId) return
+    let cancelled = false
+
+    supabase
+      .from("profiles")
+      .select("chat_disabled")
+      .eq("id", resolvedOpponentUserId)
+      .single()
+      .then(({ data }) => { if (!cancelled && data) setOpponentChatDisabled(!!data.chat_disabled) })
+
+    const sub = supabase
+      .channel(`chat-status:${resolvedOpponentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${resolvedOpponentUserId}` },
+        (payload) => { if (!cancelled) setOpponentChatDisabled(!!(payload.new as any).chat_disabled) }
+      )
+      .subscribe()
+
+    return () => { cancelled = true; sub.unsubscribe() }
+  }, [resolvedOpponentUserId])
+
+  // Realtime broadcast channel for chat messages (PvP only)
+  useEffect(() => {
+    if (props.opponentType !== "pvp") return
+    if (!gameId) return
+
+    const channel = supabase.channel(`game-chat:${gameId}`)
+    chatChannelRef.current = channel
+
+    channel
+      .on("broadcast", { event: "chat_message" }, ({ payload }) => {
+        const msg = payload as ChatMsg
+        if (msg.from !== (human as "W" | "B")) {
+          setChatMsgs((prev) => [...prev, msg])
+        }
+      })
+      .subscribe()
+
+    return () => { channel.unsubscribe(); chatChannelRef.current = null }
+  }, [props.opponentType, gameId, human])
+
   function pushChat(from: "W" | "B" | "SYS", text: string) {
     const t = String(text ?? "").trim()
     if (!t) return
     setChatMsgs((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, at: Date.now(), from, text: t }])
   }
+
   function sendChat() {
-    pushChat(human as "W" | "B", chatInput)
+    const t = chatInput.trim()
+    if (!t || myChatDisabled) return
+    const msg: ChatMsg = { id: `${Date.now()}-${Math.random()}`, at: Date.now(), from: human as "W" | "B", text: t }
+    setChatMsgs((prev) => [...prev, msg])
     setChatInput("")
+    if (props.opponentType === "pvp" && chatChannelRef.current) {
+      chatChannelRef.current.send({ type: "broadcast", event: "chat_message", payload: msg })
+    }
   }
+
+  async function toggleMyChat() {
+    if (!currentUserId) return
+    const next = !myChatDisabled
+    setMyChatDisabled(next)
+    await supabase.from("profiles").update({ chat_disabled: next }).eq("id", currentUserId)
+  }
+
+  async function submitReport() {
+    if (!currentUserId || !resolvedOpponentUserId || reportSent) return
+    await supabase.from("chat_reports").insert({
+      game_id: gameId,
+      reporter_id: currentUserId,
+      reported_user_id: resolvedOpponentUserId,
+      chat_log: chatMsgs,
+    })
+    setReportSent(true)
+  }
+
+  // Shared info overlay rendered inside the chat container
+  const ChatInfoOverlay = () => (
+    <div
+      style={{
+        position: "absolute", inset: 0, zIndex: 10,
+        backgroundColor: "rgba(10,10,14,0.97)",
+        borderRadius: "inherit",
+        padding: "1rem",
+        display: "flex", flexDirection: "column", gap: "0.625rem",
+        fontFamily: "'EB Garamond', Georgia, serif",
+        fontSize: "0.95rem", color: "#b0aa9e", lineHeight: 1.5,
+      }}
+    >
+      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "#b8966a" }}>About Chat</div>
+      <p style={{ margin: 0 }}>Chat is <strong style={{ color: "#e8e4d8" }}>local only</strong> — messages are not saved and will disappear when you leave this game.</p>
+      <p style={{ margin: 0 }}>If you need to report someone, use the <strong style={{ color: "#e8e4d8" }}>Report</strong> button before leaving. This saves the conversation for admin review.</p>
+      <p style={{ margin: 0 }}>You can <strong style={{ color: "#e8e4d8" }}>disable chat</strong> at any time. Your opponent won't know whether it's your choice or a moderation action.</p>
+      <button
+        onClick={() => setShowChatInfo(false)}
+        style={{ marginTop: "auto", background: "none", border: "1px solid rgba(184,150,106,0.4)", borderRadius: 6, color: "#b8966a", fontFamily: "'Cinzel', serif", fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", padding: "6px 12px", cursor: "pointer", alignSelf: "flex-end" }}
+      >
+        Close
+      </button>
+    </div>
+  )
 
   // ------------------------------------------------------------
   // Skin helpers
@@ -1101,97 +1217,78 @@ if (wantsNewGame) {
               style={{
                 backgroundColor: "#0d0d10",
                 borderBottom: "1px solid rgba(184,150,106,0.30)",
+                position: "relative",
               }}
             >
+              {showChatInfo && <ChatInfoOverlay />}
+
+              {/* Header row */}
               <div
-                style={{
-                  padding: "0.375rem 0.5rem",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  cursor: "pointer",
-                }}
+                style={{ padding: "0.375rem 0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                 onClick={() => setShowChatExpanded(!showChatExpanded)}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a",
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#e8e4d8"
-                    strokeWidth="2"
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e8e4d8" strokeWidth="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
                   <span>Chat</span>
+                  {/* Info icon */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowChatExpanded(true); setShowChatInfo(true) }}
+                    style={{ background: "none", border: "1px solid #6b7280", borderRadius: "50%", color: "#b0aa9e", fontSize: "0.7rem", cursor: "pointer", padding: 0, lineHeight: 1, width: "1.1rem", height: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >?</button>
                 </div>
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#b0aa9e",
-                    fontSize: "1rem",
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
-                >
+                <span style={{ background: "none", border: "none", color: "#b0aa9e", fontSize: "1rem", cursor: "pointer", padding: 0 }}>
                   {showChatExpanded ? "▲" : "▼"}
-                </button>
+                </span>
               </div>
 
-              {!showChatExpanded && (
-                <div
-                  style={{
-                    padding: "0.375rem 0.5rem",
-                    fontFamily: "'EB Garamond', Georgia, serif",
-                    fontSize: "1.1rem",
-                    color: "#b0aa9e",
-                    borderTop: "1px solid rgba(184,150,106,0.30)",
-                  }}
-                >
-                  {chatMsgs.length > 0 && (() => {
-                    const m = chatMsgs[chatMsgs.length - 1]
-                    const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
-                    const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
-                    return <><span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}</>
-                  })()}
-                </div>
-              )}
+              {/* Collapsed: show latest message */}
+              {!showChatExpanded && chatMsgs.length > 0 && (() => {
+                const m = chatMsgs[chatMsgs.length - 1]
+                const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
+                const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
+                return (
+                  <div style={{ padding: "0.375rem 0.5rem", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1.1rem", color: "#b0aa9e", borderTop: "1px solid rgba(184,150,106,0.30)" }}>
+                    <span style={{ fontWeight: "bold", color }}>{name}:</span>{" "}{m.text}
+                  </div>
+                )
+              })()}
 
+              {/* Expanded */}
               {showChatExpanded && (
                 <div style={{ borderTop: "1px solid rgba(184,150,106,0.30)" }}>
-                  <div style={{ display: "flex", gap: 6, padding: "0.375rem 0.5rem", borderBottom: "1px solid rgba(184,150,106,0.30)" }}>
-                    <input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
-                      placeholder="Message…"
-                      style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 6, padding: "6px 8px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1rem" }}
-                    />
-                    <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
-                      Send
-                    </button>
-                  </div>
-                  <div
-                    style={{
-                      padding: "0.5rem",
-                      fontFamily: "'EB Garamond', Georgia, serif",
-                      fontSize: "1.1rem",
-                      color: "#b0aa9e",
-                      maxHeight: "10rem",
-                      overflowY: "auto",
-                    }}
-                    className="hide-scrollbar"
-                  >
+
+                  {/* Input row — disabled state */}
+                  {myChatDisabled ? (
+                    <div style={{ padding: "0.375rem 0.5rem", borderBottom: "1px solid rgba(184,150,106,0.30)", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "0.9rem", color: "#6b6558", fontStyle: "italic", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span>Your chat is disabled.</span>
+                      <button onClick={toggleMyChat} style={{ background: "none", border: "1px solid rgba(184,150,106,0.4)", borderRadius: 6, color: "#b8966a", fontFamily: "'Cinzel', serif", fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 8px", cursor: "pointer", flexShrink: 0 }}>
+                        Enable Chat
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6, padding: "0.375rem 0.5rem", borderBottom: "1px solid rgba(184,150,106,0.30)" }}>
+                      <input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
+                        placeholder="Message…"
+                        style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 6, padding: "6px 8px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1rem" }}
+                      />
+                      <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
+                        Send
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Message list */}
+                  <div style={{ padding: "0.5rem", fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1.1rem", color: "#b0aa9e", maxHeight: "10rem", overflowY: "auto" }} className="hide-scrollbar">
+                    {opponentChatDisabled && (
+                      <div style={{ marginBottom: "0.25rem", fontStyle: "italic", color: "#6b6558" }}>
+                        {(human === "W" ? bluePlayer : whitePlayer).username}'s chat is disabled.
+                      </div>
+                    )}
                     {[...chatMsgs].reverse().map((m) => {
                       const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
                       const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
@@ -1201,6 +1298,25 @@ if (wantsNewGame) {
                         </div>
                       )
                     })}
+                  </div>
+
+                  {/* Actions row: disable toggle + report */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.35rem 0.5rem", borderTop: "1px solid rgba(184,150,106,0.15)" }}>
+                    {!myChatDisabled && (
+                      <button onClick={toggleMyChat} style={{ background: "none", border: "none", color: "#b0aa9e", fontFamily: "'Cinzel', serif", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", padding: 0 }}>
+                        Disable Chat
+                      </button>
+                    )}
+                    {myChatDisabled && <span />}
+                    {resolvedOpponentUserId && (
+                      <button
+                        onClick={submitReport}
+                        disabled={reportSent}
+                        style={{ background: "none", border: "none", color: reportSent ? "#6b6558" : "#dc2626", fontFamily: "'Cinzel', serif", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: reportSent ? "default" : "pointer", padding: 0, opacity: reportSent ? 0.6 : 1 }}
+                      >
+                        {reportSent ? "Reported" : "Report"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1295,74 +1411,14 @@ if (wantsNewGame) {
                       gap: "0.5rem",
                     }}
                   >
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === topPlayer.avatar && (
-                      <button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canEarlySwap ? 1 : 0.5,
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
-                        </svg>
-                      </button>
-                    )}
-
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === topPlayer.avatar && (
                       <button
-                        onClick={() =>
-                          canBuyExtraReinforcement &&
-                          actions.buyExtraReinforcement()
-                        }
+                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="1"
-                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
                           <path d="M9 12h6" />
                           <path d="M12 9v6" />
@@ -1375,23 +1431,26 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseRansom ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
                           <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === topPlayer.avatar && (
+                      <button
+                        onClick={() => canEarlySwap && actions.armEarlySwap()}
+                        disabled={!canEarlySwap}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="6" cy="19" r="3" />
+                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+                          <circle cx="18" cy="5" r="3" />
                         </svg>
                       </button>
                     )}
@@ -1401,19 +1460,7 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseDefection ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="9" cy="9" r="7"/>
@@ -1427,29 +1474,9 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseRecoil ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="1"
-                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 10h.01" />
                           <path d="M15 10h.01" />
                           <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
@@ -1683,41 +1710,6 @@ if (wantsNewGame) {
                       </svg>
                       <span>Resign</span>
                     </button>
-
-                    {/* Screenshot/tutorial helper: hide selection highlight */}
-                    <button
-                      onClick={() => setHideSelection((v) => !v)}
-                      disabled={!started}
-                      title="Hide/show selected token highlight (H toggles, Esc hides)"
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: hideSelection ? "#b8966a" : "#e8e4d8",
-                        fontSize: 11,
-                        cursor: started ? "pointer" : "default",
-                        padding: 0,
-                        fontWeight: 900,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        opacity: started ? 1 : 0.5,
-                      }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke={hideSelection ? "#b8966a" : "#e8e4d8"}
-                        strokeWidth="2"
-                      >
-                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                        {hideSelection && <path d="M4 4l16 16" />}
-                      </svg>
-                      <span>{hideSelection ? "Show" : "Hide"}</span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1879,9 +1871,24 @@ if (wantsNewGame) {
                 </div>
               </div>
 
-              {/* Board style instruction */}
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em", color: "#6b6558", textAlign: "center", padding: "4px 0" }}>
-                Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
+              {/* Board style instruction + hide highlight */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px", width: "100%" }}>
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em", color: "#6b6558" }}>
+                  Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
+                </div>
+                <button
+                  onClick={() => setHideSelection((v) => !v)}
+                  disabled={!started}
+                  title="Hide/show selected token highlight (H toggles, Esc hides)"
+                  style={{ background: "none", border: "none", color: hideSelection ? "#b8966a" : "#6b6558", fontSize: 10, cursor: started ? "pointer" : "default", padding: 0, fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", display: "flex", alignItems: "center", gap: 4, opacity: started ? 1 : 0.5 }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={hideSelection ? "#b8966a" : "#6b6558"} strokeWidth="2">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
+                    {hideSelection && <path d="M4 4l16 16" />}
+                  </svg>
+                  <span>{hideSelection ? "Show Grid Highlight" : "Hide Grid Highlight"}</span>
+                </button>
               </div>
 
               {/* Blue Player */}
@@ -1977,74 +1984,14 @@ if (wantsNewGame) {
                       gap: "0.5rem",
                     }}
                   >
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === bottomPlayer.avatar && (
-                      <button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canEarlySwap ? 1 : 0.5,
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
-                        </svg>
-                      </button>
-                    )}
-
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === bottomPlayer.avatar && (
                       <button
-                        onClick={() =>
-                          canBuyExtraReinforcement &&
-                          actions.buyExtraReinforcement()
-                        }
+                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="1"
-                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
                           <path d="M9 12h6" />
                           <path d="M12 9v6" />
@@ -2057,23 +2004,26 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseRansom ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
                           <path d="M12 22V2"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Route Swap - only show when it's this player's turn */}
+                    {g.player === bottomPlayer.avatar && (
+                      <button
+                        onClick={() => canEarlySwap && actions.armEarlySwap()}
+                        disabled={!canEarlySwap}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="6" cy="19" r="3" />
+                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+                          <circle cx="18" cy="5" r="3" />
                         </svg>
                       </button>
                     )}
@@ -2083,19 +2033,7 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseDefection ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="9" cy="9" r="7"/>
@@ -2109,29 +2047,9 @@ if (wantsNewGame) {
                       <button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
-                        style={{
-                          width: "1.5rem",
-                          height: "1.5rem",
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: canUseRecoil ? 1 : 0.5,
-                        }}
+                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="1"
-                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M9 10h.01" />
                           <path d="M15 10h.01" />
                           <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
@@ -2789,19 +2707,14 @@ if (wantsNewGame) {
                     flexDirection: "column",
                     overflow: "hidden",
                     minHeight: 0,
+                    position: "relative",
                   }}
                 >
+                  {showChatInfo && <ChatInfoOverlay />}
+
+                  {/* Header row */}
                   <div
-                    style={{
-                      padding: "10px 12px",
-                      backgroundColor: "#0d0d10",
-                      borderBottom: "1px solid rgba(184,150,106,0.30)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      cursor: "pointer",
-                      userSelect: "none",
-                    }}
+                    style={{ padding: "10px 12px", backgroundColor: "#0d0d10", borderBottom: "1px solid rgba(184,150,106,0.30)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}
                     onClick={() => setShowChatExpanded(!showChatExpanded)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>
@@ -2809,9 +2722,16 @@ if (wantsNewGame) {
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                       <span>Chat</span>
+                      {/* Info icon */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowChatExpanded(true); setShowChatInfo(true) }}
+                        style={{ background: "none", border: "1px solid #6b7280", borderRadius: "50%", color: "#b0aa9e", fontSize: "0.7rem", cursor: "pointer", padding: 0, lineHeight: 1, width: "1.1rem", height: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                      >?</button>
                     </div>
                     <span style={{ fontSize: 14, opacity: 0.7 }}>{showChatExpanded ? "▲" : "▼"}</span>
                   </div>
+
+                  {/* Collapsed: show latest message */}
                   {!showChatExpanded && chatMsgs.length > 0 && (() => {
                     const m = chatMsgs[chatMsgs.length - 1]
                     const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
@@ -2822,33 +2742,40 @@ if (wantsNewGame) {
                       </div>
                     )
                   })()}
+
+                  {/* Expanded: input */}
                   {showChatExpanded && (
-                    <div style={{ borderBottom: "1px solid rgba(184,150,106,0.30)", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
-                      <input
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
-                        placeholder="Type a message…"
-                        style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 8, padding: "8px 10px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: 16 }}
-                      />
-                      <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
-                        Send
-                      </button>
-                    </div>
+                    myChatDisabled ? (
+                      <div style={{ borderBottom: "1px solid rgba(184,150,106,0.30)", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontFamily: "'EB Garamond', Georgia, serif", fontSize: 14, color: "#6b6558", fontStyle: "italic" }}>Your chat is disabled.</span>
+                        <button onClick={toggleMyChat} style={{ background: "none", border: "1px solid rgba(184,150,106,0.4)", borderRadius: 6, color: "#b8966a", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "6px 10px", cursor: "pointer", flexShrink: 0 }}>
+                          Enable Chat
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ borderBottom: "1px solid rgba(184,150,106,0.30)", padding: "10px 12px", display: "flex", gap: 8, flexShrink: 0 }}>
+                        <input
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") sendChat() }}
+                          placeholder="Type a message…"
+                          style={{ flexGrow: 1, background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 8, padding: "8px 10px", color: "#e8e4d8", outline: "none", fontFamily: "'EB Garamond', Georgia, serif", fontSize: 16 }}
+                        />
+                        <button onClick={sendChat} style={{ background: "#5de8f7", border: "none", borderRadius: 8, padding: "8px 12px", fontWeight: 700, cursor: "pointer", color: "#0b1220", fontFamily: "'Cinzel', serif", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
+                          Send
+                        </button>
+                      </div>
+                    )
                   )}
+
+                  {/* Expanded: message list */}
                   {showChatExpanded && (
-                    <div
-                      style={{
-                        padding: 12,
-                        fontFamily: "'EB Garamond', Georgia, serif",
-                        fontSize: 16,
-                        color: "#b0aa9e",
-                        overflowY: "auto",
-                        flexGrow: 1,
-                        minHeight: 0,
-                        lineHeight: 1.6,
-                      }}
-                    >
+                    <div style={{ padding: 12, fontFamily: "'EB Garamond', Georgia, serif", fontSize: 16, color: "#b0aa9e", overflowY: "auto", flexGrow: 1, minHeight: 0, lineHeight: 1.6 }}>
+                      {opponentChatDisabled && (
+                        <div style={{ marginBottom: 8, fontStyle: "italic", color: "#6b6558" }}>
+                          {(human === "W" ? bluePlayer : whitePlayer).username}'s chat is disabled.
+                        </div>
+                      )}
                       {[...chatMsgs].reverse().map((m) => {
                         const name = m.from === "SYS" ? "System" : m.from === "B" ? bluePlayer.username : whitePlayer.username
                         const color = m.from === "SYS" ? "#b0aa9e" : m.from === "B" ? "#5de8f7" : "#e8e4d8"
@@ -2858,6 +2785,26 @@ if (wantsNewGame) {
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+
+                  {/* Expanded: actions row */}
+                  {showChatExpanded && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px", borderTop: "1px solid rgba(184,150,106,0.15)", flexShrink: 0 }}>
+                      {!myChatDisabled ? (
+                        <button onClick={toggleMyChat} style={{ background: "none", border: "none", color: "#b0aa9e", fontFamily: "'Cinzel', serif", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", padding: 0 }}>
+                          Disable Chat
+                        </button>
+                      ) : <span />}
+                      {resolvedOpponentUserId && (
+                        <button
+                          onClick={submitReport}
+                          disabled={reportSent}
+                          style={{ background: "none", border: "none", color: reportSent ? "#6b6558" : "#dc2626", fontFamily: "'Cinzel', serif", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: reportSent ? "default" : "pointer", padding: 0, opacity: reportSent ? 0.6 : 1 }}
+                        >
+                          {reportSent ? "Reported" : "Report"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3008,6 +2955,7 @@ if (wantsNewGame) {
                       </div>
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      {/* Resign */}
                       <button
                         onClick={() => actions.resign()}
                         disabled={!started || !!g.gameOver}
@@ -3039,41 +2987,6 @@ if (wantsNewGame) {
                           <path d="M12 16h.01" />
                         </svg>
                         <span>Resign</span>
-                      </button>
-
-                      {/* Screenshot/tutorial helper: hide selection highlight */}
-                      <button
-                        onClick={() => setHideSelection((v) => !v)}
-                        disabled={!started}
-                        title="Hide/show selected token highlight (H toggles, Esc hides)"
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: hideSelection ? "#b8966a" : "#e8e4d8",
-                          fontSize: 13,
-                          cursor: started ? "pointer" : "default",
-                          padding: 0,
-                          fontWeight: 900,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          opacity: started ? 1 : 0.5,
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke={hideSelection ? "#b8966a" : "#e8e4d8"}
-                          strokeWidth="2"
-                        >
-                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                          <circle cx="12" cy="12" r="3" />
-                          {hideSelection && <path d="M4 4l16 16" />}
-                        </svg>
-                        <span>{hideSelection ? "Show" : "Hide"}</span>
                       </button>
                     </div>
                   </div>
@@ -3116,9 +3029,24 @@ if (wantsNewGame) {
                   />
                 )}
 
-                {/* Board style instruction */}
-                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em", color: "#6b6558", textAlign: "center" }}>
-                  Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
+                {/* Board style instruction + hide highlight */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em", color: "#6b6558" }}>
+                    Press <span style={{ fontWeight: 600, color: "#b8966a" }}>B</span> to switch board style
+                  </div>
+                  <button
+                    onClick={() => setHideSelection((v) => !v)}
+                    disabled={!started}
+                    title="Hide/show selected token highlight (H toggles, Esc hides)"
+                    style={{ background: "none", border: "none", color: hideSelection ? "#b8966a" : "#6b6558", fontSize: 11, cursor: started ? "pointer" : "default", padding: 0, fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", display: "flex", alignItems: "center", gap: 5, opacity: started ? 1 : 0.5 }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={hideSelection ? "#b8966a" : "#6b6558"} strokeWidth="2">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                      {hideSelection && <path d="M4 4l16 16" />}
+                    </svg>
+                    <span>{hideSelection ? "Show Grid Highlight" : "Hide Grid Highlight"}</span>
+                  </button>
                 </div>
 
                 {/* Defection Cancel */}
