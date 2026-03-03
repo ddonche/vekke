@@ -8,7 +8,7 @@ export async function getAccountTier(userId: string): Promise<AccountTier> {
   const { data, error } = await supabase
     .from("profiles")
     .select("account_tier")
-    .eq("id", userId) // ✅ your profiles key column is id (uuid)
+    .eq("id", userId) // your profiles key column is id (uuid)
     .maybeSingle()
 
   if (error) throw error

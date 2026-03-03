@@ -1,5 +1,5 @@
 // src/pages/LeaderboardPage.tsx
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
@@ -13,6 +13,7 @@ type LeaderboardRow = {
   username: string
   avatar_url: string | null
   country_code: string | null
+  account_tier: string | null
 
   elo: number
   elo_standard: number
@@ -38,9 +39,15 @@ type LeaderboardRow = {
   losses_blitz: number
   losses_daily: number
 
+  // Victory / game-end method stats
   wins_siegemate: number
   wins_elimination: number
   wins_collapse: number
+
+  // Added (from your player_stats schema used elsewhere)
+  losses_timeout: number
+  resignations: number
+
   is_ai: boolean
 }
 
@@ -126,6 +133,43 @@ function RankBadge({ rank }: { rank: number }) {
   )
 }
 
+function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 8px",
+        borderRadius: 999,
+        border: `1px solid ${accent}55`,
+        background: `${accent}14`,
+        color: "#d4af7a",
+        fontFamily: "'Cinzel', serif",
+        fontSize: "0.58rem",
+        letterSpacing: "0.22em",
+        textTransform: "uppercase",
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+        marginLeft: 8,
+      }}
+      title="Pro"
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: "#d4af7a",
+          boxShadow: "0 0 0 3px rgba(212,175,122,0.14)",
+        }}
+      />
+      Pro
+    </span>
+  )
+}
+
 export function LeaderboardPage() {
   injectFonts()
   const navigate = useNavigate()
@@ -176,7 +220,8 @@ export function LeaderboardPage() {
           games_played, games_standard, games_rapid, games_blitz, games_daily,
           wins_active, wins_standard, wins_rapid, wins_blitz, wins_daily,
           losses_active, losses_standard, losses_rapid, losses_blitz, losses_daily,
-          wins_siegemate, wins_elimination, wins_collapse
+          wins_siegemate, wins_elimination, wins_collapse,
+          losses_timeout, resignations
         `)
         .gt(eloCol, 0)
         .order(eloCol, { ascending: false })
@@ -194,7 +239,10 @@ export function LeaderboardPage() {
       }
 
       const ids = statsData.map((r: any) => r.user_id)
-      let profileQuery = supabase.from("profiles").select("id, username, avatar_url, country_code, is_ai").in("id", ids)
+      let profileQuery = supabase
+        .from("profiles")
+        .select("id, username, avatar_url, country_code, is_ai, account_tier")
+        .in("id", ids)
       if (!showAI) profileQuery = profileQuery.eq("is_ai", false)
 
       const { data: profileData, error: profileErr } = await profileQuery
@@ -244,7 +292,12 @@ export function LeaderboardPage() {
             wins_siegemate: safeInt(s.wins_siegemate),
             wins_elimination: safeInt(s.wins_elimination),
             wins_collapse: safeInt(s.wins_collapse),
+
+            losses_timeout: safeInt(s.losses_timeout),
+            resignations: safeInt(s.resignations),
+
             is_ai: !!p.is_ai,
+            account_tier: (p.account_tier ?? null) as any,
           }
         })
 
@@ -328,6 +381,82 @@ export function LeaderboardPage() {
       setChallenging((m) => ({ ...m, [invitedUserId]: false }))
     }
   }
+
+  const victoryModel = useMemo(() => {
+    // Your palette (muted, matches site)
+    const COLORS = {
+      note: "#b8966a", // gold
+      tip: "#c77a2c", // burnt orange
+      warning: "#ee484c", // red
+      important: "#355e3b", // hunter green
+      strategy: "#2f4f6b", // slate/navy
+      lore: "#1f5c5b", // deep teal
+      example: "#9a9487", // parchment neutral
+    }
+
+    const items = [
+      {
+        key: "Siegemate",
+        color: COLORS.lore,
+        bg: "rgba(31,92,91,0.10)",
+        border: "rgba(31,92,91,0.30)",
+        total: rows.reduce((s, r) => s + r.wins_siegemate, 0),
+      },
+      {
+        key: "Elimination",
+        color: COLORS.warning,
+        bg: "rgba(238,72,76,0.08)",
+        border: "rgba(238,72,76,0.30)",
+        total: rows.reduce((s, r) => s + r.wins_elimination, 0),
+      },
+      {
+        key: "Collapse",
+        color: COLORS.tip,
+        bg: "rgba(199,122,44,0.08)",
+        border: "rgba(199,122,44,0.28)",
+        total: rows.reduce((s, r) => s + r.wins_collapse, 0),
+      },
+      {
+        key: "Timeout",
+        // These are losses-by-timeout, but as a “game end method” it’s still useful in this panel.
+        color: COLORS.strategy,
+        bg: "rgba(47,79,107,0.10)",
+        border: "rgba(47,79,107,0.28)",
+        total: rows.reduce((s, r) => s + r.losses_timeout, 0),
+        subtitle: "total (timeouts)",
+      },
+      {
+        key: "Resignation",
+        // These are resignations performed by players in the dataset.
+        color: COLORS.important,
+        bg: "rgba(53,94,59,0.10)",
+        border: "rgba(53,94,59,0.28)",
+        total: rows.reduce((s, r) => s + r.resignations, 0),
+        subtitle: "total (resigns)",
+      },
+    ] as const
+
+    const grand = items.reduce((s, it) => s + it.total, 0)
+
+    // Build conic-gradient stops
+    let acc = 0
+    const stops = items.map((it) => {
+      const pct = grand > 0 ? (it.total / grand) * 100 : 0
+      const start = acc
+      const end = acc + pct
+      acc = end
+      return { ...it, pct, start, end }
+    })
+
+    const gradient =
+      grand > 0
+        ? `conic-gradient(${stops
+            .map((s) => `${s.color} ${s.start.toFixed(3)}% ${s.end.toFixed(3)}%`)
+            .join(", ")})`
+        : "conic-gradient(rgba(255,255,255,0.06) 0% 100%)"
+
+    return { items: stops, grand, gradient }
+  }, [rows])
 
   return (
     <div
@@ -659,6 +788,7 @@ export function LeaderboardPage() {
                                   }}
                                 >
                                   {r.username}
+                                  {r.account_tier === "pro" ? <ProFlair /> : null}
                                   {isMe && (
                                     <span
                                       style={{
@@ -795,51 +925,298 @@ export function LeaderboardPage() {
                 Victory Methods
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-                {[
-                  { label: "Siegemate", value: rows.reduce((s, r) => s + r.wins_siegemate, 0) },
-                  { label: "Elimination", value: rows.reduce((s, r) => s + r.wins_elimination, 0) },
-                  { label: "Collapse", value: rows.reduce((s, r) => s + r.wins_collapse, 0) },
-                ].map(({ label, value }) => (
+
+              {/* 5 on the left, chart on the right */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.2fr 1fr",
+                  gap: 14,
+                  alignItems: "stretch",
+                }}
+              >
+                {/* Left: 5 cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
+                  {victoryModel.items.map((it) => {
+                    const pct = victoryModel.grand > 0 ? Math.round((it.total / victoryModel.grand) * 100) : 0
+                    return (
+                      <div
+                        key={it.key}
+                        style={{
+                          padding: "12px 14px",
+                          borderRadius: 12,
+                          background: it.bg,
+                          border: `1px solid ${it.border}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            marginBottom: 6,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              minWidth: 0,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 999,
+                                background: it.color,
+                                boxShadow: `0 0 0 3px ${it.bg}`,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <div
+                              style={{
+                                fontFamily: "'Cinzel', serif",
+                                fontSize: "0.65rem",
+                                fontWeight: 700,
+                                letterSpacing: "0.22em",
+                                textTransform: "uppercase",
+                                color: "#e8e4d8",
+                                opacity: 0.9,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {it.key}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              fontFamily: "'Cinzel', serif",
+                              fontSize: "0.58rem",
+                              letterSpacing: "0.22em",
+                              textTransform: "uppercase",
+                              color: it.color,
+                              opacity: victoryModel.grand > 0 ? 0.95 : 0.55,
+                              whiteSpace: "nowrap",
+                            }}
+                            title={victoryModel.grand > 0 ? `${pct}% of tracked endings` : "No data"}
+                          >
+                            {victoryModel.grand > 0 ? `${pct}%` : "—"}
+                          </div>
+                        </div>
+
+                        <div style={{ fontFamily: "monospace", fontSize: "1.15rem", fontWeight: 900, color: "#e8e4d8" }}>
+                          {it.total.toLocaleString()}
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "'EB Garamond', Georgia, serif",
+                            fontSize: "0.85rem",
+                            fontStyle: "italic",
+                            color: "#9a9487",
+                            marginTop: 2,
+                          }}
+                        >
+                          {it.subtitle ?? "total wins"}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Right: donut chart */}
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "#0f0f14",
+                    padding: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    minHeight: 220,
+                  }}
+                >
                   <div
-                    key={label}
                     style={{
-                      padding: "12px 14px",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 10,
-                      background: "#0f0f14",
+                      display: "flex",
+                      alignItems: "baseline",
+                      justifyContent: "space-between",
+                      gap: 10,
                     }}
                   >
                     <div
                       style={{
                         fontFamily: "'Cinzel', serif",
                         fontSize: "0.65rem",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         letterSpacing: "0.25em",
                         textTransform: "uppercase",
                         color: "#6b6558",
-                        marginBottom: 6,
                       }}
                     >
-                      {label}
-                    </div>
-                    <div style={{ fontFamily: "monospace", fontSize: "1.15rem", fontWeight: 800, color: "#e8e4d8" }}>
-                      {value.toLocaleString()}
+                      Distribution
                     </div>
                     <div
                       style={{
-                        fontFamily: "'EB Garamond', Georgia, serif",
-                        fontSize: "0.85rem",
-                        fontStyle: "italic",
-                        color: "#6b6558",
-                        marginTop: 2,
+                        fontFamily: "monospace",
+                        fontSize: "0.9rem",
+                        color: "#b0aa9e",
+                        opacity: 0.9,
                       }}
+                      title="Total tracked endings in this panel"
                     >
-                      total wins
+                      total: {victoryModel.grand.toLocaleString()}
                     </div>
                   </div>
-                ))}
+
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between", flex: 1 }}>
+                    <div
+                      style={{
+                        width: 170,
+                        height: 170,
+                        borderRadius: "50%",
+                        background: victoryModel.gradient,
+                        position: "relative",
+                        flexShrink: 0,
+                        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                      }}
+                      aria-label="Victory methods donut chart"
+                    >
+                      {/* inner cutout */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 26,
+                          borderRadius: "50%",
+                          background: "#0f0f14",
+                          boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexDirection: "column",
+                          padding: 10,
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: "'Cinzel', serif",
+                            fontSize: "0.55rem",
+                            letterSpacing: "0.22em",
+                            textTransform: "uppercase",
+                            color: "#6b6558",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Tracked
+                        </div>
+                        <div style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 900, color: "#e8e4d8" }}>
+                          {victoryModel.grand.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {victoryModel.items.map((it) => {
+                          const pct = victoryModel.grand > 0 ? Math.round((it.total / victoryModel.grand) * 100) : 0
+                          return (
+                            <div
+                              key={it.key}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                                padding: "8px 10px",
+                                borderRadius: 10,
+                                background: "rgba(255,255,255,0.03)",
+                                border: "1px solid rgba(255,255,255,0.06)",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 999,
+                                    background: it.color,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                <div
+                                  style={{
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: "0.6rem",
+                                    letterSpacing: "0.20em",
+                                    textTransform: "uppercase",
+                                    color: "#e8e4d8",
+                                    opacity: 0.85,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {it.key}
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexShrink: 0 }}>
+                                <div style={{ fontFamily: "monospace", fontSize: "0.9rem", color: "#e8e4d8" }}>
+                                  {it.total.toLocaleString()}
+                                </div>
+                                <div
+                                  style={{
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: "0.55rem",
+                                    letterSpacing: "0.22em",
+                                    textTransform: "uppercase",
+                                    color: it.color,
+                                    opacity: victoryModel.grand > 0 ? 0.9 : 0.55,
+                                  }}
+                                >
+                                  {victoryModel.grand > 0 ? `${pct}%` : "—"}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 10,
+                          fontFamily: "'EB Garamond', Georgia, serif",
+                          fontSize: "0.9rem",
+                          color: "#9a9487",
+                          opacity: 0.9,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        Note: Timeout + Resignation reflect {`player_stats.losses_timeout`} and {`player_stats.resignations`} totals in this dataset.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* mobile: stack */}
+                  <div style={{ display: "none" }} />
+                </div>
               </div>
+
+              {/* Responsive tweak: stack the chart under cards on narrow screens */}
+              <style>{`
+                @media (max-width: 860px) {
+                  .victory-grid-stack {
+                    grid-template-columns: 1fr !important;
+                  }
+                }
+              `}</style>
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom"
 import { Header } from "../components/Header"
 import { sounds } from "../sounds"
 import { supabase } from "../services/supabase"
+import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -333,89 +334,151 @@ function RouteDomino({
 
 // ─── Loading screen ───────────────────────────────────────────────────────────
 
-function LoadingScreen({ onDone }: { onDone: () => void }) {
-  const [progress, setProgress] = useState(0)
-  const [label, setLabel] = useState("Preparing your match...")
+type IntroProfileRow = {
+  id: string
+  username: string | null
+  avatar_url: string | null
+  country_code: string | null
+  account_tier: string | null
+  is_ai: boolean | null
+}
 
+type IntroStatsRow = {
+  user_id: string
+  elo_standard: number | null
+}
+
+function LoadingScreen({
+  onDone,
+  leftUserId,
+}: {
+  onDone: () => void
+  leftUserId: string | null
+}) {
+  const [rightUserId, setRightUserId] = useState<string | null>(null)
+
+  const [leftProfile, setLeftProfile] = useState<IntroProfileRow | null>(null)
+  const [rightProfile, setRightProfile] = useState<IntroProfileRow | null>(null)
+  const [leftStats, setLeftStats] = useState<IntroStatsRow | null>(null)
+  const [rightStats, setRightStats] = useState<IntroStatsRow | null>(null)
+
+  // 1) Pick the Rookie AI profile from DB (no hardcoded UUIDs)
   useEffect(() => {
-    const labels = ["Preparing your match...", "Setting up the Rookie AI...", "Shuffling route cards...", "Placing opening tokens...", "Starting game..."]
-    let step = 0
-    const iv = setInterval(() => {
-      step++
-      setProgress((step / labels.length) * 100)
-      setLabel(labels[Math.min(step, labels.length - 1)])
-      if (step >= labels.length) {
-        clearInterval(iv)
-        setTimeout(onDone, 700)
+    let cancelled = false
+
+    ;(async () => {
+      // Prefer username "Rookie" if it exists; otherwise fall back to any AI profile.
+      const { data: rookie, error: rookieErr } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, country_code, account_tier, is_ai")
+        .eq("is_ai", true)
+        .ilike("username", "rookie")
+        .limit(1)
+
+      if (cancelled) return
+      if (!rookieErr && rookie && rookie.length > 0) {
+        setRightUserId(rookie[0].id)
+        return
       }
-    }, 900)
-    return () => clearInterval(iv)
-  }, [onDone])
+
+      const { data: anyAi, error: anyAiErr } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, country_code, account_tier, is_ai")
+        .eq("is_ai", true)
+        .limit(1)
+
+      if (cancelled) return
+      if (!anyAiErr && anyAi && anyAi.length > 0) {
+        setRightUserId(anyAi[0].id)
+      } else {
+        setRightUserId(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // 2) Fetch both profiles + stats once we know the IDs
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      const ids: string[] = []
+      if (leftUserId) ids.push(leftUserId)
+      if (rightUserId) ids.push(rightUserId)
+      if (ids.length === 0) return
+
+      const { data: профs } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, country_code, account_tier, is_ai")
+        .in("id", ids)
+
+      if (cancelled) return
+      if (профs?.length) {
+        const map = new Map<string, IntroProfileRow>()
+        for (const p of профs as any) map.set(p.id, p)
+        setLeftProfile(leftUserId ? map.get(leftUserId) ?? null : null)
+        setRightProfile(rightUserId ? map.get(rightUserId) ?? null : null)
+      }
+
+      const { data: stats } = await supabase
+        .from("player_stats")
+        .select("user_id, elo_standard")
+        .in("user_id", ids)
+
+      if (cancelled) return
+      if (stats?.length) {
+        const map = new Map<string, IntroStatsRow>()
+        for (const s of stats as any) map.set(s.user_id, s)
+        setLeftStats(leftUserId ? map.get(leftUserId) ?? null : null)
+        setRightStats(rightUserId ? map.get(rightUserId) ?? null : null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [leftUserId, rightUserId])
+
+  const left = {
+    username: leftProfile?.username ?? "You",
+    avatar_url: leftProfile?.avatar_url ?? null,
+    country_code: leftProfile?.country_code ?? null,
+    elo: leftStats?.elo_standard ?? null,
+    tag: "YOU",
+    account_tier: leftProfile?.account_tier ?? null,
+    accent: "#5de8f7",
+  }
+
+  const isAI = !!rightProfile?.is_ai
+  const rightName = rightProfile?.username ?? (isAI ? "Rookie" : "Opponent")
+
+  const right = {
+    username: rightName,
+    avatar_url: rightProfile?.avatar_url ?? null,
+    country_code: rightProfile?.country_code ?? null,
+    elo: rightStats?.elo_standard ?? null,
+    tag: isAI ? "AI" : null,
+    account_tier: rightProfile?.account_tier ?? null,
+    accent: "#b8966a",
+  }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "#0a0a0c",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 32,
-        fontFamily: "'EB Garamond', Georgia, serif",
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-        <div style={{ display: "flex", gap: 10, marginBottom: 4 }}>
-          {(["W", "W", "B", "W"] as Player[]).map((c, i) => (
-            <TokenDisc key={i} owner={c} size={18} />
-          ))}
-        </div>
-        <span
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontSize: 36,
-            fontWeight: 700,
-            letterSpacing: "0.3em",
-            color: "#e8e4d8",
-          }}
-        >
-          VEKKE
-        </span>
-        <span
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontSize: 11,
-            letterSpacing: "0.4em",
-            color: "#b8966a",
-            textTransform: "uppercase",
-          }}
-        >
-          Now playing vs Rookie
-        </span>
-      </div>
-      <div
-        style={{
-          width: 280,
-          height: 3,
-          backgroundColor: "rgba(184,150,106,0.18)",
-          borderRadius: 2,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${progress}%`,
-            backgroundColor: "#5de8f7",
-            borderRadius: 2,
-            transition: "width 0.75s ease",
-          }}
-        />
-      </div>
-      <span style={{ fontSize: "1rem", color: "#b0aa9e", letterSpacing: "0.05em", minHeight: "1.5em" }}>{label}</span>
-    </div>
+    <MatchIntroOverlay
+      onDone={onDone}
+      left={left}
+      right={right}
+      subtitleLine={`Now playing vs ${rightName}`}
+      labels={[
+        "Preparing your match...",
+        `Loading ${rightName}...`,
+        "Shuffling route cards...",
+        "Placing opening tokens...",
+        "Starting game...",
+      ]}
+    />
   )
 }
 
@@ -650,7 +713,7 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
   }, [])
   const cellSize = isMobile ? CELL_SM : CELL
 
-  if (loading) return <LoadingScreen onDone={onComplete} />
+  if (loading) return <LoadingScreen onDone={onComplete} leftUserId={currentUserId} />
 
   // ─── OPENING handler ────────────────────────────────────────────────────────
   function handleOpeningCell(x: number, y: number) {

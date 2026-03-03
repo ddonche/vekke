@@ -373,8 +373,26 @@ export function SkinSelector({
   const currentSlotType = SLOT_META[selectedSlot].type
 
   const skinsByType = useMemo(() => {
-    const base = inventory.filter(s => s.type === currentSlotType)
-    if (orderId) {
+    // For token slots, show ALL tokens regardless of wake/brake side —
+    // players can pick any token from their inventory for either slot.
+    const isTokenSlot = currentSlotType === "token"
+    const base = inventory.filter(s =>
+      isTokenSlot ? s.type === "token" : s.type === currentSlotType
+    )
+
+    if (orderId && isTokenSlot) {
+      // Inject both order token skins so either can be equipped to either slot
+      const orderSkinIds = [
+        `token-order-${orderId}-wake`,
+        `token-order-${orderId}-brake`,
+      ]
+      const toInject = orderSkinIds
+        .map(id => skinMap.get(id))
+        .filter((s): s is Skin => !!s && !base.some(b => b.id === s.id))
+      return [...toInject, ...base]
+    }
+
+    if (orderId && !isTokenSlot) {
       const orderSkinId = getOrderSkinId(orderId, selectedSlot)
       if (orderSkinId) {
         const orderSkin = skinMap.get(orderSkinId)
@@ -383,6 +401,7 @@ export function SkinSelector({
         }
       }
     }
+
     return base
   }, [inventory, currentSlotType, orderId, selectedSlot, skinMap])
 

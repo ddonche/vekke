@@ -170,6 +170,25 @@ export class VgnRecorder {
       }
     }
 
+    // ---- MULLIGAN: player returned a board token to reserves and redrew routes ----
+    for (const p of ["W", "B"] as Player[]) {
+      const prevCount = (prev as any).mulliganCount?.[p] ?? 0
+      const nextCount = (next as any).mulliganCount?.[p] ?? 0
+      if (nextCount > prevCount) {
+        // Find the token that disappeared from the board
+        const nextIds = new Set(next.tokens.map((t) => t.id))
+        for (const tok of prev.tokens) {
+          if (tok.owner !== p || tok.in !== "BOARD") continue
+          if (!nextIds.has(tok.id)) {
+            const fromSq = sq(tok.pos.x, tok.pos.y)
+            this.lines.push(this.mkLine(t, `p=${p}|from=${fromSq}|to=RESERVE`))
+            this.lines.push(this.mkLine(t, `NOTE|text="Mulligan"`))
+            break
+          }
+        }
+      }
+    }
+
     // ---- YIELD: tokens moved to VOID from RESERVE/CAPTIVE (aggregate) ----
     // We can infer yield counts from tokenMoves using token.owner as payer (matches your spec p=...).
     // Note: VOID is global; yield lines must include from=... and to=VOID and yield=n.
@@ -189,8 +208,9 @@ export class VgnRecorder {
       // Ransom pattern: exactly -2 captives, -1 void, +1 reserves
       if (captivesDelta === -2 && voidDelta === -1 && reservesDelta === 1) {
         // Express as transfers: 2 captives consumed, 1 recovered from void
-        this.lines.push(this.mkLine(t, `p=${p}|from=CAPTIVE|to=VOID|ransom=2`))
-        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=RESERVE|ransomed=1`))
+        this.lines.push(this.mkLine(t, `p=${p}|from=CAPTIVE|to=VOID|yield=2`))
+        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=RESERVE|count=1`))
+        this.lines.push(this.mkLine(t, `NOTE|text="Ransom"`))
       }
 
       // Recoil pattern: exactly -1 captives, -1 reserves, +2 void,
@@ -209,7 +229,8 @@ export class VgnRecorder {
           const fromLoc = tokenLoc(old)
           const toLoc = tokenLoc(tok)
           if (fromLoc === toLoc) continue
-          this.lines.push(this.mkLine(t, `p=${p}|RECOIL|token=${tok.id}|from=${fromLoc}|to=${toLoc}`))
+          this.lines.push(this.mkLine(t, `p=${p}|from=${fromLoc}|to=${toLoc}`))
+          this.lines.push(this.mkLine(t, `NOTE|text="Recoil"`))
           break
         }
       }
@@ -227,11 +248,13 @@ export class VgnRecorder {
           const old = prevById.get(tokenKey(tok))
           if (!old || old.in !== "BOARD") continue
           const sacrificedSq = sq(old.pos.x, old.pos.y)
-          this.lines.push(this.mkLine(t, `p=${p}|DEFECT|token=${tok.id}|from=${sacrificedSq}|to=VOID`))
+          this.lines.push(this.mkLine(t, `p=${p}|from=${sacrificedSq}|to=VOID`))
+          this.lines.push(this.mkLine(t, `NOTE|text="Defection — sacrificed token"`))
           break
         }
         // Claim 1 enemy token from their void into p's captives
-        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|defected=1`))
+        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|count=1`))
+        this.lines.push(this.mkLine(t, `NOTE|text="Defection — claimed from void"`))
       }
     }
 

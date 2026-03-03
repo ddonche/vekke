@@ -45,6 +45,10 @@ import {
   confirmDefection,
   DEFECTION_BOARD_COST,
   DEFECTION_VOID_GAIN,
+  executeMulligan,
+  passMulligan,
+  armMulligan,
+  cancelMulligan,
 } from "./game"
 
 type SoundHandle = { stop: () => void; play: () => number; load?: () => void }
@@ -167,6 +171,13 @@ export function useVekkeController(opts: {
     if (opponentType !== "pvp") return
     if (!opts.externalState) return
 
+    // Never overwrite local state while it is our own turn.
+    // During our turn we are the sole authority — anything arriving from the DB
+    // is either an echo of one of our own moves or a stale out-of-order packet.
+    // The opponent's end-of-turn write arrives when g.player is still the opponent
+    // locally (before we apply it), so that case is always allowed through.
+    if (mySide && gPlayerRef.current === mySide) return
+
     // Cheap dedup key – same shape as PvPGameWrapper's makeStateKey
     const ext = opts.externalState as any
     let key: string
@@ -183,7 +194,7 @@ export function useVekkeController(opts: {
 
     applyingExternalRef.current = true
     setG(opts.externalState)
-  }, [opts.externalState, opponentType])
+  }, [opts.externalState, opponentType, mySide])
 
   // Track the last state key we actually sent to onMoveComplete so we never
   // fire it twice for the same state (e.g. on a clock tick with unchanged g).
@@ -227,6 +238,9 @@ export function useVekkeController(opts: {
   const prevRef = useRef<GameState | null>(null)
   const playedGameOverSound = useRef(false)
   const recoilAutoSelectedRef = useRef(false)
+  // Always reflects the current g.player; updated in render body (safe for a ref).
+  const gPlayerRef = useRef<Player>(g.player)
+  gPlayerRef.current = g.player
 
   // ------------------------------------------------------------
   // VGN recording (pure state-transition ledger)
@@ -369,6 +383,7 @@ export function useVekkeController(opts: {
 
   // Defection
   const defectionArmed = Boolean(g.defectionArmed)
+  const mulliganArmed = Boolean((g as any).mulliganArmed)
   const defectionUsedThisTurn = Boolean(g.defectionUsedThisTurn)
 
   const canUseDefection =
@@ -544,6 +559,16 @@ export function useVekkeController(opts: {
 
       const coord: Coord = { x, y }
 
+      if (g.phase === "MULLIGAN") {
+        if (!mulliganArmed) return
+        const t = boardMap.get(`${x},${y}`)
+        if (t && t.owner === (opponentType === "pvp" ? mySide : g.player) && t.in === "BOARD") {
+          update((s) => executeMulligan(s, t.owner, t.id))
+          playSound(sounds.click)
+        }
+        return
+      }
+
       if (g.phase === "OPENING") {
         update((s) => placeOpeningToken(s, coord))
         playSound(sounds.place)
@@ -607,7 +632,7 @@ export function useVekkeController(opts: {
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil, defectionArmed]
+    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil, defectionArmed, mulliganArmed]
   )
 
   useEffect(() => {
@@ -658,8 +683,17 @@ export function useVekkeController(opts: {
       if (!started) return
       if (g.gameOver) return
       if (opponentType !== "ai") return // Skip AI in PvP mode
-      if (g.player !== ai) return
       if (recoilArmed) return // Don't let AI move during evasion interrupt
+
+      // AI auto-passes mulligan
+      if (g.phase === "MULLIGAN" && !(g as any).mulliganReady?.[ai]) {
+        const t = window.setTimeout(() => {
+          update((s) => passMulligan(s, ai))
+        }, 1500)
+        return () => window.clearTimeout(t)
+      }
+
+      if (g.player !== ai) return
 
       // --- AI "thinking" delay ---
       // Human pacing: ~1–5 seconds per AI action, regardless of level/time control.
@@ -684,6 +718,17 @@ export function useVekkeController(opts: {
             senior_master: aiStepSeniorMaster,
             grandmaster: aiStepGrandmaster,
           }
+          // If AI has used all its routes, advance the phase instead of trying to move/yield.
+          // (finishActionIfDone is a no-op; the AI must call advanceFromAction explicitly.)
+          if (
+            s.phase === "ACTION" &&
+            s.routes[ai].length > 0 &&
+            s.usedRoutes.length >= s.routes[ai].length
+          ) {
+            advanceFromAction(s)
+            return
+          }
+
           const step = stepMap[aiDifficulty] ?? aiStepNovice
           step(s, ai)
         })
@@ -1212,6 +1257,26 @@ export function useVekkeController(opts: {
         update((s) => useRansom(s))
       },
 
+      executeMulligan: (side: Player, tokenId: string) => {
+        if (!started) return
+        update((s) => executeMulligan(s, side, tokenId))
+      },
+
+      passMulligan: (side: Player) => {
+        if (!started) return
+        update((s) => passMulligan(s, side))
+      },
+
+      armMulligan: (side: Player) => {
+        if (!started) return
+        update((s) => armMulligan(s, side))
+      },
+
+      cancelMulligan: () => {
+        if (!started) return
+        update((s) => cancelMulligan(s))
+      },
+
       yieldForced: () => {
         if (!started) return
         if (g.gameOver) {
@@ -1392,6 +1457,7 @@ export function useVekkeController(opts: {
     recoilSourcePos,
     recoilPlayer: recoilArmed ? defender : null,
     defectionArmed,
+    mulliganArmed,
     canUseDefection,
     allRoutesUsed,
     clockPlayer,

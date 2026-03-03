@@ -82,13 +82,13 @@ function endTurnCommon(state: GameState, reasonLog: string) {
     if (state.routes.W.length < 4) {
       const wNew = drawTop(state)
       state.routes.W.push(wNew)
-      state.log.unshift(`== Round ${state.round}: escalation +1 route to W (${wNew.id}) ==`)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to W ==`)
     }
 
     if (state.routes.B.length < 4) {
       const bNew = drawTop(state)
       state.routes.B.push(bNew)
-      state.log.unshift(`== Round ${state.round}: escalation +1 route to B (${bNew.id}) ==`)
+      state.log.unshift(`== Round ${state.round}: escalation +1 route to B ==`)
     }
   }
   */
@@ -177,12 +177,12 @@ function logLockTransitions(state: GameState, actor: Player, beforeW: Set<string
       if (!before.has(id)) {
         const tok = state.tokens.find((t) => t.in === "BOARD" && t.id === id)
         const sides = tok ? siegeSidesAgainst(state, tok) : 0
-        state.log.unshift(`${actor} put ${id} under siege (${sides}-sided): LOCKED (cannot move).`)
+        state.log.unshift(`${actor} put token at ${tok ? toSq(tok.pos) : "?"} under siege (${sides}-sided): LOCKED.`)
       }
     }
     for (const id of before) {
       if (!after.has(id)) {
-        state.log.unshift(`${actor} broke siege on ${id}: UNLOCKED.`)
+        state.log.unshift((() => { const t2 = state.tokens.find((t) => t.id === id); return `${actor} siege broken on ${t2 ? toSq(t2.pos) : "?"}: UNLOCKED.` })())
       }
     }
   }
@@ -256,17 +256,6 @@ export function advanceFromAction(state: GameState) {
     return
   }
 
-  // Draft: invaded 3+ times this turn → recover up to 2 tokens from void
-  if (state.turnInvades[p] >= 3 && state.void[p] > 0) {
-    const refund = Math.min(2, state.void[p])
-    state.void[p] -= refund
-    state.reserves[p] += refund
-    state.stats.drafts[p] += 1
-    state.log.unshift(
-      `${p} Draft: invaded 3+ this turn, returned ${refund} ${p} token(s) from Void to reserves.`
-    )
-  }
-
   // Opponent dead-on-arrival check
   const opp = other(p)
   const deadReason = noMoveReasonAtTurnStart(state, opp)
@@ -287,14 +276,14 @@ export function advanceFromAction(state: GameState) {
 
   if (state.reinforcementsToPlace > 0) {
     state.phase = "REINFORCE"
-    state.log.unshift(`== ${p} place ${state.reinforcementsToPlace} reinforcement(s) ==`)
+    state.log.unshift(`== ${p} reinforcements: ${state.reinforcementsToPlace} ==`)
   } else {
     if (state.earlySwapUsedThisTurn) {
       endTurnNoSwap(state)
     } else {
       state.phase = "SWAP"
       state.pendingSwap = { handRouteId: null, queueIndex: null }
-      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+      state.log.unshift(`== ${p} swap ==`)
     }
   }
 }
@@ -362,25 +351,102 @@ export function finishOpeningAndDeal(state: GameState) {
     return
   }
 
-  // Deal 3 routes to each (fixed for whole game)
+  // Deal 3 routes to each
   state.routes.B = [drawTop(state), drawTop(state), drawTop(state)]
   state.routes.W = [drawTop(state), drawTop(state), drawTop(state)]
 
   // Queue of 3, face-up (tournament)
   state.queue = [drawTop(state), drawTop(state), drawTop(state)]
 
-  // White moves first after opening
-  state.phase = "ACTION"
+  // Enter Mulligan phase — both players decide before play begins
+  state.phase = "MULLIGAN"
   state.player = "W"
   state.usedRoutes = []
   state.warning = null
   state.pendingSwap = { handRouteId: null, queueIndex: null }
   state.lastMove = null
-
   state.reinforcementsToPlace = 0
   state.gameOver = null
 
-  state.log.unshift("== Opening complete. Dealt routes. White to move. ==")
+  // Initialise mulligan tracking if not present
+  if (!state.mulliganCount) state.mulliganCount = { W: 0, B: 0 }
+  if (!state.mulliganReady) state.mulliganReady = { W: false, B: false }
+  state.mulliganArmed = false
+
+  state.log.unshift("== Opening complete. Dealt routes. Mulligan phase begins. ==")
+}
+
+// ------------------------------------------------------------
+// Mulligan — swap routes by returning a board token to reserves
+// ------------------------------------------------------------
+
+// Player picks a token to return to reserves, then routes are redrawn
+export function executeMulligan(state: GameState, side: Player, tokenId: string) {
+  if (state.phase !== "MULLIGAN") {
+    state.warning = "INVALID: Mulligan only available during mulligan phase."
+    return
+  }
+  if (!state.mulliganCount) state.mulliganCount = { W: 0, B: 0 }
+  if (!state.mulliganReady) state.mulliganReady = { W: false, B: false }
+
+  if (state.mulliganCount[side] >= 2) {
+    state.warning = "INVALID: You have already used both mulligans."
+    return
+  }
+
+  const token = state.tokens.find((t) => t.id === tokenId && t.owner === side && t.in === "BOARD")
+  if (!token) {
+    state.warning = "INVALID: Must select one of your own board tokens."
+    return
+  }
+
+  // Remove token from board and return it to the reserves counter
+  state.tokens = state.tokens.filter((t) => t.id !== tokenId)
+  state.reserves[side] += 1
+  state.mulliganCount[side] += 1
+
+  // Redraw 3 fresh routes (put old ones back at bottom of deck first)
+  for (const r of state.routes[side]) putBottom(state, r)
+  state.routes[side] = [drawTop(state), drawTop(state), drawTop(state)]
+
+  state.mulliganArmed = false
+  state.warning = null
+  state.log.unshift(`${side} mulligan — returned token at ${toSq(token.pos)} to reserves, drew new routes.`)
+}
+
+export function armMulligan(state: GameState, side: Player) {
+  if (state.phase !== "MULLIGAN") return
+  if (state.mulliganCount[side] >= 2) {
+    state.warning = "INVALID: You have already used both mulligans."
+    return
+  }
+  state.mulliganArmed = true
+  state.warning = null
+}
+
+export function cancelMulligan(state: GameState) {
+  state.mulliganArmed = false
+  state.warning = null
+}
+
+// Player clicks Continue (or timer expires)
+export function passMulligan(state: GameState, side: Player) {
+  if (state.phase !== "MULLIGAN") {
+    state.warning = "INVALID: Not in mulligan phase."
+    return
+  }
+  if (!state.mulliganReady) state.mulliganReady = { W: false, B: false }
+
+  state.mulliganReady[side] = true
+  state.warning = null
+  state.log.unshift(`${side} is ready.`)
+
+  // Both players ready → begin play
+  if (state.mulliganReady.W && state.mulliganReady.B) {
+    state.phase = "ACTION"
+    state.player = "W"
+    state.log.unshift("== Mulligan complete. Wake moves first. ==")
+  }
 }
 
 // ------------------------------------------------------------
@@ -413,7 +479,7 @@ export function placeOpeningToken(state: GameState, coord: Coord) {
   state.tokens.push({ id, owner: p, pos: coord, in: "BOARD" })
   state.reserves[p] -= 1
   state.openingPlaced[p] += 1
-  state.log.unshift(`${p} placed ${id} at ${toSq(coord)}`)
+  state.log.unshift(`${p} placed at ${toSq(coord)}`)
 
   // Alternate placement until 3 each
   const totalPlaced = state.openingPlaced.B + state.openingPlaced.W
@@ -496,7 +562,7 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   state.usedRoutes.push(routeId)
 
   // Log move: just show start and destination
-  state.log.unshift(`${p} ${token.id}: ${route.id}  ${toSq(from)} → ${toSq(to)}`)
+  state.log.unshift(`${p} ${route.id}  ${toSq(from)} → ${toSq(to)}`)
 
   // Invade capture if enemy there
   if (occ && occ.owner !== p) {
@@ -505,7 +571,18 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
     state.turnInvades[p] += 1
     state.stats.captures[p] += 1
     state.stats.invades[p] += 1
-    state.log.unshift(`${p} invaded and captured ${occ.id} at ${toSq(to)}`)
+    state.log.unshift(`${p} invaded and captured at ${toSq(to)}`)
+
+    // Draft: exactly 3 invades this turn → immediately recover up to 2 tokens from void.
+    // Triggers on the 3rd invade so tokens are available to spend during the same turn.
+    if (state.turnInvades[p] === 3 && state.void[p] > 0) {
+      const refund = Math.min(2, state.void[p])
+      state.void[p] -= refund
+      state.reserves[p] += refund
+      if (!state.stats.drafts) state.stats.drafts = { W: 0, B: 0 }
+      state.stats.drafts[p] += 1
+      state.log.unshift(`${p} Draft: invaded 3 times this turn, returned ${refund} ${p} token(s) from Void to reserves.`)
+    }
   }
 
   // Full siege capture (8-sided) can happen immediately after any move.
@@ -586,6 +663,7 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
     } else {
       state.log.unshift(`== COLLAPSE: ${winner} wins (opponent cannot pay unusable-route tax) ==`)
     }
+    state.log.unshift(`@evt collapse_loss p=${p} n=${need} forced_by=${other(p)} reason=${allSieged ? "siegemate" : "collapse"}`)
     return
   }
 
@@ -598,6 +676,8 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   for (const r of remaining) state.usedRoutes.push(r.id)
 
   state.log.unshift(`${p} has no usable routes; yielded ${pay}/${need} reserve token(s) to the Void and burned ${need} route(s).`)
+
+  state.log.unshift(`@evt collapse_tax_paid p=${p} n=${pay} forced_by=${other(p)}`)
 
   // This advances to REINFORCE or SWAP as normal
   finishActionIfDone(state)
@@ -630,7 +710,7 @@ export function placeReinforcement(state: GameState, coord: Coord) {
     } else {
       state.phase = "SWAP"
       state.pendingSwap = { handRouteId: null, queueIndex: null }
-      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+      state.log.unshift(`== ${p} swap ==`)
     }
     return
   }
@@ -651,7 +731,7 @@ export function placeReinforcement(state: GameState, coord: Coord) {
   state.tokens.push({ id, owner: p, pos: coord, in: "BOARD" })
   state.reserves[p] -= 1
   state.reinforcementsToPlace -= 1
-  state.log.unshift(`${p} reinforced ${id} at ${toSq(coord)}`)
+  state.log.unshift(`${p} reinforced at ${toSq(coord)}`)
 
   // Full siege capture (8-sided) can happen after reinforcement placement too.
   const siegeCaptured = resolveFullSieges(state, p)
@@ -675,7 +755,7 @@ export function placeReinforcement(state: GameState, coord: Coord) {
     } else {
       state.phase = "SWAP"
       state.pendingSwap = { handRouteId: null, queueIndex: null }
-      state.log.unshift(`== ${p} must swap 1 route (end of turn) ==`)
+      state.log.unshift(`== ${p} swap ==`)
     }
   }
 }
@@ -843,7 +923,7 @@ export function confirmEarlySwap(state: GameState) {
   state.earlySwapArmed = false
   state.pendingSwap = { handRouteId: null, queueIndex: null }
 
-  state.log.unshift(`${p} EARLY swapped out ${discarded.id} and took ${taken.id} (paid ${EARLY_SWAP_COST} captive → ${enemy} Void).`)
+  state.log.unshift(`${p} early swap ${discarded.id} → ${taken.id} (paid ${EARLY_SWAP_COST} captive).`)
 }
 
 export function chooseSwapHandRoute(state: GameState, routeId: string) {
@@ -915,7 +995,7 @@ export function confirmSwapAndEndTurn(state: GameState) {
   state.queue.splice(qIdx, 1)
   state.queue.push(drawTop(state))
 
-  state.log.unshift(`${p} swapped out ${discarded.id} and took ${taken.id} from queue.`)
+  state.log.unshift(`${p} swapped ${discarded.id} → ${taken.id} from queue.`)
 
   // End turn (common bookkeeping + resets)
   endTurnCommon(state, `== ${p} ends turn ==`)
@@ -1168,7 +1248,7 @@ export function confirmRecoil(state: GameState) {
 
   const fromSq = from.x >= 0 ? toSq(from) : "CAPTIVE"
   const costStr = isMiracleWinScenario ? "free" : `paid ${RECOIL_COST_CAPTIVES} captive + ${RECOIL_COST_RESERVES} reserve → Void`
-  state.log.unshift(`${defender} RECOIL: moved ${tokenId} from ${fromSq} to ${toSq(to)} (${costStr}).`)
+  state.log.unshift(`${defender} RECOIL: ${fromSq} → ${toSq(to)} (${costStr}).`)
   state.warning = null
 }
 
@@ -1274,6 +1354,6 @@ export function confirmDefection(state: GameState, tokenId: string) {
   state.warning = null
 
   state.log.unshift(
-    `${p} DEFECTION: sacrificed ${tokenId} (board → void) — claimed ${DEFECTION_VOID_GAIN} ${enemy} token(s) from void into captives.`
+    (() => { const dTok = state.tokens.find((t) => t.id === tokenId); return `${p} DEFECTION: sacrificed token at ${dTok ? toSq(dTok.pos) : "?"} (board → void) — claimed ${DEFECTION_VOID_GAIN} ${enemy} token(s) from void into captives.` })()
   )
 }

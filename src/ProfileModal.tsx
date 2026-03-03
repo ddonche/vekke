@@ -82,64 +82,159 @@ const COUNTRIES = [
 // ── Shared Vekke modal styles ─────────────────────────────────────────────────
 const S = {
   overlay: {
-    position: "fixed" as const, inset: 0, backgroundColor: "rgba(0,0,0,0.85)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    zIndex: 10001, padding: "20px",
+    position: "fixed" as const,
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10001,
+    padding: "20px",
   },
   card: {
-    background: "#0f0f14", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12,
-    padding: "28px 24px", maxWidth: "90vw", width: "22rem",
-    color: "#e8e4d8", fontFamily: "'EB Garamond', Georgia, serif",
-    maxHeight: "92vh", overflowY: "auto" as const,
+    background: "#0f0f14",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: 12,
+    padding: "30px 30px",
+
+    // Width is set dynamically in render for mobile vs web
+    width: "36rem",
+    maxWidth: "96vw",
+
+    color: "#e8e4d8",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    maxHeight: "92vh",
+    overflowY: "auto" as const,
   },
   title: {
-    fontFamily: "'Cinzel', serif", fontSize: "0.85rem", fontWeight: 600,
-    letterSpacing: "0.3em", textTransform: "uppercase" as const,
-    color: "#b8966a", marginBottom: 20, textAlign: "center" as const,
+    fontFamily: "'Cinzel', serif",
+    fontSize: "1.05rem",
+    fontWeight: 700,
+    letterSpacing: "0.22em",
+    textTransform: "uppercase" as const,
+    color: "#b8966a",
+    marginBottom: 18,
+    textAlign: "center" as const,
   },
   divider: { height: 1, background: "rgba(255,255,255,0.07)", margin: "0 0 20px" },
   label: {
-    display: "block", fontFamily: "'Cinzel', serif", fontSize: "0.68rem",
-    fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase" as const,
-    color: "#b0aa9e", marginBottom: 6,
+    display: "block",
+    fontFamily: "'Cinzel', serif",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase" as const,
+    color: "#b0aa9e",
+    marginBottom: 8,
   },
   input: {
-    width: "100%", padding: "10px 12px", borderRadius: 6,
-    border: "1px solid rgba(184,150,106,0.2)", background: "#13131a",
-    color: "#e8e4d8", fontSize: "0.95rem", fontFamily: "'EB Garamond', Georgia, serif",
-    outline: "none", boxSizing: "border-box" as const,
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 6,
+    border: "1px solid rgba(184,150,106,0.2)",
+    background: "#13131a",
+    color: "#e8e4d8",
+    fontSize: "1.05rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  },
+  textarea: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 6,
+    border: "1px solid rgba(184,150,106,0.2)",
+    background: "#13131a",
+    color: "#e8e4d8",
+    fontSize: "1.05rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    outline: "none",
+    boxSizing: "border-box" as const,
+    resize: "vertical" as const,
+    minHeight: 92,
   },
   select: {
-    width: "100%", padding: "10px 12px", borderRadius: 6,
-    border: "1px solid rgba(184,150,106,0.2)", background: "#13131a",
-    color: "#e8e4d8", fontSize: "0.95rem", fontFamily: "'EB Garamond', Georgia, serif",
-    outline: "none", boxSizing: "border-box" as const,
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 6,
+    border: "1px solid rgba(184,150,106,0.2)",
+    background: "#13131a",
+    color: "#e8e4d8",
+    fontSize: "1.05rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    outline: "none",
+    boxSizing: "border-box" as const,
   },
   hint: {
-    fontFamily: "'EB Garamond', Georgia, serif", fontSize: "0.8rem", marginTop: 4, color: "#6b6558",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    fontSize: "0.95rem",
+    marginTop: 6,
+    color: "#6b6558",
   },
-  field: { marginBottom: 16 },
+  field: { marginBottom: 18 },
   error: {
-    padding: "10px 12px", marginBottom: 16, background: "rgba(239,68,68,0.08)",
-    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6,
-    fontSize: "0.9rem", fontFamily: "'EB Garamond', Georgia, serif", color: "#fca5a5",
+    padding: "12px 14px",
+    marginBottom: 16,
+    background: "rgba(239,68,68,0.08)",
+    border: "1px solid rgba(239,68,68,0.3)",
+    borderRadius: 6,
+    fontSize: "1.0rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    color: "#fca5a5",
   },
   success: {
-    padding: "10px 12px", marginBottom: 16, background: "rgba(52,211,153,0.08)",
-    border: "1px solid rgba(52,211,153,0.3)", borderRadius: 6,
-    fontSize: "0.9rem", fontFamily: "'EB Garamond', Georgia, serif", color: "#6ee7b7",
+    padding: "12px 14px",
+    marginBottom: 16,
+    background: "rgba(52,211,153,0.08)",
+    border: "1px solid rgba(52,211,153,0.3)",
+    borderRadius: 6,
+    fontSize: "1.0rem",
+    fontFamily: "'EB Garamond', Georgia, serif",
+    color: "#6ee7b7",
   },
   btnPrimary: {
-    flex: 1, padding: "11px", borderRadius: 4,
-    border: "1px solid rgba(184,150,106,0.45)", background: "rgba(184,150,106,0.12)",
-    color: "#d4af7a", fontFamily: "'Cinzel', serif", fontWeight: 600,
-    fontSize: "0.72rem", letterSpacing: "0.18em", textTransform: "uppercase" as const, cursor: "pointer",
+    flex: 1,
+    padding: "12px",
+    borderRadius: 4,
+    border: "1px solid rgba(184,150,106,0.45)",
+    background: "rgba(184,150,106,0.12)",
+    color: "#d4af7a",
+    fontFamily: "'Cinzel', serif",
+    fontWeight: 700,
+    fontSize: "0.9rem",
+    letterSpacing: "0.14em",
+    textTransform: "uppercase" as const,
+    cursor: "pointer",
   },
   btnCancel: {
-    flex: 1, padding: "10px", borderRadius: 4,
-    border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
-    color: "#6b6558", fontFamily: "'Cinzel', serif", fontWeight: 600,
-    fontSize: "0.68rem", letterSpacing: "0.15em", textTransform: "uppercase" as const, cursor: "pointer",
+    flex: 1,
+    padding: "12px",
+    borderRadius: 4,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "transparent",
+    color: "#6b6558",
+    fontFamily: "'Cinzel', serif",
+    fontWeight: 700,
+    fontSize: "0.9rem",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase" as const,
+    cursor: "pointer",
+  },
+  proBox: {
+    padding: "14px 14px",
+    marginBottom: 18,
+    background: "rgba(184,150,106,0.08)",
+    border: "1px solid rgba(184,150,106,0.22)",
+    borderRadius: 10,
+  },
+  proBoxTitle: {
+    fontFamily: "'Cinzel', serif",
+    fontSize: "0.85rem",
+    fontWeight: 800,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase" as const,
+    color: "#d4af7a",
+    marginBottom: 10,
   },
 }
 
@@ -151,12 +246,35 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  const [accountTier, setAccountTier] = useState<string | null>(null)
+
+  // Pro-only profile extras
+  const [bio, setBio] = useState("")
+  const [websiteUrl, setWebsiteUrl] = useState("")
+  const [xUrl, setXUrl] = useState("")
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [twitchUrl, setTwitchUrl] = useState("")
+  const [instagramUrl, setInstagramUrl] = useState("")
+  const [facebookUrl, setFacebookUrl] = useState("")
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  const [isNarrow, setIsNarrow] = useState(false)
+
+  useEffect(() => {
+    const update = () => setIsNarrow(window.innerWidth < 640)
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [])
+
+  const isPro = accountTier === "pro"
 
   // Load current profile
   useEffect(() => {
@@ -166,7 +284,9 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
       const { data: profile, error: err } = await supabase
         .from("profiles")
-        .select("username, country_code, avatar_url")
+        .select(
+          "username, country_code, avatar_url, account_tier, bio, website_url, x_url, youtube_url, twitch_url, instagram_url, facebook_url"
+        )
         .eq("id", userId)
         .single()
 
@@ -177,6 +297,17 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
         setCountryCode(profile.country_code || "")
         setCurrentAvatarUrl(profile.avatar_url)
         setAvatarPreview(profile.avatar_url ? `${profile.avatar_url}?t=${Date.now()}` : null)
+
+        setAccountTier(profile.account_tier ?? null)
+
+        // Load extras (even if not Pro right now; we still gate rendering + saving)
+        setBio(profile.bio || "")
+        setWebsiteUrl(profile.website_url || "")
+        setXUrl(profile.x_url || "")
+        setYoutubeUrl(profile.youtube_url || "")
+        setTwitchUrl(profile.twitch_url || "")
+        setInstagramUrl(profile.instagram_url || "")
+        setFacebookUrl(profile.facebook_url || "")
       }
       setLoading(false)
     }
@@ -218,9 +349,16 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       const reader = new FileReader()
       reader.onloadend = () => setAvatarPreview(reader.result as string)
       reader.readAsDataURL(resizedFile)
-    } catch (err) {
+    } catch {
       setError("Failed to process image")
     }
+  }
+
+  const normalizeUrl = (raw: string) => {
+    const s = raw.trim()
+    if (!s) return ""
+    if (!/^https?:\/\//i.test(s)) return `https://${s}`
+    return s
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,6 +369,11 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     if (username.length < 3) { setError("Username must be at least 3 characters"); return }
     if (usernameAvailable === false) { setError("Username is already taken"); return }
     if (!countryCode) { setError("Please select a country"); return }
+
+    if (isPro && bio && bio.length > 140) {
+      setError("Bio must be 140 characters or less")
+      return
+    }
 
     setSaving(true)
 
@@ -261,11 +404,29 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       avatarUrl = urlData.publicUrl
     }
 
-    const { error: updateError } = await supabase.from("profiles").update({
-      username: username.trim(), country_code: countryCode,
-      country_name: country?.name || null, avatar_url: avatarUrl,
+    const updatePayload: Record<string, any> = {
+      username: username.trim(),
+      country_code: countryCode,
+      country_name: country?.name || null,
+      avatar_url: avatarUrl,
       updated_at: new Date().toISOString(),
-    }).eq("id", userId)
+    }
+
+    // Only Pro can write these fields.
+    if (isPro) {
+      updatePayload.bio = bio.trim() || null
+      updatePayload.website_url = normalizeUrl(websiteUrl) || null
+      updatePayload.x_url = normalizeUrl(xUrl) || null
+      updatePayload.youtube_url = normalizeUrl(youtubeUrl) || null
+      updatePayload.twitch_url = normalizeUrl(twitchUrl) || null
+      updatePayload.instagram_url = normalizeUrl(instagramUrl) || null
+      updatePayload.facebook_url = normalizeUrl(facebookUrl) || null
+    }
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update(updatePayload)
+      .eq("id", userId)
 
     setSaving(false)
     if (updateError) {
@@ -280,12 +441,21 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     setTimeout(() => onClose(), 1500)
   }
 
-  // Loading state
   if (loading) {
     return (
-      <div style={S.overlay} onClick={onClose}>
-        <div style={{ ...S.card, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120 }}>
-          <span style={{ color: "#6b6558", fontFamily: "'Cinzel', serif", fontSize: "0.75rem", letterSpacing: "0.2em" }}>
+      <div style={{ ...S.overlay, padding: isNarrow ? "10px" : "24px" }} onClick={onClose}>
+        <div
+          style={{
+            ...S.card,
+            width: isNarrow ? "96vw" : "min(64rem, 96vw)",
+            padding: isNarrow ? "22px 18px" : "30px 30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 140,
+          }}
+        >
+          <span style={{ color: "#6b6558", fontFamily: "'Cinzel', serif", fontSize: "0.95rem", letterSpacing: "0.18em" }}>
             Loading…
           </span>
         </div>
@@ -293,7 +463,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     )
   }
 
-  // Username status color/text
   const unameColor = usernameAvailable === false ? "#fca5a5" : usernameAvailable === true ? "#6ee7b7" : "#6b6558"
   const unameText = checkingUsername ? "Checking…"
     : usernameAvailable === false ? "Username taken"
@@ -306,10 +475,24 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     ? "1px solid rgba(52,211,153,0.35)"
     : "1px solid rgba(184,150,106,0.2)"
 
-  return (
-    <div style={S.overlay} onClick={onClose}>
-      <div style={S.card} onClick={(e) => e.stopPropagation()}>
+  const bioRemaining = 140 - bio.length
 
+  const proGridStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr",
+    gap: 14,
+  }
+
+  return (
+    <div style={{ ...S.overlay, padding: isNarrow ? "10px" : "24px" }} onClick={onClose}>
+      <div
+        style={{
+          ...S.card,
+          width: isNarrow ? "96vw" : "min(64rem, 96vw)",
+          padding: isNarrow ? "22px 18px" : "30px 30px",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={S.title}>Edit Profile</div>
         <div style={S.divider} />
 
@@ -317,25 +500,32 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
         {message && <div style={S.success}>{message}</div>}
 
         <form onSubmit={handleSubmit}>
-
           {/* Avatar */}
           <div style={S.field}>
             <label style={S.label}>Avatar</label>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
               <div style={{
-                width: 56, height: 56, borderRadius: "50%", background: "#13131a",
+                width: 64, height: 64, borderRadius: "50%", background: "#13131a",
                 border: "1px solid rgba(184,150,106,0.2)", display: "flex",
                 alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0,
               }}>
                 {avatarPreview
                   ? <img src={avatarPreview} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  : <span style={{ fontSize: "1.4rem", opacity: 0.3 }}>👤</span>
+                  : <span style={{ fontSize: "1.6rem", opacity: 0.3 }}>👤</span>
                 }
               </div>
               <div style={{ flex: 1 }}>
                 <input
-                  type="file" accept="image/*" onChange={handleFileChange} disabled={saving}
-                  style={{ ...S.input, fontSize: "0.78rem", padding: "8px 10px", cursor: saving ? "default" : "pointer" }}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={saving}
+                  style={{
+                    ...S.input,
+                    fontSize: "0.98rem",
+                    padding: "10px 12px",
+                    cursor: saving ? "default" : "pointer",
+                  }}
                 />
                 <div style={S.hint}>PNG, JPG, GIF · max 5MB</div>
               </div>
@@ -346,9 +536,15 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
           <div style={S.field}>
             <label style={S.label}>Username</label>
             <input
-              type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-              required disabled={saving} minLength={3} maxLength={20}
-              pattern="[a-zA-Z0-9_-]+" title="Letters, numbers, underscore and dash only"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              disabled={saving}
+              minLength={3}
+              maxLength={20}
+              pattern="[a-zA-Z0-9_-]+"
+              title="Letters, numbers, underscore and dash only"
               style={{ ...S.input, border: unameBorder }}
             />
             <div style={{ ...S.hint, color: unameColor }}>{unameText}</div>
@@ -358,8 +554,12 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
           <div style={S.field}>
             <label style={S.label}>Email</label>
             <input
-              type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              required disabled={saving} style={S.input}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={saving}
+              style={S.input}
             />
             <div style={S.hint}>Changing email requires inbox confirmation</div>
           </div>
@@ -368,23 +568,41 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
           <div style={S.field}>
             <label style={S.label}>
               New Password{" "}
-              <span style={{ color: "#6b6558", fontFamily: "'EB Garamond', serif", textTransform: "none", letterSpacing: 0, fontSize: "0.85rem" }}>
+              <span
+                style={{
+                  color: "#6b6558",
+                  fontFamily: "'EB Garamond', serif",
+                  textTransform: "none",
+                  letterSpacing: 0,
+                  fontSize: "1.0rem",
+                  fontWeight: 400,
+                }}
+              >
                 (optional)
               </span>
             </label>
             <input
-              type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-              disabled={saving} minLength={6} placeholder="Leave blank to keep current"
-              style={{ ...S.input, "::placeholder": { color: "#6b6558" } } as any}
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={saving}
+              minLength={6}
+              placeholder="Leave blank to keep current"
+              style={S.input as any}
             />
             <div style={S.hint}>Minimum 6 characters</div>
           </div>
 
           {/* Country */}
-          <div style={{ ...S.field, marginBottom: 24 }}>
+          <div style={{ ...S.field, marginBottom: 22 }}>
             <label style={S.label}>Country</label>
-            <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)}
-              required disabled={saving} style={S.select}>
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              required
+              disabled={saving}
+              style={S.select}
+            >
               <option value="">Select your country</option>
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.name}</option>
@@ -392,18 +610,118 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             </select>
           </div>
 
+          {/* Pro-only extras */}
+          {isPro && (
+            <div style={S.proBox}>
+              <div style={S.proBoxTitle}>Pro Profile</div>
+
+              <div style={S.field}>
+                <label style={S.label}>Bio</label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  disabled={saving}
+                  maxLength={140}
+                  style={S.textarea}
+                  placeholder="140 characters max"
+                />
+                <div style={S.hint}>{bioRemaining} characters remaining</div>
+              </div>
+
+              <div style={proGridStyle}>
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>Website</label>
+                  <input
+                    type="text"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="yourdomain.com"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>YouTube</label>
+                  <input
+                    type="text"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="youtube.com/@yourchannel"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>Twitch</label>
+                  <input
+                    type="text"
+                    value={twitchUrl}
+                    onChange={(e) => setTwitchUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="twitch.tv/yourname"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>X</label>
+                  <input
+                    type="text"
+                    value={xUrl}
+                    onChange={(e) => setXUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="x.com/yourname"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>Instagram</label>
+                  <input
+                    type="text"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="instagram.com/yourname"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <label style={S.label}>Facebook</label>
+                  <input
+                    type="text"
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    disabled={saving}
+                    style={S.input}
+                    placeholder="facebook.com/yourname"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Buttons */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={onClose} disabled={saving}
-              style={{ ...S.btnCancel, opacity: saving ? 0.5 : 1 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              style={{ ...S.btnCancel, opacity: saving ? 0.5 : 1 }}
+            >
               Cancel
             </button>
-            <button type="submit" disabled={saving}
-              style={{ ...S.btnPrimary, opacity: saving ? 0.6 : 1 }}>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ ...S.btnPrimary, opacity: saving ? 0.6 : 1 }}
+            >
               {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
-
         </form>
       </div>
     </div>

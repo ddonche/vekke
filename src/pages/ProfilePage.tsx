@@ -16,6 +16,15 @@ type ProfileRow = {
   order_id: string | null
   order_joined_at: string | null
   is_ai: boolean
+
+  // Pro profile extras
+  bio: string | null
+  website_url: string | null
+  x_url: string | null
+  youtube_url: string | null
+  twitch_url: string | null
+  instagram_url: string | null
+  facebook_url: string | null
 }
 
 type PlayerStatsRow = {
@@ -183,6 +192,163 @@ function StatPill({
   )
 }
 
+/* ---------------- Pro flair ---------------- */
+
+function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 8px",
+        borderRadius: 999,
+        border: `1px solid ${accent}55`,
+        background: `${accent}14`,
+        color: "#d4af7a",
+        fontFamily: "'Cinzel', serif",
+        fontSize: "0.58rem",
+        letterSpacing: "0.22em",
+        textTransform: "uppercase",
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+      }}
+      title="Pro"
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: "#d4af7a",
+          boxShadow: "0 0 0 3px rgba(212,175,122,0.14)",
+        }}
+      />
+      Pro
+    </span>
+  )
+}
+
+/* ---------------- Pro icons (inline SVG, no deps) ---------------- */
+
+function IconWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        width: 18,
+        height: 18,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        opacity: 0.95,
+      }}
+    >
+      {children}
+    </span>
+  )
+}
+
+function GlobeIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="currentColor" strokeWidth="2" opacity="0.85" />
+        <path d="M2 12h20" stroke="currentColor" strokeWidth="2" opacity="0.55" />
+        <path
+          d="M12 2c3 2.8 5 6.4 5 10s-2 7.2-5 10c-3-2.8-5-6.4-5-10s2-7.2 5-10Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          opacity="0.55"
+        />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function XIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 17L17 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        <path d="M7 7l10 10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.85" />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function YouTubeIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.7 4.5 12 4.5 12 4.5s-5.7 0-7.5.6A3 3 0 0 0 2.4 7.2 31.7 31.7 0 0 0 2 12a31.7 31.7 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.8.6 7.5.6 7.5.6s5.7 0 7.5-.6a3 3 0 0 0 2.1-2.1A31.7 31.7 0 0 0 22 12a31.7 31.7 0 0 0-.4-4.8Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          opacity="0.85"
+        />
+        <path d="M10 9.5v5l5-2.5-5-2.5Z" fill="currentColor" opacity="0.85" />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function TwitchIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 3h17v10l-4 4h-4l-2 2H8v-2H4V3Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          opacity="0.85"
+        />
+        <path d="M10 7v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+        <path d="M15 7v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function InstagramIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          opacity="0.85"
+        />
+        <path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2" opacity="0.65" />
+        <path d="M17.5 6.5h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.65" />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function FacebookIcon() {
+  return (
+    <IconWrap>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M14 8h2V5h-2c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h2.2l.8-3H13V9c0-.6.4-1 1-1Z"
+          fill="currentColor"
+          opacity="0.85"
+        />
+      </svg>
+    </IconWrap>
+  )
+}
+
+function normalizeUrl(raw: string | null | undefined) {
+  const s = (raw ?? "").trim()
+  if (!s) return null
+  if (/^https?:\/\//i.test(s)) return s
+  return `https://${s}`
+}
+
 export default function ProfilePage() {
   injectFonts()
 
@@ -249,7 +415,9 @@ export default function ProfilePage() {
 
     const { data: p, error: pErr } = await supabase
       .from("profiles")
-      .select("id,username,avatar_url,country_code,country_name,account_tier,order_id,order_joined_at,is_ai")
+      .select(
+        "id,username,avatar_url,country_code,country_name,account_tier,order_id,order_joined_at,is_ai,bio,website_url,x_url,youtube_url,twitch_url,instagram_url,facebook_url"
+      )
       .eq("username", targetUsername)
       .maybeSingle()
 
@@ -296,21 +464,70 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUsername])
 
+  const FORMAT_LABELS: Record<TimeControlId, string> = {
+    standard: "Standard",
+    rapid: "Rapid",
+    blitz: "Blitz",
+    daily: "Daily",
+  }
+
   const derived = useMemo(() => {
-    const w = safeInt(stats?.wins_active)
-    const l = safeInt(stats?.losses_active)
-    const wr = winRate(w, l)
+    // Pick the stats slice based on the currently highlighted format tab.
+    const tc = challengeTc
+
+    const formatElo =
+      tc === "blitz"
+        ? safeInt(stats?.elo_blitz)
+        : tc === "rapid"
+          ? safeInt(stats?.elo_rapid)
+          : tc === "daily"
+            ? safeInt(stats?.elo_daily)
+            : safeInt(stats?.elo_standard)
+
+    const formatGames =
+      tc === "blitz"
+        ? safeInt(stats?.games_blitz)
+        : tc === "rapid"
+          ? safeInt(stats?.games_rapid)
+          : tc === "daily"
+            ? safeInt(stats?.games_daily)
+            : safeInt(stats?.games_standard)
+
+    const formatWins =
+      tc === "blitz"
+        ? safeInt(stats?.wins_blitz)
+        : tc === "rapid"
+          ? safeInt(stats?.wins_rapid)
+          : tc === "daily"
+            ? safeInt(stats?.wins_daily)
+            : safeInt(stats?.wins_standard)
+
+    const formatLosses =
+      tc === "blitz"
+        ? safeInt(stats?.losses_blitz)
+        : tc === "rapid"
+          ? safeInt(stats?.losses_rapid)
+          : tc === "daily"
+            ? safeInt(stats?.losses_daily)
+            : safeInt(stats?.losses_standard)
+
+    const wr = winRate(formatWins, formatLosses)
+
     return {
-      elo: safeInt(stats?.elo),
-      games: safeInt(stats?.games_played),
-      wins: w,
-      losses: l,
+      // Format-specific headline stats:
+      elo: formatElo,
+      games: formatGames,
+      wins: formatWins,
+      losses: formatLosses,
       wr,
+
+      // Keep these global (no per-format columns currently):
       timeouts: safeInt(stats?.losses_timeout),
       resigns: safeInt(stats?.resignations),
       lastGameAt: stats?.last_game_at ?? null,
+      label: FORMAT_LABELS[tc],
     }
-  }, [stats])
+  }, [stats, challengeTc])
 
   const countryLabel =
     (profile?.country_name ?? "").trim() ||
@@ -323,13 +540,6 @@ export default function ProfilePage() {
     const accent = ["wolf", "raven", "fox"].includes(id) ? order.primary_color : order.secondary_color
     return accent || "#b8966a"
   }, [order])
-
-  const FORMAT_LABELS: Record<TimeControlId, string> = {
-    standard: "Standard",
-    rapid: "Rapid",
-    blitz: "Blitz",
-    daily: "Daily",
-  }
 
   function canChallengeTarget() {
     if (!userId) return false
@@ -375,6 +585,29 @@ export default function ProfilePage() {
       setChallenging(false)
     }
   }
+
+  const isPro = profile?.account_tier === "pro"
+
+  const proLinks = useMemo(() => {
+    if (!isPro || !profile) return []
+    const items: { key: string; label: string; url: string; icon: React.ReactNode }[] = []
+
+    const website = normalizeUrl(profile.website_url)
+    const x = normalizeUrl(profile.x_url)
+    const yt = normalizeUrl(profile.youtube_url)
+    const tw = normalizeUrl(profile.twitch_url)
+    const ig = normalizeUrl(profile.instagram_url)
+    const fb = normalizeUrl(profile.facebook_url)
+
+    if (website) items.push({ key: "website", label: "Website", url: website, icon: <GlobeIcon /> })
+    if (yt) items.push({ key: "youtube", label: "YouTube", url: yt, icon: <YouTubeIcon /> })
+    if (tw) items.push({ key: "twitch", label: "Twitch", url: tw, icon: <TwitchIcon /> })
+    if (x) items.push({ key: "x", label: "X", url: x, icon: <XIcon /> })
+    if (ig) items.push({ key: "instagram", label: "Instagram", url: ig, icon: <InstagramIcon /> })
+    if (fb) items.push({ key: "facebook", label: "Facebook", url: fb, icon: <FacebookIcon /> })
+
+    return items
+  }, [isPro, profile])
 
   return (
     <div
@@ -453,6 +686,7 @@ export default function ProfilePage() {
           white-space: nowrap;
         }
 
+        /* DO NOT TOUCH THESE SIZES */
         .format-tab {
           font-family: 'Cinzel', serif;
           font-size: 0.6rem;
@@ -475,6 +709,7 @@ export default function ProfilePage() {
           border-color: rgba(184,150,106,0.30);
         }
 
+        /* DO NOT TOUCH THESE SIZES */
         .challenge-btn {
           font-family: 'Cinzel', serif;
           background: rgba(184,150,106,0.10);
@@ -493,6 +728,47 @@ export default function ProfilePage() {
           opacity: 0.35;
           cursor: default;
         }
+
+        /* Pro bio + icon links (no borders/boxes) */
+        .pro-bio {
+          margin-top: 10px;
+          color: #e8e4d8;
+          font-size: 1.05rem;
+          line-height: 1.45;
+          font-style: italic;
+          text-align: justify;
+          text-justify: inter-word;
+          opacity: 0.95;
+        }
+
+        .pro-icons {
+          margin-top: 10px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .pro-icon-link {
+          width: 34px;
+          height: 34px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          text-decoration: none;
+          color: #d4af7a;
+          background: transparent;
+          transition: background 0.12s, transform 0.12s, opacity 0.12s;
+          opacity: 0.95;
+        }
+        .pro-icon-link:hover {
+          background: rgba(184,150,106,0.10);
+          transform: translateY(-1px);
+          opacity: 1;
+        }
+        .pro-icon-link:active { transform: translateY(0px); }
       `}</style>
 
       <Header
@@ -592,8 +868,9 @@ export default function ProfilePage() {
                     </div>
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
                         <FlagImg cc={profile?.country_code} size={18} />
+
                         <div
                           style={{
                             fontFamily: "'Cinzel', serif",
@@ -604,25 +881,13 @@ export default function ProfilePage() {
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
+                            minWidth: 0,
                           }}
                         >
                           {loading ? "Loading..." : profile?.username ?? "—"}
                         </div>
-                        {profile?.account_tier ? (
-                          <span
-                            style={{
-                              fontFamily: "'Cinzel', serif",
-                              fontSize: "0.55rem",
-                              letterSpacing: "0.22em",
-                              textTransform: "uppercase",
-                              color: "#6b6558",
-                              whiteSpace: "nowrap",
-                              flexShrink: 0,
-                            }}
-                          >
-                            · {profile.account_tier}
-                          </span>
-                        ) : null}
+
+                        {profile?.account_tier === "pro" ? <ProFlair accent={order ? orderAccent : "#d4af7a"} /> : null}
                       </div>
 
                       <div style={{ marginTop: 6, fontSize: "1.05rem", fontStyle: "italic", color: "#b0aa9e" }}>
@@ -631,9 +896,36 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Challenge controls */}
+                  {/* KEEP THIS SEPARATOR WHERE IT IS */}
                   <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
 
+                  {/* Pro bio + social icons (pro only). No boxes/borders; icons only; centered. */}
+                  {isPro && (profile?.bio?.trim() || proLinks.length > 0) ? (
+                    <div style={{ marginTop: -2, marginBottom: 8 }}>
+                      {profile?.bio?.trim() ? <div className="pro-bio">{profile.bio.trim()}</div> : null}
+
+                      {proLinks.length > 0 ? (
+                        <div className="pro-icons" aria-label="Social links">
+                          {proLinks.map((it) => (
+                            <a
+                              key={it.key}
+                              className="pro-icon-link"
+                              href={it.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={it.label}
+                              title={it.label}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {it.icon}
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {/* Challenge controls */}
                   <div
                     style={{
                       display: "flex",
@@ -769,6 +1061,21 @@ export default function ProfilePage() {
                 Stats <div className="rule" />
               </div>
 
+              {/* small indicator of which format the pills are showing */}
+              <div
+                style={{
+                  marginBottom: 10,
+                  fontFamily: "'Cinzel', serif",
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.28em",
+                  textTransform: "uppercase",
+                  color: "#6b6558",
+                }}
+              >
+                Showing: <span style={{ color: "#d4af7a" }}>{derived.label}</span>
+              </div>
+
               <div className="stats-grid">
                 <StatPill label="ELO" value={loading ? "—" : String(derived.elo)} customColor={eloColor(derived.elo)} />
                 <StatPill label="Games" value={loading ? "—" : String(derived.games)} />
@@ -828,21 +1135,64 @@ export default function ProfilePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { mode: "Blitz", elo: stats?.elo_blitz, g: stats?.games_blitz, w: stats?.wins_blitz, l: stats?.losses_blitz },
-                          { mode: "Rapid", elo: stats?.elo_rapid, g: stats?.games_rapid, w: stats?.wins_rapid, l: stats?.losses_rapid },
-                          { mode: "Standard", elo: stats?.elo_standard, g: stats?.games_standard, w: stats?.wins_standard, l: stats?.losses_standard },
-                          { mode: "Daily", elo: stats?.elo_daily, g: stats?.games_daily, w: stats?.wins_daily, l: stats?.losses_daily },
-                        ].map((r) => {
+                        {([
+                          {
+                            tc: "blitz" as TimeControlId,
+                            mode: "Blitz",
+                            elo: stats?.elo_blitz,
+                            g: stats?.games_blitz,
+                            w: stats?.wins_blitz,
+                            l: stats?.losses_blitz,
+                          },
+                          {
+                            tc: "rapid" as TimeControlId,
+                            mode: "Rapid",
+                            elo: stats?.elo_rapid,
+                            g: stats?.games_rapid,
+                            w: stats?.wins_rapid,
+                            l: stats?.losses_rapid,
+                          },
+                          {
+                            tc: "standard" as TimeControlId,
+                            mode: "Standard",
+                            elo: stats?.elo_standard,
+                            g: stats?.games_standard,
+                            w: stats?.wins_standard,
+                            l: stats?.losses_standard,
+                          },
+                          {
+                            tc: "daily" as TimeControlId,
+                            mode: "Daily",
+                            elo: stats?.elo_daily,
+                            g: stats?.games_daily,
+                            w: stats?.wins_daily,
+                            l: stats?.losses_daily,
+                          },
+                        ] as const).map((r) => {
                           const w = safeInt(r.w)
                           const l = safeInt(r.l)
                           const wr = winRate(w, l)
+                          const active = r.tc === challengeTc
                           return (
-                            <tr key={r.mode}>
-                              <td className="td" style={{ fontFamily: "'Cinzel', serif", fontWeight: 800, color: "#e8e4d8" }}>
+                            <tr key={r.mode} style={active ? { background: "rgba(184,150,106,0.06)" } : undefined}>
+                              <td
+                                className="td"
+                                style={{
+                                  fontFamily: "'Cinzel', serif",
+                                  fontWeight: 800,
+                                  color: active ? "#d4af7a" : "#e8e4d8",
+                                }}
+                              >
                                 {r.mode}
                               </td>
-                              <td className="td" style={{ fontFamily: "monospace", fontWeight: 900, color: "#5de8f7" }}>
+                              <td
+                                className="td"
+                                style={{
+                                  fontFamily: "monospace",
+                                  fontWeight: 900,
+                                  color: loading ? "#6b6558" : eloColor(safeInt(r.elo)),
+                                }}
+                              >
                                 {loading ? "—" : String(safeInt(r.elo))}
                               </td>
                               <td className="td">{loading ? "—" : String(safeInt(r.g))}</td>

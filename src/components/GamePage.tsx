@@ -120,6 +120,7 @@ export function GamePage(props: GamePageProps = {}) {
     recoilSourcePos,
     recoilPlayer,
     defectionArmed,
+    mulliganArmed,
     canUseDefection,
     allRoutesUsed,
     clockPlayer,
@@ -158,6 +159,7 @@ export function GamePage(props: GamePageProps = {}) {
   const [showLogExpanded, setShowLogExpanded] = useState(true)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
   const [showGameOverModal, setShowGameOverModal] = useState(true)
+  const mulliganTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const authReturnToRef = useRef<string | null>(null)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
@@ -525,6 +527,20 @@ export function GamePage(props: GamePageProps = {}) {
   const actionsRef = useRef(actions)
   actionsRef.current = actions
 
+  // Mulligan: auto-pass after 30s
+  useEffect(() => {
+    if (g.phase !== "MULLIGAN") {
+      if (mulliganTimerRef.current) clearTimeout(mulliganTimerRef.current)
+      return
+    }
+    const myReady = (g as any).mulliganReady?.[human]
+    if (myReady) return
+    mulliganTimerRef.current = setTimeout(() => {
+      ;(actionsRef.current as any).passMulligan?.(human)
+    }, 30_000)
+    return () => { if (mulliganTimerRef.current) clearTimeout(mulliganTimerRef.current) }
+  }, [g.phase, (g as any).mulliganReady?.W, (g as any).mulliganReady?.B, human])
+
   // PvP: Watch for external game data changes and update state
   useEffect(() => {
     if (props.opponentType !== "pvp") return
@@ -538,6 +554,8 @@ export function GamePage(props: GamePageProps = {}) {
     const syncKey =
       externalState.phase === "OPENING"
         ? `opening-${externalState.openingPlaced.B}-${externalState.openingPlaced.W}`
+        : externalState.phase === "MULLIGAN"
+        ? `mulligan-${(externalState as any).mulliganCount?.W ?? 0}-${(externalState as any).mulliganCount?.B ?? 0}-${(externalState as any).mulliganReady?.W}-${(externalState as any).mulliganReady?.B}`
         : `${extPlayer}-${externalState.phase}-${externalState.log.length}`
 
     if (syncKey === lastProcessedMoveRef.current) return
@@ -552,6 +570,10 @@ export function GamePage(props: GamePageProps = {}) {
     props.externalGameData?.current_state?.log?.length,
     props.externalGameData?.current_state?.openingPlaced?.B,
     props.externalGameData?.current_state?.openingPlaced?.W,
+    (props.externalGameData?.current_state as any)?.mulliganCount?.W,
+    (props.externalGameData?.current_state as any)?.mulliganCount?.B,
+    (props.externalGameData?.current_state as any)?.mulliganReady?.W,
+    (props.externalGameData?.current_state as any)?.mulliganReady?.B,
     props.externalGameData?.current_state?.gameOver,
     props.opponentType,
     // NOTE: `actions` intentionally excluded — it changes on every g update and would
@@ -1585,7 +1607,7 @@ if (wantsNewGame) {
                         ? `${g.player === "W" ? "B" : "W"} in Recoil`
                         : g.player !== human
                           ? "Waiting..."
-                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Finishe actions and proceed when ready" : "Make your moves")
+                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Proceed when ready" : "Make your moves")
                           : g.phase === "REINFORCE"
                             ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                                 Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
@@ -1594,6 +1616,8 @@ if (wantsNewGame) {
                                 ))}
                               </span>
                           : g.phase === "SWAP" ? "Make a route swap"
+                          : g.phase === "MULLIGAN"
+                            ? ((g as any).mulliganReady?.[human] ? "Waiting for opponent..." : mulliganArmed ? "Select a token on the board" : "Mulligan or continue")
                           : "Place opening tokens"}
                     </span>
                     {g.warning && (
@@ -2224,6 +2248,42 @@ if (wantsNewGame) {
                 </div>
               )}
 
+              {/* Mulligan Phase */}
+              {g.phase === "MULLIGAN" && (
+                <div style={{ marginBottom: 6 }}>
+                  {(g as any).mulliganReady?.[human] ? (
+                    <div style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b0aa9e" }}>
+                      Waiting for opponent...
+                    </div>
+                  ) : mulliganArmed ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>
+                        Select a token on the board
+                      </div>
+                      <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: "#b0aa9e", fontSize: 12, fontWeight: 900 }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => (actions as any).armMulligan?.(human)}
+                        disabled={(g as any).mulliganCount?.[human] >= 2}
+                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 900, fontSize: 12, cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1 }}
+                      >
+                        Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
+                      </button>
+                      <button
+                        onClick={() => (actions as any).passMulligan?.(human)}
+                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 900, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em" }}
+                      >
+                        Continue →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Advance from ACTION -> Reinforcements/Swap */}
               {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
@@ -2241,7 +2301,7 @@ if (wantsNewGame) {
                       color: "#e8e4d8",
                     }}
                   >
-                    Proceed to next phase →
+                    Proceed →
                   </button>
                 </div>
               )}
@@ -2903,7 +2963,7 @@ if (wantsNewGame) {
                         ? `${g.player === "W" ? "B" : "W"} is currently in Recoil`
                         : g.player !== human
                           ? "Waiting for opponent..."
-                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Finish actions and proceed when ready" : "Make your moves")
+                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Proceed when ready" : "Make your moves")
                           : g.phase === "REINFORCE"
                             ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                                 Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
@@ -2912,6 +2972,8 @@ if (wantsNewGame) {
                                 ))}
                               </span>
                           : g.phase === "SWAP" ? "Make a route swap"
+                          : g.phase === "MULLIGAN"
+                            ? ((g as any).mulliganReady?.[human] ? "Waiting for opponent..." : mulliganArmed ? "Select a token on the board" : "Mulligan or continue")
                           : "Place opening tokens"}
                     </span>
                     {g.warning && (
@@ -3081,6 +3143,42 @@ if (wantsNewGame) {
                   </div>
                 )}
 
+                {/* Mulligan Phase */}
+                {g.phase === "MULLIGAN" && (
+                  <div style={{ width: "100%", maxWidth: 597, marginBottom: 6 }}>
+                    {(g as any).mulliganReady?.[human] ? (
+                      <div style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>
+                        Waiting for opponent...
+                      </div>
+                    ) : mulliganArmed ? (
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <div style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>
+                          Select a token on the board
+                        </div>
+                        <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: "#b0aa9e", fontSize: 13, fontWeight: 900 }}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <button
+                          onClick={() => (actions as any).armMulligan?.(human)}
+                          disabled={(g as any).mulliganCount?.[human] >= 2}
+                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 900, fontSize: 13, cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1 }}
+                        >
+                          Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
+                        </button>
+                        <button
+                          onClick={() => (actions as any).passMulligan?.(human)}
+                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 900, fontSize: 13, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em" }}
+                        >
+                          Continue →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Advance from ACTION -> Reinforcements/Swap */}
                 {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
                   <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
@@ -3098,7 +3196,7 @@ if (wantsNewGame) {
                         color: "#e8e4d8",
                       }}
                     >
-                      Proceed to next phase →
+                      Proceed →
                     </button>
                   </div>
                 )}

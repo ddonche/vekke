@@ -97,8 +97,16 @@ export function IntersectionBoard({
   }
 
   // Diagonal lines
+  // Each corner passes through exactly ONE diagonal direction (with its natural half-cell
+  // overhang extending outward). The 4 isolated cross-direction stubs at corners are removed:
+  //   \ i=-5 → isolated \ stub at A1 — remove (A1 should have no NW or SE)
+  //   \ i=+5 → isolated \ stub at F6 — remove (F6 should have no NW or SE)
+  //   / i=1  → isolated / stub at A6 — remove (A6 should have no NE or SW)
+  //   / i=11 → isolated / stub at F1 — remove (F1 should have no NE or SW)
+  // All other lines are unchanged, including the main \ (i=0) and main / (i=6).
   const diagRange = playableSize + 1
   for (let i = -(diagRange - 2); i < diagRange - 1; i++) {
+    if (i === -(diagRange - 2) || i === diagRange - 2) continue // isolated corner stubs
     let x1, y1, x2, y2
     if (i <= 0) {
       x1 = startPos
@@ -129,6 +137,7 @@ export function IntersectionBoard({
   }
 
   for (let i = 0; i < diagRange + (diagRange - 2); i++) {
+    if (i === 1 || i === diagRange + (diagRange - 2) - 1) continue // isolated corner stubs
     let x1, y1, x2, y2
     if (i < diagRange) {
       x1 = startPos + i * cellSize

@@ -3,7 +3,7 @@ import type { Route } from "./move"
 import type { Direction } from "./directions"
 
 export type Player = "W" | "B"
-export type Phase = "OPENING" | "ACTION" | "REINFORCE" | "SWAP"
+export type Phase = "OPENING" | "MULLIGAN" | "ACTION" | "REINFORCE" | "SWAP"
 
 export type Token = {
   id: string
@@ -29,7 +29,7 @@ export type GameStats = {
   defections: { W: number; B: number }
 }
 
-export type GameOverReason = "elimination" | "siegemate" | "resignation" | "timeout"
+export type GameOverReason = "elimination" | "siegemate" | "collapse" | "resignation" | "timeout"
 export type GameOver = { winner: Player; reason: GameOverReason }
 
 export type GameState = {
@@ -65,6 +65,9 @@ export type GameState = {
   usedRoutes: string[]
 
   openingPlaced: { W: number; B: number }
+  mulliganCount: { W: number; B: number }
+  mulliganReady: { W: boolean; B: boolean }
+  mulliganArmed: boolean
   reinforcementsToPlace: number
   pendingSwap: { handRouteId: string | null; queueIndex: number | null }
 
@@ -152,6 +155,9 @@ export function newGame(): GameState {
     usedRoutes: [],
 
     openingPlaced: { W: 0, B: 0 },
+    mulliganCount: { W: 0, B: 0 },
+    mulliganReady: { W: false, B: false },
+    mulliganArmed: false,
 
     reinforcementsToPlace: 0,
 
