@@ -68,6 +68,8 @@ export async function createInvite(args: {
     body: {
       inviteeEmail: args.inviteeEmail ?? null,
       timeControl: args.timeControlId,
+      // forward/backward compatible with schemas that renamed timeControl -> format
+      format: args.timeControlId,
       isRanked: !!args.isRanked,
       initialState: args.initialState,
       vgnVersion: "1",
@@ -99,6 +101,8 @@ export async function createChallenge(args: {
     body: {
       invitedUserId,
       timeControl: args.timeControlId,
+      // forward/backward compatible with schemas that renamed timeControl -> format
+      format: args.timeControlId,
       isRanked: !!args.isRanked,
       initialState: args.initialState,
       vgnVersion: "1",

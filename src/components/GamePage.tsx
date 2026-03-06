@@ -1123,6 +1123,18 @@ if (wantsNewGame) {
 
   return (
     <ErrBoundary>
+      <style>{`
+        @keyframes confirm-pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(50,150,171,0);
+            background: rgba(184,150,106,0.18);
+          }
+          50% {
+            box-shadow: 0 0 0 6px rgba(50,150,171,0.35);
+            background: rgba(50,150,171,0.28);
+          }
+        }
+      `}</style>
       <SkinsModal isOpen={skinsOpen} onClose={() => setSkinsOpen(false)} onLoadoutChange={reloadMyLoadout} />
       <div
         style={{
@@ -2187,13 +2199,13 @@ if (wantsNewGame) {
                       <button
                         onClick={() => (actions as any).armMulligan?.(human)}
                         disabled={(g as any).mulliganCount?.[human] >= 2}
-                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 900, fontSize: 12, cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1 }}
+                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}
                       >
                         Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
                       </button>
                       <button
                         onClick={() => (actions as any).passMulligan?.(human)}
-                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 900, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em" }}
+                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}
                       >
                         Continue →
                       </button>
@@ -2213,10 +2225,14 @@ if (wantsNewGame) {
                       borderRadius: 8,
                       border: "2px solid #3296ab",
                       background: "rgba(184,150,106,0.18)",
-                      fontWeight: 900,
-                      fontSize: 13,
+                      fontWeight: 700,
+                      fontSize: 11,
+                      letterSpacing: "0.10em",
+                      fontFamily: "'Cinzel', serif",
+                      textTransform: "uppercase",
                       cursor: "pointer",
                       color: "#e8e4d8",
+                      animation: "confirm-pulse 1.4s ease-in-out infinite",
                     }}
                   >
                     Proceed →
@@ -2225,21 +2241,25 @@ if (wantsNewGame) {
               )}
 
               {/* Action Buttons */}
-              {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
+              {!recoilArmed && g.player === human && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                   {g.phase === "SWAP" ? (
                     <button
                       onClick={() => actions.confirmSwapAndEndTurn()}
                       style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 8,
-                        border: "2px solid #3296ab",
-                        background: "rgba(184,150,106,0.18)",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: "#e8e4d8",
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "2px solid #3296ab",
+                      background: "rgba(184,150,106,0.18)",
+                      fontWeight: 700,
+                      fontSize: 11,
+                      letterSpacing: "0.10em",
+                      fontFamily: "'Cinzel', serif",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      color: "#e8e4d8",
+                      animation: "confirm-pulse 1.4s ease-in-out infinite",
                       }}
                     >
                       Confirm Swap & End Turn
@@ -2321,7 +2341,7 @@ if (wantsNewGame) {
                 </div>
               )}
 
-              {forcedYieldAvailable && (
+              {forcedYieldAvailable && g.player === human && (
                 <button
                   onClick={() => actions.yieldForced()}
                   style={{
@@ -3092,13 +3112,13 @@ if (wantsNewGame) {
                         <button
                           onClick={() => (actions as any).armMulligan?.(human)}
                           disabled={(g as any).mulliganCount?.[human] >= 2}
-                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 900, fontSize: 13, cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1 }}
+                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}
                         >
                           Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
                         </button>
                         <button
                           onClick={() => (actions as any).passMulligan?.(human)}
-                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 900, fontSize: 13, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em" }}
+                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}
                         >
                           Continue →
                         </button>
@@ -3118,33 +3138,41 @@ if (wantsNewGame) {
                         borderRadius: 10,
                         border: "2px solid #3296ab",
                         background: "rgba(184,150,106,0.18)",
-                        fontWeight: 900,
-                        fontSize: 13,
+                        fontWeight: 700,
+                        fontSize: 11,
+                        letterSpacing: "0.10em",
+                        fontFamily: "'Cinzel', serif",
+                        textTransform: "uppercase",
                         cursor: "pointer",
                         color: "#e8e4d8",
+                        animation: "confirm-pulse 1.4s ease-in-out infinite",
                       }}
                     >
-                      Proceed →
+                      Finished Special Actions? Proceed to Reinforcements →
                     </button>
                   </div>
                 )}
 
                 {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
-                {!recoilArmed && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
+                {!recoilArmed && g.player === human && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
                   <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
                     {g.phase === "SWAP" ? (
                       <button
                         onClick={() => actions.confirmSwapAndEndTurn()}
                         style={{
-                          flex: 1,
-                          padding: 12,
-                          borderRadius: 10,
-                          border: "2px solid #3296ab",
-                          background: "rgba(184,150,106,0.18)",
-                          fontWeight: 900,
-                          fontSize: 13,
-                          cursor: "pointer",
-                          color: "#e8e4d8",
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "2px solid #3296ab",
+                        background: "rgba(184,150,106,0.18)",
+                        fontWeight: 700,
+                        fontSize: 11,
+                        letterSpacing: "0.10em",
+                        fontFamily: "'Cinzel', serif",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                        color: "#e8e4d8",
+                        animation: "confirm-pulse 1.4s ease-in-out infinite",
                         }}
                       >
                         Confirm Swap & End Turn
@@ -3225,7 +3253,7 @@ if (wantsNewGame) {
                   </div>
                 )}
 
-                {forcedYieldAvailable && (
+                {forcedYieldAvailable && g.player === human && (
                   <button
                     onClick={() => actions.yieldForced()}
                     style={{

@@ -663,7 +663,6 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
     } else {
       state.log.unshift(`== COLLAPSE: ${winner} wins (opponent cannot pay unusable-route tax) ==`)
     }
-    state.log.unshift(`@evt collapse_loss p=${p} n=${need} forced_by=${other(p)} reason=${allSieged ? "siegemate" : "collapse"}`)
     return
   }
 
@@ -676,8 +675,6 @@ export function yieldForcedIfNoUsableRoutes(state: GameState) {
   for (const r of remaining) state.usedRoutes.push(r.id)
 
   state.log.unshift(`${p} has no usable routes; yielded ${pay}/${need} reserve token(s) to the Void and burned ${need} route(s).`)
-
-  state.log.unshift(`@evt collapse_tax_paid p=${p} n=${pay} forced_by=${other(p)}`)
 
   // This advances to REINFORCE or SWAP as normal
   finishActionIfDone(state)

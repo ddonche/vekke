@@ -15,6 +15,9 @@ import ProfilePage from "./pages/ProfilePage"
 import { LeaderboardPage } from "./pages/LeaderboardPage"
 import { BoardEditorPage } from "./pages/BoardEditorPage"
 import { TutorialPage } from "./pages/TutorialPage"
+import HomePage from "./pages/HomePage"
+import { AnnouncementsPage } from "./pages/AnnouncementsPage"
+import { AdminPage } from "./pages/AdminPage"
 
 function RulesRedirect() {
   window.location.replace("/rules/index.html")
@@ -35,6 +38,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<GamePage />} />
+      <Route path="/home" element={<HomePage />} />
 
       <Route path="/u/:username" element={<ProfilePage />} />
 
@@ -68,6 +72,8 @@ function App() {
       <Route path="/rules/*" element={<RulesRedirect />} />
 
       <Route path="/tutorial" element={<TutorialWrapper />} />
+      <Route path="/announcements" element={<AnnouncementsPage />} />
+      <Route path="/admin" element={<AdminPage />} />
     </Routes>
   )
 }

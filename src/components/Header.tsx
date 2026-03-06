@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { ProfileModal } from "../ProfileModal"
 
+const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
+
 export type ActivePage =
   | "play"
   | "mygames"
@@ -12,6 +14,7 @@ export type ActivePage =
   | "rules"
   | "tutorial"
   | "skins"
+  | "announcements"
   | null
 
 export interface HeaderProps {
@@ -25,10 +28,7 @@ export interface HeaderProps {
   isPro?: boolean
 
   // My Games badge
-  myGamesTurnCount?: number // number of active games where it's your turn
-
-  // Online count
-  onlineNow?: number
+  myGamesTurnCount?: number
 
   // Which page is active (for nav highlight)
   activePage?: ActivePage
@@ -41,6 +41,7 @@ export interface HeaderProps {
   onOrders?: () => void
   onRules?: () => void
   onTutorial?: () => void
+  onAnnouncements?: () => void
 
   // User callbacks
   onSignIn?: () => void
@@ -55,7 +56,6 @@ export interface HeaderProps {
 function VekkeLogo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}>
-      {/* Token icon */}
       <img
         src="/logo.png"
         alt="Vekke"
@@ -78,7 +78,18 @@ function VekkeLogo() {
         >
           VEKKE
         </div>
-        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, opacity: 0.65, letterSpacing: "0.3em", color: "#b8966a", fontWeight: 600, textTransform: "uppercase", marginTop: 4 }}>
+        <div
+          style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: 9,
+            opacity: 0.65,
+            letterSpacing: "0.3em",
+            color: "#b8966a",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            marginTop: 4,
+          }}
+        >
           the game of routes
         </div>
       </div>
@@ -190,6 +201,8 @@ function UserDropdown(
     onOpenProfileModal: () => void
   }
 ) {
+  const navigate = useNavigate()
+
   const {
     isLoggedIn,
     userId,
@@ -199,18 +212,14 @@ function UserDropdown(
     elo,
     isPro,
     onSignIn,
-    onOpenProfile,
     onOpenPro,
     onSignOut,
     onOpenSkins,
-    goOrders,
-    goChallenges,
     onOpenProfileModal,
   } = props
 
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-
   const [copied, setCopied] = useState(false)
 
   async function copyInviteLink() {
@@ -221,7 +230,6 @@ function UserDropdown(
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // fallback
       const ta = document.createElement("textarea")
       ta.value = link
       ta.style.position = "fixed"
@@ -237,6 +245,7 @@ function UserDropdown(
       window.setTimeout(() => setCopied(false), 1500)
     }
   }
+
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -295,17 +304,20 @@ function UserDropdown(
       >
         <Avatar name={username ?? "You"} url={avatarUrl} size={28} />
         <div style={{ display: "grid", lineHeight: 1.15, textAlign: "left" }}>
-          <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 12, letterSpacing: "0.06em", whiteSpace: "nowrap", color: "#e8e4d8" }}>{username ?? "Player"}</div>
-          {typeof elo === "number" && titleLabel ? (
-            <div style={{ fontFamily: "'Cinzel', serif", opacity: 0.7, fontSize: 10, letterSpacing: "0.1em", whiteSpace: "nowrap", color: "#b8966a" }}>
-              {titleLabel} · {elo}
-              {isPro ? " · Pro" : ""}
-            </div>
-          ) : (
-            <div style={{ fontFamily: "'Cinzel', serif", opacity: 0.6, fontSize: 10, letterSpacing: "0.1em", color: "#b8966a" }}>Account</div>
-          )}
+          <div
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontWeight: 600,
+              fontSize: 12,
+              letterSpacing: "0.06em",
+              whiteSpace: "nowrap",
+              color: "#e8e4d8",
+            }}
+          >
+            {username ?? "Player"}
+          </div>
+
         </div>
-        {/* Chevron */}
         <svg
           width="10"
           height="10"
@@ -337,22 +349,34 @@ function UserDropdown(
             zIndex: 9999,
           }}
         >
-          {/* User info header */}
           <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <Avatar name={username ?? "You"} url={avatarUrl} size={36} />
               <div>
-                <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.06em", color: "#e8e4d8" }}>{username ?? "Player"}</div>
-                {typeof elo === "number" && titleLabel && (
-                  <div style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.1em", color: "#b8966a", marginTop: 4 }}>
-                    {titleLabel} · {elo}
-                  </div>
-                )}
+                <div
+                  onClick={() => {
+                    const un = (username ?? "").trim()
+                    if (un) { navigate(`/u/${encodeURIComponent(un)}`); setOpen(false) }
+                  }}
+                  title="View profile"
+                  style={{
+                    fontFamily: "'Cinzel', serif",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    letterSpacing: "0.06em",
+                    color: "#e8e4d8",
+                    cursor: "pointer",
+                    cursor: "pointer",
+                    textDecoration: "none",
+                  }}
+                >
+                  {username ?? "Player"}
+                </div>
+
               </div>
             </div>
           </div>
 
-          {/* Menu items */}
           {[
             { label: "Edit Profile", action: onOpenProfileModal },
             { label: "Gear", action: onOpenSkins },
@@ -369,6 +393,18 @@ function UserDropdown(
               }}
             />
           ))}
+
+          {userId === ADMIN_USER_ID && (
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <DropdownItem
+                label="Admin"
+                onClick={() => {
+                  navigate("/admin")
+                  setOpen(false)
+                }}
+              />
+            </div>
+          )}
 
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <DropdownItem
@@ -438,7 +474,8 @@ function injectFonts() {
   const link = document.createElement("link")
   link.id = "vekke-header-fonts"
   link.rel = "stylesheet"
-  link.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+  link.href =
+    "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
   document.head.appendChild(link)
 }
 
@@ -448,20 +485,24 @@ export function Header(props: HeaderProps) {
   const [profileModalOpen, setProfileModalOpen] = React.useState(false)
   const navigate = useNavigate()
 
-  const { activePage, onlineNow } = props
+  const { activePage } = props
 
-  // ── Internal turn-count: fetch on mount + poll every 15s ──────────────────
   const [turnCount, setTurnCount] = useState(0)
 
   useEffect(() => {
     const uid = props.userId
-    if (!uid) { setTurnCount(0); return }
+    if (!uid) {
+      setTurnCount(0)
+      return
+    }
 
     async function fetchCount() {
       const { count } = await supabase
         .from("games")
         .select("id", { count: "exact", head: true })
         .is("ended_at", null)
+        .is("winner_id", null)
+        .not("status", "in", '("finished","complete","completed","over")')
         .or(`and(wake_id.eq.${uid},turn.eq.W),and(brake_id.eq.${uid},turn.eq.B)`)
       setTurnCount(count ?? 0)
     }
@@ -471,15 +512,14 @@ export function Header(props: HeaderProps) {
     return () => window.clearInterval(t)
   }, [props.userId])
 
-  // Default navigation fallbacks (pages can still override by passing callbacks)
+  const goHome = () => navigate("/home")
   const goPlay = props.onPlay ?? (() => navigate("/"))
   const goMyGames = props.onMyGames ?? (() => navigate("/challenges"))
   const goLeaderboard = props.onLeaderboard ?? (() => navigate("/leaderboard"))
   const goOrders = props.onOrders ?? (() => navigate("/orders"))
-  const goRules = props.onRules ?? (() => { window.location.href = "http://localhost:4242" })
+  const goRules = props.onRules ?? (() => navigate("/rules"))
   const goTutorial = props.onTutorial ?? (() => navigate("/tutorial"))
-
-  // Some sites separate "My Games" and "Challenges"; yours currently maps My Games → Challenges page.
+  const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
   const goChallenges = props.onChallenges ?? (() => navigate("/challenges"))
 
   return (
@@ -586,57 +626,47 @@ export function Header(props: HeaderProps) {
 
       <header className="vekke-header">
         <div className="vekke-header-inner">
-          {/* Logo */}
-          <div onClick={goPlay}>
+          <div onClick={goHome}>
             <VekkeLogo />
           </div>
 
-          {/* Nav */}
           <nav className="vekke-nav">
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
-            <NavItem
-              label="My Games"
-              active={activePage === "mygames"}
-              onClick={goMyGames}
-              badge={turnCount}
-            />
+            <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
             <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
             <NavItem label="Tutorial" active={activePage === "tutorial"} onClick={goTutorial} />
           </nav>
 
-          {/* Right side */}
           <div className="vekke-header-right">
-            <button className="vekke-hamburger" onClick={() => setMobileOpen(o => !o)} aria-label="Menu">
+            <button className="vekke-hamburger" onClick={() => setMobileOpen((o) => !o)} aria-label="Menu">
               <span style={{ width: mobileOpen ? "100%" : "100%" }} />
               <span style={{ width: "70%", alignSelf: "flex-end" }} />
               <span style={{ width: mobileOpen ? "100%" : "85%" }} />
             </button>
-            {typeof onlineNow === "number" && (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: "#6b6558",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "#34d399",
-                    display: "inline-block",
-                    boxShadow: "0 0 6px #34d399",
-                  }}
-                />
-                {onlineNow} online
-              </div>
-            )}
+
+            {/* Announcements icon */}
+            <button
+              onClick={goAnnouncements}
+              aria-label="Announcements"
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px 8px",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: activePage === "announcements" ? "#5de8f7" : "#b8966a",
+                transition: "color 0.2s",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+              </svg>
+            </button>
 
             <UserDropdown
               {...props}
@@ -647,16 +677,51 @@ export function Header(props: HeaderProps) {
           </div>
         </div>
       </header>
+
       <div className={`vekke-mobile-drawer${mobileOpen ? " open" : ""}`}>
-        <button className={`vekke-mobile-nav-item${activePage === "play" ? " active" : ""}`} onClick={() => { goPlay(); setMobileOpen(false) }}>Play</button>
-        <button className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`} onClick={() => { goMyGames(); setMobileOpen(false) }}>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "play" ? " active" : ""}`}
+          onClick={() => { goPlay(); setMobileOpen(false) }}
+        >
+          Play
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`}
+          onClick={() => { goMyGames(); setMobileOpen(false) }}
+        >
           My Games{turnCount > 0 ? ` (${turnCount})` : ""}
         </button>
-        <button className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`} onClick={() => { goLeaderboard(); setMobileOpen(false) }}>Leaderboard</button>
-        <button className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`} onClick={() => { goOrders(); setMobileOpen(false) }}>Orders</button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}
+          onClick={() => { goLeaderboard(); setMobileOpen(false) }}
+        >
+          Leaderboard
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`}
+          onClick={() => { goOrders(); setMobileOpen(false) }}
+        >
+          Orders
+        </button>
         <div className="vekke-mobile-divider" />
-        <button className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`} onClick={() => { window.location.href = "http://localhost:4242"; setMobileOpen(false) }}>Rules</button>
-        <button className={`vekke-mobile-nav-item${activePage === "tutorial" ? " active" : ""}`} onClick={() => { goTutorial(); setMobileOpen(false) }}>Tutorial</button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "rules" ? " active" : ""}`}
+          onClick={() => { goRules(); setMobileOpen(false) }}
+        >
+          Rules
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "tutorial" ? " active" : ""}`}
+          onClick={() => { goTutorial(); setMobileOpen(false) }}
+        >
+          Tutorial
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "announcements" ? " active" : ""}`}
+          onClick={() => { goAnnouncements(); setMobileOpen(false) }}
+        >
+          Announcements
+        </button>
       </div>
 
       {profileModalOpen && props.userId && (

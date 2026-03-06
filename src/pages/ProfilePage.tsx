@@ -13,8 +13,6 @@ type ProfileRow = {
   country_code: string | null
   country_name: string | null
   account_tier: string | null
-  order_id: string | null
-  order_joined_at: string | null
   is_ai: boolean
 
   // Pro profile extras
@@ -59,6 +57,10 @@ type PlayerStatsRow = {
   games_daily: number | null
   wins_daily: number | null
   losses_daily: number | null
+
+  wins_siegemate: number | null
+  wins_elimination: number | null
+  wins_collapse: number | null
 }
 
 type OrderLite = {
@@ -68,6 +70,11 @@ type OrderLite = {
   primary_color: string
   secondary_color: string
   sigil_url: string | null
+}
+
+type CurrentMembershipLite = {
+  order_id: string
+  joined_at: string | null
 }
 
 function injectFonts() {
@@ -117,14 +124,13 @@ function FlagImg({ cc, size = 18 }: { cc: string | null | undefined; size?: numb
   )
 }
 
-// Added: exact elo color function from game page
 function eloColor(elo: number) {
-  if (elo >= 2000) return "#D4AF37" // gold – Grandmaster
-  if (elo >= 1750) return "#7c2d12" // brown – Senior Master
-  if (elo >= 1500) return "#16a34a" // green – Master
-  if (elo >= 1200) return "#dc2626" // red – Expert
-  if (elo >= 900) return "#2563eb" // blue – Adept
-  return "#6b6558" // grey – Novice
+  if (elo >= 2000) return "#D4AF37"
+  if (elo >= 1750) return "#7c2d12"
+  if (elo >= 1500) return "#16a34a"
+  if (elo >= 1200) return "#dc2626"
+  if (elo >= 900) return "#2563eb"
+  return "#6b6558"
 }
 
 function StatPill({
@@ -132,11 +138,15 @@ function StatPill({
   value,
   tone,
   customColor,
+  background,
+  borderColor,
 }: {
   label: string
   value: string
   tone?: "gold" | "cyan" | "red" | "neutral"
   customColor?: string
+  background?: string
+  borderColor?: string
 }) {
   const valueColor =
     customColor ||
@@ -152,9 +162,9 @@ function StatPill({
     <div
       style={{
         padding: "12px 12px 11px",
-        border: "1px solid rgba(255,255,255,0.07)",
+        border: `1px solid ${borderColor ?? "rgba(255,255,255,0.07)"}`,
         borderRadius: 10,
-        background: "#0f0f14",
+        background: background ?? "#0f0f14",
         minWidth: 0,
       }}
     >
@@ -298,12 +308,7 @@ function TwitchIcon() {
   return (
     <IconWrap>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M4 3h17v10l-4 4h-4l-2 2H8v-2H4V3Z"
-          stroke="currentColor"
-          strokeWidth="2"
-          opacity="0.85"
-        />
+        <path d="M4 3h17v10l-4 4h-4l-2 2H8v-2H4V3Z" stroke="currentColor" strokeWidth="2" opacity="0.85" />
         <path d="M10 7v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
         <path d="M15 7v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
       </svg>
@@ -369,8 +374,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [stats, setStats] = useState<PlayerStatsRow | null>(null)
   const [order, setOrder] = useState<OrderLite | null>(null)
+  const [orderJoinedAt, setOrderJoinedAt] = useState<string | null>(null)
 
-  // Challenge UI (same feel as leaderboard)
+  // Challenge UI
   const [challengeTc, setChallengeTc] = useState<TimeControlId>("standard")
   const [challenging, setChallenging] = useState(false)
   const [challenged, setChallenged] = useState(false)
@@ -388,10 +394,10 @@ export default function ProfilePage() {
     setProfile(null)
     setStats(null)
     setOrder(null)
+    setOrderJoinedAt(null)
     setChallenged(false)
     setChallenging(false)
 
-    // viewer session
     const { data: sess, error: sessErr } = await supabase.auth.getSession()
     if (sessErr) setErr(sessErr.message)
 
@@ -406,7 +412,6 @@ export default function ProfilePage() {
       setMe(null)
     }
 
-    // target profile by username
     if (!targetUsername) {
       setErr("Missing username in URL.")
       setLoading(false)
@@ -416,7 +421,7 @@ export default function ProfilePage() {
     const { data: p, error: pErr } = await supabase
       .from("profiles")
       .select(
-        "id,username,avatar_url,country_code,country_name,account_tier,order_id,order_joined_at,is_ai,bio,website_url,x_url,youtube_url,twitch_url,instagram_url,facebook_url"
+        "id,username,avatar_url,country_code,country_name,account_tier,is_ai,bio,website_url,x_url,youtube_url,twitch_url,instagram_url,facebook_url"
       )
       .eq("username", targetUsername)
       .maybeSingle()
@@ -434,7 +439,6 @@ export default function ProfilePage() {
     if (!isMountedRef.current) return
     setProfile(p as any)
 
-    // stats
     const { data: s, error: sErr } = await supabase.from("player_stats").select("*").eq("user_id", (p as any).id).maybeSingle()
     if (sErr) {
       setErr(sErr.message)
@@ -444,8 +448,23 @@ export default function ProfilePage() {
     if (!isMountedRef.current) return
     setStats((s as any) ?? null)
 
-    // order (for sigil/name/colors like OrdersPage)
-    const oid = (p as any).order_id as string | null
+    const { data: mem, error: memErr } = await supabase
+      .from("order_memberships")
+      .select("order_id,joined_at")
+      .eq("user_id", (p as any).id)
+      .is("left_at", null)
+      .order("joined_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (memErr) {
+      console.warn("[ProfilePage] order_memberships lookup failed:", memErr.message)
+    }
+
+    const currentMembership = (mem as any as CurrentMembershipLite | null) ?? null
+    const oid = currentMembership?.order_id ?? null
+    setOrderJoinedAt(currentMembership?.joined_at ?? null)
+
     if (oid) {
       const { data: o, error: oErr } = await supabase
         .from("orders")
@@ -472,7 +491,6 @@ export default function ProfilePage() {
   }
 
   const derived = useMemo(() => {
-    // Pick the stats slice based on the currently highlighted format tab.
     const tc = challengeTc
 
     const formatElo =
@@ -513,19 +531,67 @@ export default function ProfilePage() {
 
     const wr = winRate(formatWins, formatLosses)
 
+    const cappedSiegemate = Math.min(safeInt(stats?.wins_siegemate), formatWins)
+    const cappedElimination = Math.min(safeInt(stats?.wins_elimination), Math.max(0, formatWins - cappedSiegemate))
+    const cappedCollapse = Math.min(
+      safeInt(stats?.wins_collapse),
+      Math.max(0, formatWins - cappedSiegemate - cappedElimination)
+    )
+
+    const formatTimeouts = Math.min(safeInt(stats?.losses_timeout), formatLosses)
+    const formatResigns = Math.min(safeInt(stats?.resignations), Math.max(0, formatLosses - formatTimeouts))
+
     return {
-      // Format-specific headline stats:
       elo: formatElo,
       games: formatGames,
       wins: formatWins,
       losses: formatLosses,
+      totalWins: safeInt(stats?.wins_active),
+      totalLosses: safeInt(stats?.losses_active),
       wr,
 
-      // Keep these global (no per-format columns currently):
-      timeouts: safeInt(stats?.losses_timeout),
-      resigns: safeInt(stats?.resignations),
+      timeouts: formatTimeouts,
+      resigns: formatResigns,
       lastGameAt: stats?.last_game_at ?? null,
       label: FORMAT_LABELS[tc],
+
+      victoryItems: [
+        {
+          key: "Siegemate",
+          color: "#1f5c5b",
+          bg: "rgba(31,92,91,0.10)",
+          border: "rgba(31,92,91,0.30)",
+          total: cappedSiegemate,
+        },
+        {
+          key: "Elimination",
+          color: "#ee484c",
+          bg: "rgba(238,72,76,0.08)",
+          border: "rgba(238,72,76,0.30)",
+          total: cappedElimination,
+        },
+        {
+          key: "Collapse",
+          color: "#c77a2c",
+          bg: "rgba(199,122,44,0.08)",
+          border: "rgba(199,122,44,0.28)",
+          total: cappedCollapse,
+        },
+        {
+          key: "Timeout",
+          color: "#2f4f6b",
+          bg: "rgba(47,79,107,0.10)",
+          border: "rgba(47,79,107,0.28)",
+          total: formatTimeouts,
+        },
+        {
+          key: "Resignation",
+          color: "#355e3b",
+          bg: "rgba(53,94,59,0.10)",
+          border: "rgba(53,94,59,0.28)",
+          total: formatResigns,
+        },
+      ] as const,
     }
   }, [stats, challengeTc])
 
@@ -540,6 +606,28 @@ export default function ProfilePage() {
     const accent = ["wolf", "raven", "fox"].includes(id) ? order.primary_color : order.secondary_color
     return accent || "#b8966a"
   }, [order])
+
+  const profileVictoryModel = useMemo(() => {
+    const grand = derived.victoryItems.reduce((s, it) => s + it.total, 0)
+
+    let acc = 0
+    const items = derived.victoryItems.map((it) => {
+      const pct = grand > 0 ? (it.total / grand) * 100 : 0
+      const start = acc
+      const end = acc + pct
+      acc = end
+      return { ...it, pct, start, end }
+    })
+
+    const gradient =
+      grand > 0
+        ? `conic-gradient(${items
+            .map((s) => `${s.color} ${s.start.toFixed(3)}% ${s.end.toFixed(3)}%`)
+            .join(", ")})`
+        : "conic-gradient(rgba(255,255,255,0.06) 0% 100%)"
+
+    return { items, grand, gradient }
+  }, [derived])
 
   function canChallengeTarget() {
     if (!userId) return false
@@ -630,7 +718,7 @@ export default function ProfilePage() {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
-        .vk-container { padding: 22px 16px 56px; max-width: 1100px; margin: 0 auto; width: 100%; }
+        .vk-container { padding: 18px 12px 48px; max-width: 1100px; margin: 0 auto; width: 100%; }
         @media (min-width: 700px) {
           .vk-container { padding: 28px 24px 60px; }
         }
@@ -659,12 +747,13 @@ export default function ProfilePage() {
           background: #0f0f14;
           border-radius: 12px;
           overflow: hidden;
+          min-width: 0;
         }
         .card-pad { padding: 14px; }
         @media (min-width: 700px) { .card-pad { padding: 16px; } }
 
         .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        @media (min-width: 520px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (min-width: 720px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
         .table-wrap { overflow-x: auto; }
         .table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 640px; }
@@ -709,6 +798,14 @@ export default function ProfilePage() {
           border-color: rgba(184,150,106,0.30);
         }
 
+        .format-tabs-row {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
         /* DO NOT TOUCH THESE SIZES */
         .challenge-btn {
           font-family: 'Cinzel', serif;
@@ -723,10 +820,44 @@ export default function ProfilePage() {
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
+          width: 100%;
+          min-width: 0;
         }
         .challenge-btn:disabled {
           opacity: 0.35;
           cursor: default;
+        }
+
+        .follow-btn {
+          font-family: 'Cinzel', serif;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.10);
+          color: #b0aa9e;
+          border-radius: 4px;
+          padding: 8px 12px;
+          font-size: 0.55rem;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          font-weight: 600;
+          cursor: default;
+          white-space: nowrap;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .identity-action-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-top: 4px;
+        }
+
+        .last-game-inline {
+          margin-top: 12px;
+          color: #b0aa9e;
+          fontStyle: italic;
+          font-size: 1.02rem;
+          line-height: 1.4;
         }
 
         /* Pro bio + icon links (no borders/boxes) */
@@ -735,7 +866,7 @@ export default function ProfilePage() {
           color: #e8e4d8;
           font-size: 1.05rem;
           line-height: 1.45;
-          font-style: italic;
+          /* font-style: italic; */
           text-align: justify;
           text-justify: inter-word;
           opacity: 0.95;
@@ -769,6 +900,63 @@ export default function ProfilePage() {
           opacity: 1;
         }
         .pro-icon-link:active { transform: translateY(0px); }
+
+        .identity-top {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .identity-order-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-top: 8px;
+        }
+
+        .identity-name {
+          font-family: 'Cinzel', serif;
+          font-size: 1.2rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          color: #e8e4d8;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+        }
+
+        @media (max-width: 640px) {
+          .vk-container {
+            padding-left: 10px;
+            padding-right: 10px;
+          }
+
+          .card-pad {
+            padding: 12px;
+          }
+
+          .identity-top {
+            align-items: flex-start;
+          }
+
+          .identity-order-row {
+            align-items: flex-start;
+            gap: 12px;
+          }
+
+          .identity-name {
+            font-size: 1.02rem;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            line-height: 1.15;
+          }
+
+          .section-label {
+            letter-spacing: 0.32em;
+          }
+        }
       `}</style>
 
       <Header
@@ -832,7 +1020,7 @@ export default function ProfilePage() {
                   }}
                 />
                 <div className="card-pad">
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div className="identity-top">
                     <div
                       style={{
                         width: 58,
@@ -871,19 +1059,7 @@ export default function ProfilePage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
                         <FlagImg cc={profile?.country_code} size={18} />
 
-                        <div
-                          style={{
-                            fontFamily: "'Cinzel', serif",
-                            fontSize: "1.2rem",
-                            fontWeight: 800,
-                            letterSpacing: "0.04em",
-                            color: "#e8e4d8",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            minWidth: 0,
-                          }}
-                        >
+                        <div className="identity-name">
                           {loading ? "Loading..." : profile?.username ?? "—"}
                         </div>
 
@@ -899,7 +1075,7 @@ export default function ProfilePage() {
                   {/* KEEP THIS SEPARATOR WHERE IT IS */}
                   <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
 
-                  {/* Pro bio + social icons (pro only). No boxes/borders; icons only; centered. */}
+                  {/* Pro bio + social icons */}
                   {isPro && (profile?.bio?.trim() || proLinks.length > 0) ? (
                     <div style={{ marginTop: -2, marginBottom: 8 }}>
                       {profile?.bio?.trim() ? <div className="pro-bio">{profile.bio.trim()}</div> : null}
@@ -925,29 +1101,11 @@ export default function ProfilePage() {
                     </div>
                   ) : null}
 
-                  {/* Challenge controls */}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                      {(["standard", "rapid", "blitz", "daily"] as TimeControlId[]).map((tc) => (
-                        <button
-                          key={tc}
-                          className={`format-tab${challengeTc === tc ? " active" : ""}`}
-                          onClick={() => setChallengeTc(tc)}
-                          disabled={loading}
-                          title={`Challenge (${FORMAT_LABELS[tc]})`}
-                        >
-                          {FORMAT_LABELS[tc]}
-                        </button>
-                      ))}
-                    </div>
+                  {/* Follow / Challenge controls */}
+                  <div className="identity-action-row">
+                    <button className="follow-btn" disabled title="Follow (placeholder)">
+                      Follow
+                    </button>
 
                     <button
                       className="challenge-btn"
@@ -973,16 +1131,35 @@ export default function ProfilePage() {
                     </button>
                   </div>
 
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
-
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 16,
-                      marginTop: 8,
+                      marginTop: 12,
+                      color: "#b0aa9e",
+                      fontStyle: "italic",
+                      fontSize: "1.02rem",
+                      lineHeight: 1.4,
                     }}
                   >
+                    <span
+                      style={{
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: "0.68rem",
+                        fontWeight: 700,
+                        letterSpacing: "0.22em",
+                        textTransform: "uppercase",
+                        color: "#6b6558",
+                        fontStyle: "normal",
+                        marginRight: 8,
+                      }}
+                    >
+                      Last Game
+                    </span>
+                    {loading ? "—" : derived.lastGameAt ? new Date(derived.lastGameAt).toLocaleString() : "No games yet"}
+                  </div>
+
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
+
+                  <div className="identity-order-row">
                     {order?.sigil_url ? (
                       <img
                         src={order.sigil_url}
@@ -1044,9 +1221,9 @@ export default function ProfilePage() {
                         {order?.name ?? "Unaligned"}
                       </div>
 
-                      {profile?.order_joined_at ? (
+                      {orderJoinedAt ? (
                         <div style={{ marginTop: 4, color: "#6b6558", fontStyle: "italic" }}>
-                          Joined {new Date(profile.order_joined_at).toLocaleDateString()}
+                          Joined {new Date(orderJoinedAt).toLocaleDateString()}
                         </div>
                       ) : null}
                     </div>
@@ -1061,7 +1238,6 @@ export default function ProfilePage() {
                 Stats <div className="rule" />
               </div>
 
-              {/* small indicator of which format the pills are showing */}
               <div
                 style={{
                   marginBottom: 10,
@@ -1076,34 +1252,33 @@ export default function ProfilePage() {
                 Showing: <span style={{ color: "#d4af7a" }}>{derived.label}</span>
               </div>
 
+              <div className="format-tabs-row">
+                {(["standard", "rapid", "blitz", "daily"] as TimeControlId[]).map((tc) => (
+                  <button
+                    key={tc}
+                    className={`format-tab${challengeTc === tc ? " active" : ""}`}
+                    onClick={() => setChallengeTc(tc)}
+                    disabled={loading}
+                    title={`Show ${FORMAT_LABELS[tc]} stats`}
+                  >
+                    {FORMAT_LABELS[tc]}
+                  </button>
+                ))}
+              </div>
+
               <div className="stats-grid">
                 <StatPill label="ELO" value={loading ? "—" : String(derived.elo)} customColor={eloColor(derived.elo)} />
                 <StatPill label="Games" value={loading ? "—" : String(derived.games)} />
                 <StatPill label="Win%" value={loading ? "—" : derived.wr == null ? "—" : pct(derived.wr)} tone="gold" />
                 <StatPill label="Wins" value={loading ? "—" : String(derived.wins)} />
                 <StatPill label="Losses" value={loading ? "—" : String(derived.losses)} />
-                <StatPill label="Timeout L" value={loading ? "—" : String(derived.timeouts)} tone="red" />
-              </div>
-
-              <div style={{ marginTop: 12 }} className="card">
-                <div className="card-pad">
-                  <div
-                    style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontSize: "0.72rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.25em",
-                      textTransform: "uppercase",
-                      color: "#6b6558",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Last Game
-                  </div>
-                  <div style={{ color: "#b0aa9e", fontStyle: "italic", fontSize: "1.05rem" }}>
-                    {loading ? "—" : derived.lastGameAt ? new Date(derived.lastGameAt).toLocaleString() : "No games yet"}
-                  </div>
-                </div>
+                <StatPill
+                  label="Total W/L"
+                  value={loading ? "—" : `${derived.totalWins}/${derived.totalLosses}`}
+                  customColor="#d4af7a"
+                  background="rgba(184,150,106,0.10)"
+                  borderColor="rgba(184,150,106,0.30)"
+                />
               </div>
 
               <div style={{ marginTop: 12 }} className="card">
@@ -1122,7 +1297,178 @@ export default function ProfilePage() {
                     Ratings by Time Control
                   </div>
 
-                  <div className="table-wrap">
+                  {!loading && stats ? (
+                    <div style={{ marginTop: 12 }}>
+                      <div
+                        style={{
+                          fontFamily: "'Cinzel', serif",
+                          fontSize: "0.72rem",
+                          fontWeight: 600,
+                          letterSpacing: "0.25em",
+                          textTransform: "uppercase",
+                          color: "#6b6558",
+                          marginBottom: 10,
+                        }}
+                      >
+                        Victory Methods ({derived.label})
+                      </div>
+
+                      <style>{`
+                        .profile-victory-row {
+                          display: grid;
+                          grid-template-columns: repeat(6, minmax(0, 1fr));
+                          gap: 10px;
+                          align-items: stretch;
+                        }
+
+                        .profile-victory-figure-row {
+                          display: flex;
+                          align-items: baseline;
+                          justify-content: space-between;
+                          gap: 10px;
+                          min-height: 34px;
+                        }
+
+                        @media (max-width: 1100px) {
+                          .profile-victory-row {
+                            grid-template-columns: repeat(3, minmax(0, 1fr));
+                          }
+                        }
+
+                        @media (max-width: 640px) {
+                          .profile-victory-row {
+                            grid-template-columns: repeat(2, minmax(0, 1fr));
+                          }
+                        }
+                      `}</style>
+
+                      <div className="profile-victory-row">
+                        {profileVictoryModel.items.map((it) => {
+                          const share = profileVictoryModel.grand > 0 ? Math.round((it.total / profileVictoryModel.grand) * 100) : 0
+
+                          return (
+                            <div
+                              key={it.key}
+                              style={{
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                background: it.bg,
+                                border: `1px solid ${it.border}`,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 10,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontFamily: "'Cinzel', serif",
+                                  fontSize: "0.62rem",
+                                  fontWeight: 800,
+                                  letterSpacing: "0.18em",
+                                  textTransform: "uppercase",
+                                  color: "#e8e4d8",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                                title={it.key}
+                              >
+                                {it.key}
+                              </div>
+
+                              <div className="profile-victory-figure-row">
+                                <div
+                                  style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "1.28rem",
+                                    fontWeight: 900,
+                                    color: "#e8e4d8",
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  {it.total.toLocaleString()}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "1.18rem",
+                                    fontWeight: 900,
+                                    color: it.color,
+                                    lineHeight: 1,
+                                    opacity: profileVictoryModel.grand > 0 ? 0.95 : 0.55,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={profileVictoryModel.grand > 0 ? `${share}% of tracked endings` : "No data"}
+                                >
+                                  {profileVictoryModel.grand > 0 ? `${share}%` : "—"}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        <div
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            background: "#0f0f14",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontFamily: "'Cinzel', serif",
+                              fontSize: "0.62rem",
+                              fontWeight: 800,
+                              letterSpacing: "0.18em",
+                              textTransform: "uppercase",
+                              color: "#e8e4d8",
+                            }}
+                          >
+                            Graph
+                          </div>
+
+                          <div
+                            className="profile-victory-figure-row"
+                            style={{
+                              alignItems: "center",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "100%",
+                                height: 16,
+                                borderRadius: 999,
+                                overflow: "hidden",
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                display: "flex",
+                              }}
+                              aria-label="Victory methods stacked bar"
+                              title={`Tracked endings: ${profileVictoryModel.grand.toLocaleString()}`}
+                            >
+                              {profileVictoryModel.items.map((it) => (
+                                <div
+                                  key={it.key}
+                                  style={{
+                                    width: `${it.pct}%`,
+                                    background: it.color,
+                                    opacity: profileVictoryModel.grand > 0 ? 0.95 : 0.35,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="table-wrap" style={{ marginTop: 14 }}>
                     <table className="table">
                       <thead>
                         <tr>

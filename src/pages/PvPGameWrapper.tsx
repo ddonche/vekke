@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { fetchGame, type PvPGameData } from "../services/pvp_sync"
 import { GamePage } from "../components/GamePage"
+import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
 
@@ -50,6 +51,11 @@ export function PvPGameWrapper() {
 
   const [opponentName, setOpponentName] = useState<string>("Opponent")
   const [opponentElo, setOpponentElo] = useState<number>(1200)
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null)
+  const [myCountryCode, setMyCountryCode] = useState<string | null>(null)
+  const [opponentAvatarUrl, setOpponentAvatarUrl] = useState<string | null>(null)
+  const [opponentCountryCode, setOpponentCountryCode] = useState<string | null>(null)
+  const [showIntro, setShowIntro] = useState(false)
 
   const [myUserId, setMyUserId] = useState<string | null>(null)
   const [opponentUserId, setOpponentUserId] = useState<string | null>(null)
@@ -105,13 +111,13 @@ export function PvPGameWrapper() {
 
         const { data: myProfile } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, avatar_url, country_code, account_tier")
           .eq("id", userId)
           .maybeSingle()
 
         const { data: oppProfile } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, avatar_url, country_code, account_tier")
           .eq("id", opponentId)
           .maybeSingle()
 
@@ -136,12 +142,23 @@ export function PvPGameWrapper() {
         prevPlayerRef.current = (game.current_state as any)?.player ?? null
 
         setMyName(myProfile?.username || "You")
+        setMyAvatarUrl((myProfile as any)?.avatar_url ?? null)
+        setMyCountryCode((myProfile as any)?.country_code ?? null)
         setMyElo(myStats?.elo || 1200)
 
         setOpponentName(oppProfile?.username || "Opponent")
+        setOpponentAvatarUrl((oppProfile as any)?.avatar_url ?? null)
+        setOpponentCountryCode((oppProfile as any)?.country_code ?? null)
         setOpponentElo(oppStats?.elo || 1200)
 
         setRematchFromName(oppProfile?.username || "Opponent")
+
+        // Show intro overlay only for freshly created games (< 2 min old)
+        const createdAt = (game as any).created_at
+        if (createdAt) {
+          const ageMs = Date.now() - new Date(createdAt).getTime()
+          if (ageMs < 2 * 60 * 1000) setShowIntro(true)
+        }
 
         // Restore clocks from DB so refresh does NOT reset the clock
         if (game.clocks_w_ms != null && game.clocks_b_ms != null && game.turn_started_at) {
@@ -372,6 +389,41 @@ export function PvPGameWrapper() {
       <div style={{ padding: 16, color: "white", background: "#111", minHeight: "100vh" }}>
         Loading game...
       </div>
+    )
+  }
+
+  if (showIntro) {
+    const myAccent  = mySide === "W" ? "#e8e4d8" : "#5de8f7"
+    const oppAccent = mySide === "W" ? "#5de8f7" : "#e8e4d8"
+    return (
+      <MatchIntroOverlay
+        onDone={() => setShowIntro(false)}
+        left={{
+          username: myName,
+          avatar_url: myAvatarUrl,
+          country_code: myCountryCode,
+          elo: myElo,
+          tag: "YOU",
+          account_tier: null,
+          accent: myAccent,
+        }}
+        right={{
+          username: opponentName,
+          avatar_url: opponentAvatarUrl,
+          country_code: opponentCountryCode,
+          elo: opponentElo,
+          tag: null,
+          account_tier: null,
+          accent: oppAccent,
+        }}
+        subtitleLine={`Now playing vs ${opponentName}`}
+        labels={[
+          "Preparing your match...",
+          `Loading ${opponentName}...`,
+          "Shuffling route cards...",
+          "Ready to play!",
+        ]}
+      />
     )
   }
 

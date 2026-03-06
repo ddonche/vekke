@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { fetchGame, type PvPGameData } from "../services/pvp_sync"
 import { GamePage } from "../components/GamePage"
+import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 import type { Player, GameState } from "../engine/state"
 import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
 import type { AiLevel } from "../engine/ai"
@@ -47,6 +48,11 @@ export function AiGameWrapper() {
   const [myElo, setMyElo] = useState<number>(1200)
   const [opponentName, setOpponentName] = useState<string>("Computer")
   const [opponentElo, setOpponentElo] = useState<number>(1200)
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null)
+  const [myCountryCode, setMyCountryCode] = useState<string | null>(null)
+  const [opponentAvatarUrl, setOpponentAvatarUrl] = useState<string | null>(null)
+  const [opponentCountryCode, setOpponentCountryCode] = useState<string | null>(null)
+  const [showIntro, setShowIntro] = useState(false)
 
   const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(
     undefined
@@ -100,7 +106,7 @@ export function AiGameWrapper() {
         // Profile + Elo for the human player
         const { data: myProfile } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, avatar_url, country_code, account_tier")
           .eq("id", userId)
           .maybeSingle()
 
@@ -113,7 +119,7 @@ export function AiGameWrapper() {
         // Fetch AI player profile from DB (AI players now have profile rows)
         const { data: oppProfile } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, avatar_url, country_code, account_tier")
           .eq("id", opponentId)
           .maybeSingle()
 
@@ -133,9 +139,13 @@ export function AiGameWrapper() {
         gameDataRef.current = game
 
         setMyName(myProfile?.username || "You")
+        setMyAvatarUrl((myProfile as any)?.avatar_url ?? null)
+        setMyCountryCode((myProfile as any)?.country_code ?? null)
         setMyElo(myStats?.elo || 1200)
 
         setOpponentName(oppProfile?.username || fallbackName)
+        setOpponentAvatarUrl((oppProfile as any)?.avatar_url ?? null)
+        setOpponentCountryCode((oppProfile as any)?.country_code ?? null)
         setOpponentElo(lvl ? (AI_RATING[lvl] ?? 1200) : 1200)
 
         // Initial clocks (same logic as PvP wrapper)
@@ -146,6 +156,13 @@ export function AiGameWrapper() {
             W: currentPlayer === "W" ? Math.max(0, game.clocks_w_ms - elapsed) : game.clocks_w_ms,
             B: currentPlayer === "B" ? Math.max(0, game.clocks_b_ms - elapsed) : game.clocks_b_ms,
           })
+        }
+
+        // Show intro overlay only for freshly created games (< 2 min old)
+        const createdAt = (game as any).created_at
+        if (createdAt) {
+          const ageMs = Date.now() - new Date(createdAt).getTime()
+          if (ageMs < 2 * 60 * 1000) setShowIntro(true)
         }
 
         setLoading(false)
@@ -233,6 +250,38 @@ export function AiGameWrapper() {
   }, [nav])
 
   if (loading) return <div style={{ padding: 24 }}>Loading…</div>
+
+  if (showIntro) return (
+    <MatchIntroOverlay
+      onDone={() => setShowIntro(false)}
+      left={{
+        username: myName,
+        avatar_url: myAvatarUrl,
+        country_code: myCountryCode,
+        elo: myElo,
+        tag: "YOU",
+        account_tier: null,
+        accent: mySide === "W" ? "#e8e4d8" : "#5de8f7",
+      }}
+      right={{
+        username: opponentName,
+        avatar_url: opponentAvatarUrl,
+        country_code: opponentCountryCode,
+        elo: opponentElo,
+        tag: "AI",
+        account_tier: null,
+        accent: mySide === "W" ? "#5de8f7" : "#e8e4d8",
+      }}
+      subtitleLine={`Now playing vs ${opponentName}`}
+      labels={[
+        "Preparing your match...",
+        `Loading ${opponentName}...`,
+        "Shuffling route cards...",
+        "Placing opening tokens...",
+        "Starting game...",
+      ]}
+    />
+  )
   if (error) return <div style={{ padding: 24, color: "crimson" }}>{error}</div>
   if (!gameData || !mySide) return <div style={{ padding: 24 }}>Missing game data</div>
 
