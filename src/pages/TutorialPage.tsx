@@ -783,8 +783,6 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           borderRadius: 6, padding: warning ? "8px 12px" : 0,
           fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.1em",
           color: "#f87171", textAlign: "center",
-          overflow: warning ? "visible" : "hidden",
-          padding: warning ? "12px 16px" : 0,
         }}
       >
         {warning}

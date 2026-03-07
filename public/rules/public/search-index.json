@@ -2,12 +2,30 @@
 {"href":"/vekke/blog/index.md.html","summary":"A list of all blog articles.","title":"Blog"}
 {"href":"/vekke/blog/mtg-horde-format.md.html","summary":"Horde Format is a Goblin-Lang-themed Magic: The Gathering variant, just for fun.","title":"Horde Format Official Rules"}
 {"href":"/vekke/blog/why-I-made-Sheriff.md.html","summary":"The entire reason I created Sheriff, along with why I created it like this.","title":"Why I Made Sheriff"}
+{"href":"/vekke/docs/board.md.html","summary":"A basic overview of the Vekke board.","title":"Vekke Board"}
+{"href":"/vekke/docs/captives.md.html","summary":"A basic overview of captive units.","title":"Captives"}
+{"href":"/vekke/docs/capture.md.html","summary":"A basic overview of capturing enemy units.","title":"Capture"}
 {"href":"/vekke/docs/changelog.md.html","summary":"A list of changes from each version of Sheriff.","title":"Changelog"}
+{"href":"/vekke/docs/collapse.md.html","summary":"A basic overview of the collapse win condition.","title":"Collapse"}
+{"href":"/vekke/docs/defection.md.html","summary":"A basic overview of the defection special action.","title":"Defection"}
+{"href":"/vekke/docs/direction.md.html","summary":"A basic overview of movement direction.","title":"Direction"}
+{"href":"/vekke/docs/distance.md.html","summary":"A basic overview of movement distance.","title":"Distance"}
+{"href":"/vekke/docs/double_siege.md.html","summary":"A basic overview of the double siege.","title":"Double Siege"}
+{"href":"/vekke/docs/elimination.md.html","summary":"A basic overview of the elimination win condition.","title":"Elimination"}
 {"href":"/vekke/docs/guides/focus_panels.md.html","summary":"A sticky “reference card” that swaps images when you hover or click focus links.","title":"Focus Panels"}
 {"href":"/vekke/docs/guides/themes_layout.md.html","summary":"How themes, layouts, and overrides work in Sheriff.","title":"Themes in Sheriff"}
-{"href":"/vekke/docs/index.md.html","summary":"A basic intro to Vekke.","title":"Vekke Overview"}
+{"href":"/vekke/docs/ikeda_siege.md.html","summary":"A basic overview of the 5 sided siege.","title":"Ikeda Siege"}
+{"href":"/vekke/docs/july_siege.md.html","summary":"A basic overview of the 7 sided siege.","title":"July Siege"}
 {"href":"/vekke/docs/missing.md.html","summary":"What you see when you visit a link to a page that doesn't exist yet.","title":"Missing Page"}
+{"href":"/vekke/docs/notation.md.html","summary":"How to log your actions to track games.","title":"Notation"}
+{"href":"/vekke/docs/perfect_siege.md.html","summary":"A basic overview of the 8 sided siege.","title":"Perfect Siege"}
 {"href":"/vekke/docs/roadmap.md.html","summary":"A list of upcoming features and fixes for Sheriff.","title":"Roadmap"}
+{"href":"/vekke/docs/rover.md.html","summary":"An explanation of the unofficial rover term.","title":"Rover"}
+{"href":"/vekke/docs/seattle_siege.md.html","summary":"A basic overview of the 4 sided siege.","title":"Seattle Siege"}
+{"href":"/vekke/docs/siegemate.md.html","summary":"A basic overview of the siegemate win condition.","title":"Siegemate"}
 {"href":"/vekke/docs/standard_format.md.html","summary":"Rules for the Standard format.","title":"Standard Format Rules"}
+{"href":"/vekke/docs/tokens.md.html","summary":"An explanation of the token game component.","title":"Tokens"}
 {"href":"/vekke/docs/tournament_format.md.html","summary":"Rules for the Tournament format.","title":"Tournament Format Rules"}
 {"href":"/vekke/docs/vekke_game_notation.md.html","summary":"Guidelines and spec for VGN.","title":"Vekke Game Notation"}
+{"href":"/vekke/docs/worthington_siege.md.html","summary":"A basic overview of the 6 sided siege.","title":"Worthington Siege"}
+{"href":"/vekke/index.md.html","summary":"A basic intro to Vekke.","title":"Vekke Overview"}

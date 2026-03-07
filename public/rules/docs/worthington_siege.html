@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Worthington Siege</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+    <script src="http://localhost:5173/vekke-header.js"></script>
+</head>
+<body>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
+    <div class="sheriff-shell" id="top">
+        <div class="sheriff-header">
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </div>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+            <div class="section-header">
+              <span>DOCUMENTATION</span>
+            </div>
+            
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/index.html">Introduction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Print and Play</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Timeout</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Resignation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Abandoning</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/board.html">Board</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Drafting</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Early Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Extra Reinforcement</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Flanking</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Illegal Actions</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Invasion</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Korochev Maneuver</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/notation.html">Notation</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Opening</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Ransom</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Recoil</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reference Cards</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reinforcements</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reserves</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Routes</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Hand</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Markers</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Queue</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Segura</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Space</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Units</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wildcards</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Dragon</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Wolf</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Serpent</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Spider</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Raven</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Kraken</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Turtle</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Stag</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Fox</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wild</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Explorer</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Technical</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/vekke_game_notation.html">Vekke Game Notation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            </ul>
+
+            
+</aside>
+
+            <article class="sheriff-article">
+              <header class="sheriff-page-header">
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">example</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">documentation</span>
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[worthington-siege]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[worthington-siege]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                  </div>
+                </div>
+                <h1>Worthington Siege</h1>
+                <div class="sheriff-title-underline"></div>
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 5 min read
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <p>Another kind of siege is the 6-sided, or <em>Worthington</em> siege. Simply surround an enemy unit on any 6 sides to perform a Worthington.</p>
+<hr />
+<h2><a href="#surround-on-6-sides" aria-hidden="true" class="anchor" id="surround-on-6-sides"></a>Surround on 6 Sides</h2>
+<p>To do the Worthington siege, you must surround a token on 6 sides.</p>
+<p><span class="sheriff-image-block"><img src="/public/images/worthington.png" alt="A Worthington siege (6-sided surround on c3)" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">A Worthington siege (6-sided surround on c3)</span></span></p>
+<p>Any 6 adjacent spaces creates a Worthington siege. Notice how the Stag unit above (burgundy token) on c3 has 6 Kraken units surrounding it (navy tokens).</p>
+<div class="sheriff-admon sheriff-admon-important"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Important</span></div><div class="sheriff-admon-body">Grid coordinates use lower case letters. This is because capital letters mean something else in Vekke <a href="/docs/notation.html" class="sheriff-link" data-gloss="Shorthand notation used by players to keep track of actions during a game.">notation</a>.</div></div>
+<p><span class="sheriff-image-block"><img src="/public/images/worthington2.png" alt="Variation of a Worthington siege with different adjacent positions" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">Variation of a Worthington siege with different adjacent positions</span></span></p>
+<p>As you can see, Stag above is under siege still, but the sieging units are on different grid spaces.</p>
+<div class="sheriff-admon sheriff-admon-strategy"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Strategy</span></div><div class="sheriff-admon-body">Remember, you can end the game if all enemy tokens are under siege and they have no reinforcements to place on their turn. This is called a <a href="/docs/siegemate.html" class="sheriff-link" data-gloss="Winning by locking up all enemy units in play via siege while they have no reinforcements.">siegemate</a>.</div></div>
+<hr />
+<h2><a href="#sieged-tokens-become-locked" aria-hidden="true" class="anchor" id="sieged-tokens-become-locked"></a>Sieged Tokens Become Locked</h2>
+<p>Any token that is under siege is locked. It cannot be moved until the siege is broken or the opponent abandons it (by moving one of the sieging units away). A sieged unit will show that it is locked by having a dashed outline around it.</p>
+<hr />
+<h2><a href="#worthington-sieges-are-stable" aria-hidden="true" class="anchor" id="worthington-sieges-are-stable"></a>Worthington Sieges are Stable</h2>
+<p>Because <a href="/docs/seattle_siege.html" class="sheriff-link" data-gloss="A siege involving 4 adjacent tokens; the minimum required to make a siege.">Seattle</a> sieges involve only 4 units, they are easiest to break. You can &quot;rescue&quot; a sieged token by simply capturing one of the 4 &quot;siegers&quot;. To rescue a sieged token that's under Worthington, you must remove 3 enemy tokens. This makes it stronger than the basic Seattle or the <a href="/docs/ikeda_siege.html" class="sheriff-link" data-gloss="A siege involving 5 adjacent tokens.">Ikeda</a>.</p>
+<hr />
+<h2><a href="#worthington-is-harder-to-abandon" aria-hidden="true" class="anchor" id="worthington-is-harder-to-abandon"></a>Worthington is Harder to Abandon</h2>
+<p>Because Worthington sieges involve 6 tokens, you can move two units away if you need to while maintaining the siege. This is not the case with 4-sided sieges:</p>
+<p>If a player only has 4 units in play, and they all engaged in a siege, at least one unit must &quot;abandon&quot; the siege to use all the routes on their turn. This breaks the siege, at least temporarily. If the siege is to be maintained, one of two things must happen:</p>
+<ul>
+<li>the player must try to maneuver in such a way as to return the &quot;roving&quot; unit back to the siege</li>
+<li>the player must put a reinforcement to create the siege again</li>
+</ul>
+<p>Thus, there is less risk involved with the 6-sided siege. You have more options.</p>
+<hr />
+<h2><a href="#edge-units" aria-hidden="true" class="anchor" id="edge-units"></a>Edge Units</h2>
+<p>Worthington sieges are impossible on edge units, as they have only 5 adjacent spaces (maximum <a href="/docs/ikeda_siege.html" class="sheriff-link" data-gloss="A siege involving 5 adjacent tokens.">Ikeda</a> siege; see example on f5). Below you see the Kraken unit on f5 under siege this way.</p>
+<p><span class="sheriff-image-block"><img src="/public/images/ikeda3.png" alt="Edge-position siege limitation (maximum Ikeda/5-sided on f5; Worthington impossible)" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">Edge-position siege limitation (maximum Ikeda/5-sided on f5; Worthington impossible)</span></span></p>
+<hr />
+<h2><a href="#see-also" aria-hidden="true" class="anchor" id="see-also"></a>See Also</h2>
+<ul>
+<li><a href="/docs/seattle_siege.html" class="sheriff-link" data-gloss="A siege involving 4 adjacent tokens; the minimum required to make a siege.">Seattle Siege</a></li>
+<li><a href="/docs/ikeda_siege.html" class="sheriff-link" data-gloss="A siege involving 5 adjacent tokens.">Ikeda Siege</a></li>
+<li><a href="/docs/july_siege.html" class="sheriff-link" data-gloss="A siege involving 7 adjacent tokens.">July Siege</a></li>
+<li><a href="/docs/perfect_siege.html" class="sheriff-link" data-gloss="Surrounding an enemy token on all 8 sides; results in a capture.">Perfect Siege</a></li>
+<li><a href="/docs/double_siege.html" class="sheriff-link" data-gloss="A board position where you create multiple sieges with one unit.">Double Siege</a></li>
+<li><a href="/docs/siegemate.html" class="sheriff-link" data-gloss="Winning by locking up all enemy units in play via siege while they have no reinforcements.">Siegemate</a></li>
+</ul>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Worthington Siege</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#surround-on-6-sides">Surround on 6 Sides</a></li>
+<li class="toc-item toc-level-2"><a href="#sieged-tokens-become-locked">Sieged Tokens Become Locked</a></li>
+<li class="toc-item toc-level-2"><a href="#worthington-sieges-are-stable">Worthington Sieges are Stable</a></li>
+<li class="toc-item toc-level-2"><a href="#worthington-is-harder-to-abandon">Worthington is Harder to Abandon</a></li>
+<li class="toc-item toc-level-2"><a href="#edge-units">Edge Units</a></li>
+<li class="toc-item toc-level-2"><a href="#see-also">See Also</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    <script src="/public/js/gloss_tooltips.js" defer></script>
+    
+</body>
+</html>

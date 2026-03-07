@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Direction</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+    <script src="http://localhost:5173/vekke-header.js"></script>
+</head>
+<body>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
+    <div class="sheriff-shell" id="top">
+        <div class="sheriff-header">
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </div>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+            <div class="section-header">
+              <span>DOCUMENTATION</span>
+            </div>
+            
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/index.html">Introduction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Print and Play</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Timeout</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Resignation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Abandoning</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/board.html">Board</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Drafting</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Early Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Extra Reinforcement</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Flanking</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Illegal Actions</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Invasion</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Korochev Maneuver</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/notation.html">Notation</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Opening</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Ransom</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Recoil</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reference Cards</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reinforcements</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reserves</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Routes</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Hand</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Markers</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Queue</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Segura</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Space</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Units</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wildcards</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Dragon</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Wolf</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Serpent</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Spider</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Raven</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Kraken</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Turtle</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Stag</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Fox</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wild</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Explorer</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Technical</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/vekke_game_notation.html">Vekke Game Notation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            </ul>
+
+            
+</aside>
+
+            <article class="sheriff-article">
+              <header class="sheriff-page-header">
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">example</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">documentation</span>
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[direction]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[direction]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                  </div>
+                </div>
+                <h1>Direction</h1>
+                <div class="sheriff-title-underline"></div>
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 5 min read
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <p>Vekke is the 'Game of Routes'. Unlike chess, which has 6 different pieces, each with their own movement patterns, Vekke's units are represented by identical tokens. Movement is dictated by <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">routes</a>. There are 28 unique routes, each with a pairing of both <strong>direction</strong> and <a href="/docs/distance.html" class="sheriff-link" data-gloss="There are 4 distances in Vekke. These, along with direction, dictate where you can move units.">distance</a>. Players use these routes to move the tokens according to the markings on each route icon.</p>
+<hr />
+<h2><a href="#the-8-directions" aria-hidden="true" class="anchor" id="the-8-directions"></a>The 8 Directions</h2>
+<p>Vekke is played on a 6x6 grid <a href="/docs/board.html" class="sheriff-link" data-gloss="Vekke is played on a 6x6 grid or intersection style board.">board</a>. There are 8 possible directions you can move. These are annotated on the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">route markers</a> with an arrow pointing in the direction of movement. These are visually distinct from distance, which is represented by pips. In all formats except <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Explorer</a>, directions are numbered 1 through 8, with 1 being up (North).</p>
+<p><span class="sheriff-image-block"><img src="/public/images/route_markers.png" alt="A diagram of every route marker; direction is shown in arrows on the top half" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">A diagram of every route marker; direction is shown in arrows on the top half</span></span></p>
+<p>See below for each direction:</p>
+<ul>
+<li>1 is up (North)</li>
+<li>2 is up-right (Northeast)</li>
+<li>3 is right (East)</li>
+<li>4 is down-right (Southeast)</li>
+<li>5 is down (South)</li>
+<li>6 is down-left (Southwest)</li>
+<li>7 is left (West)</li>
+<li>8 is up-left (Northwest)</li>
+</ul>
+<p><span class="sheriff-image-block"><img src="/public/images/direction_diagram.png" alt="A grid style board with all 8 directions annotated, showing in red." class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">A grid style board with all 8 directions annotated, showing in red.</span></span></p>
+<div class="sheriff-admon sheriff-admon-note"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Note</span></div><div class="sheriff-admon-body">In the physical game, directions are from B <em>brake</em> side. In Vekke, we say &quot;8 is NW from brake&quot;. The board will have a blue border on one side and white border on the other to know which side is which. Also note that all route markers must be situated so that the arrow icons are towards the W <em>wake</em> player. This is so there is no ambiguity as to which direction the route intends.</div></div>
+<hr />
+<h2><a href="#notation" aria-hidden="true" class="anchor" id="notation"></a>Notation</h2>
+<p>Route notation is always done with direction first, followed by distance. So the route 7/2 is in the direction of 7 (West) for 2 spaces.</p>
+<hr />
+<h2><a href="#explorer-format" aria-hidden="true" class="anchor" id="explorer-format"></a>Explorer Format</h2>
+<p>In <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Explorer Format</a>, you have the option of randomizing the directions. To do so, you simply use <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">direction markers</a>, which you place around the board to show what each new direction is.</p>
+<div class="sheriff-admon sheriff-admon-important"><div class="sheriff-admon-head"><span class="sheriff-admon-title">You need full pips for this</span></div><div class="sheriff-admon-body">Note that to use this format, you will need route markers with pips on both sides (direction <em>and</em> distance). This format adds replayability and strategic uncertainty by redefining direction mappings each game.</div></div>
+<hr />
+<h2><a href="#see-also" aria-hidden="true" class="anchor" id="see-also"></a>See Also</h2>
+<ul>
+<li><a href="/docs/distance.html" class="sheriff-link" data-gloss="There are 4 distances in Vekke. These, along with direction, dictate where you can move units.">Distance</a></li>
+<li><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Route Marker</a></li>
+<li><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Direction Markers</a></li>
+<li><a href="/docs/board.html" class="sheriff-link" data-gloss="Vekke is played on a 6x6 grid or intersection style board.">Board</a></li>
+<li><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Explorer Format</a></li>
+</ul>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Direction</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#the-8-directions">The 8 Directions</a></li>
+<li class="toc-item toc-level-2"><a href="#notation">Notation</a></li>
+<li class="toc-item toc-level-2"><a href="#explorer-format">Explorer Format</a></li>
+<li class="toc-item toc-level-2"><a href="#see-also">See Also</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    <script src="/public/js/gloss_tooltips.js" defer></script>
+    
+</body>
+</html>

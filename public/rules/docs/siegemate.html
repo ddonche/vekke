@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Siegemate</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+    <script src="http://localhost:5173/vekke-header.js"></script>
+</head>
+<body>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
+    <div class="sheriff-shell" id="top">
+        <div class="sheriff-header">
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
+          </div>
+        </div>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
+
+            <div class="section-header">
+              <span>DOCUMENTATION</span>
+            </div>
+            
+<ul>
+
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/index.html">Introduction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Print and Play</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Timeout</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Resignation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Abandoning</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/board.html">Board</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Drafting</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Early Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Extra Reinforcement</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Flanking</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Illegal Actions</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Invasion</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Korochev Maneuver</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/notation.html">Notation</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Opening</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Ransom</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Recoil</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reference Cards</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reinforcements</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reserves</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Routes</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Hand</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Markers</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Queue</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Segura</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Space</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Units</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wildcards</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Dragon</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Wolf</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Serpent</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Spider</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Raven</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Kraken</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Turtle</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Stag</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Fox</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wild</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Explorer</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Technical</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+            <li>
+              <a class="sheriff-link" href="/docs/vekke_game_notation.html">Vekke Game Notation</a>
+            </li>
+            </ul>
+
+              </details>
+            </li>
+            </ul>
+
+            
+</aside>
+
+            <article class="sheriff-article">
+              <header class="sheriff-page-header">
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">example</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">documentation</span>
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[siegemate]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[siegemate]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                  </div>
+                </div>
+                <h1>Siegemate</h1>
+                <div class="sheriff-title-underline"></div>
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 5 min read
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
+
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <p>There are five ways to win in Vekke. One of the most common is by locking up all enemy <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">units</a> on the <a href="/docs/board.html" class="sheriff-link" data-gloss="Vekke is played on a 6x6 grid or intersection style board.">board</a>. In order to get the <em>siegemate</em> victory, they also cannot have any <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reinforcements</a> to play on their turn.</p>
+<div class="sheriff-admon sheriff-admon-lore"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Lore</span></div><div class="sheriff-admon-body">The siegemate is named after <em>checkmate</em> in Chess. In Chess, you win by placing the King under <em>check</em> until it no longer has anywhere it can move (and you cannot attack the threatening pieces).<sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-checkmate" id="fnref-checkmate" data-footnote-ref>1</a></sup> In Vekke, placing a unit under siege locks the piece in place, making it unable to maneuver.</div></div>
+<hr />
+<h2><a href="#sieging-enemy-units" aria-hidden="true" class="anchor" id="sieging-enemy-units"></a>Sieging Enemy Units</h2>
+<p>To do a basic siege, you must surround a token on at least 4 sides. Surrounding on only 4 sides is called a <a href="/docs/seattle_siege.html" class="sheriff-link" data-gloss="A siege involving 4 adjacent tokens; the minimum required to make a siege.">Seattle Siege</a>.</p>
+<p><span class="sheriff-image-block"><img src="/public/images/seattle.png" alt="A basic Seattle siege (4-sided surround on c4)" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">A basic Seattle siege (4-sided surround on c4)</span></span></p>
+<p>These can be any 4 adjacent spaces. Notice how the Kraken unit above (navy token) on c4 has 4 Stag units surrounding it (burgundy tokens).</p>
+<div class="sheriff-admon sheriff-admon-important"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Important</span></div><div class="sheriff-admon-body">Grid coordinates use lower case letters. This is because capital letters mean something else in Vekke <a href="/docs/notation.html" class="sheriff-link" data-gloss="Shorthand notation used by players to keep track of actions during a game.">notation</a>.</div></div>
+<p><span class="sheriff-image-block"><img src="/public/images/seattle2.png" alt="Variation of a Seattle siege with different adjacent positions" class="sheriff-image sheriff-image-full sheriff-align-center"><span class="sheriff-image-caption">Variation of a Seattle siege with different adjacent positions</span></span></p>
+<p>As you can see, Kraken above is under siege still, but the units are on different grid spaces.</p>
+<div class="sheriff-admon sheriff-admon-strategy"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Strategy</span></div><div class="sheriff-admon-body">You can siege with more than 4 units, which is harder to escape from.<br /></div></div>
+<div class="sheriff-admon sheriff-admon-lore"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Lore</span></div><div class="sheriff-admon-body">Surrounding enemy pieces was inspired by Go, where one of the strategies is to surround opposing pieces.<sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-surround" id="fnref-surround" data-footnote-ref>2</a></sup></div></div>
+<hr />
+<h2><a href="#getting-the-siegemate" aria-hidden="true" class="anchor" id="getting-the-siegemate"></a>Getting the Siegemate</h2>
+<p>If all your enemy units are under siege, this might still not result in a <em>siegemate</em>. This is because as long as they can place <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reinforcements</a>, they are still in the game.</p>
+<div class="sheriff-admon sheriff-admon-note"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Note</span></div><div class="sheriff-admon-body">Remember, for every route that cannot be used during a player's turn, they must <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">yield</a> 1 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">unit</a> from their <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a> to the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">void</a>.</div></div>
+<p>So if a player starts their turn with every piece in play under siege, they will have 3 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">routes</a> they cannot use, so they must yield 3 reserves to the void. This means that if they have 3 or fewer reserves while all their units in play are under siege, you win by <em>siegemate</em>.</p>
+<div class="sheriff-admon sheriff-admon-strategy"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Strategy</span></div><div class="sheriff-admon-body">If you can create an early <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a> and keep reinforcing it with more units, you can essentially hold that piece the entire game, making siegemate more likely.</div></div>
+<div class="sheriff-admon sheriff-admon-lore"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Lore</span></div><div class="sheriff-admon-body">Sieging and holding sieges is a dominant strategy employed by <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Order of the Serpent</a>. This is because the philosophy of serpent is to <em>constrict</em>, first and foremost.</div></div>
+<nav class="sheriff-nextprev" aria-label="Article navigation"><div class="sheriff-nextprev-row"><div class="sheriff-nextprev-item sheriff-nextprev-prev"><a href="/docs/elimination.html" class="sheriff-link sheriff-nav-prev" data-gloss="Winning by eliminating all enemy units from the board through capture.">Elimination</a></div><div class="sheriff-nextprev-item sheriff-nextprev-next"><a href="/docs/collapse.html" class="sheriff-link sheriff-nav-next" data-gloss="Winning when your opponent cannot make any moves and has no reserves to pay the unusable route tax (self-inflicted).">Collapse</a></div></div></nav>
+<nav class="sheriff-nextprev sheriff-related-nav" aria-label="Article navigation"><div class="sheriff-related"><div class="sheriff-related-title">Related</div><ul class="sheriff-related-list"><li class="sheriff-related-item"><a href="/docs/missing.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Timeout</span><span class="sheriff-related-desc"></span></a></li><li class="sheriff-related-item"><a href="/docs/missing.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Resignation</span><span class="sheriff-related-desc"></span></a></li><li class="sheriff-related-item"><a href="/docs/missing.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Draw</span><span class="sheriff-related-desc"></span></a></li></ul></div></nav>
+<section id="footnotes" class="footnotes sheriff-footnotes" data-footnotes>
+<ol>
+<li id="fn-checkmate">
+<p>Chandan, S. (2021). <em>Checkmates – Basics, Rules and Types of Popular Checkmates in Chess</em>. Chessklub. <a href="https://chessklub.com/checkmate/">https://chessklub.com/checkmate/</a> <a href="#fnref-checkmate" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="fn-surround">
+<p>Baker, K. (2008). <em>How to Play Go</em>. Yellow Mountain Imports. <a href="https://www.ymimports.com/pages/how-to-play-go">https://www.ymimports.com/pages/how-to-play-go</a> <a href="#fnref-surround" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="2" aria-label="Back to reference 2">↩</a></p>
+</li>
+</ol>
+</section>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                <nav class="sheriff-breadcrumbs" aria-label="Breadcrumb"><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Docs</span></div><div class="sheriff-breadcrumb-row"><span class="sheriff-breadcrumb-arrow">↳</span><span class="sheriff-breadcrumb-link sheriff-link">Siegemate</span></div></nav> <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#sieging-enemy-units">Sieging Enemy Units</a></li>
+<li class="toc-item toc-level-2"><a href="#getting-the-siegemate">Getting the Siegemate</a></li>
+<li class="toc-item toc-level-2"><a href="#footnotes">References & Footnotes</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    <script src="/public/js/gloss_tooltips.js" defer></script>
+    
+</body>
+</html>

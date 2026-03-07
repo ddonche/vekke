@@ -16,12 +16,12 @@
 
 /* site/portals/vekke/override.css (or goblin/override.css) */
 
-/* Missing-page links — HARD CODED COLOR TEST */
-.sheriff-article a.sheriff-missing-link{
+/* Missing-page links — apply everywhere (sidebar, nav, article) */
+a.sheriff-missing-link{
   color: #ee484c !important;
 }
 
-.sheriff-article a.sheriff-missing-link:hover{
-  color: #ee484c !important;
+a.sheriff-missing-link:hover{
+  color: #9775a7 !important;
   text-decoration: underline;
 }

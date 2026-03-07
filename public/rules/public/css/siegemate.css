@@ -7,13 +7,13 @@
 :root {
   /* ── Vekke palette ─────────────────────────────────── */
   --vk-bg-base:       #0a0a0c;
-  --vk-bg-surface:    #0f0f14;
+  --vk-bg-surface:    #282c30;
   --vk-bg-elevated:   #13131a;
   --vk-bg-header:     #0d0d10;
   --vk-border-subtle: rgba(255,255,255,0.07);
   --vk-border-mid:    rgba(255,255,255,0.12);
   --vk-border-strong: rgba(255,255,255,0.20);
-  --vk-text-primary:  #e8e4d8;
+  --vk-text-primary:  #c4bfb0;
   --vk-text-secondary:#b0aa9e;
   --vk-text-muted:    #6b6558;
   --vk-text-faint:    #3a3830;
@@ -79,6 +79,7 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 18px;
 }
 
 body {
@@ -91,6 +92,7 @@ body {
   background: var(--sheriff-bg);
   color: var(--sheriff-text);
   font-family: var(--vk-font-body);
+  font-size: 1.25rem;
 }
 
 /* External link indicator */
@@ -191,7 +193,7 @@ button a::after {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-size: 1.05rem;
-  color: var(--vk-gold-bright);
+  color: var(--vk-text-primary);
   font-family: var(--vk-font-display);
   display: flex;
   align-items: baseline;
@@ -199,7 +201,7 @@ button a::after {
 }
 
 .sheriff-version-badge {
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   font-weight: 400;
   color: var(--sheriff-muted);
   line-height: 1.2;
@@ -219,7 +221,7 @@ button a::after {
   border-radius: 0.5rem;
   border: 1px solid var(--sheriff-border);
   background: var(--sheriff-input-bg);
-  font-size: 0.8rem;
+  font-size: 0.9375rem;
   cursor: pointer;
 }
 
@@ -240,7 +242,7 @@ button a::after {
   border-radius: 0.5rem;
   border: 1px solid var(--sheriff-border);
   background: var(--sheriff-input-bg);
-  font-size: 0.85rem;
+  font-size: 1rem;
   min-width: 12rem;
 }
 
@@ -255,7 +257,7 @@ button a::after {
   border: none;
   outline: none;
   flex: 1;
-  font-size: 0.85rem;
+  font-size: 1rem;
   background: transparent;
   color: var(--sheriff-text);
 }
@@ -265,7 +267,7 @@ button a::after {
 }
 
 .sheriff-search-shortcut {
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   padding: 0.1rem 0.3rem;
   border-radius: 0.25rem;
   border: 1px solid var(--sheriff-border);
@@ -276,7 +278,7 @@ button a::after {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   text-decoration: none;
 }
 
@@ -296,7 +298,7 @@ button a::after {
 .sheriff-github-repo {
   font-weight: 600;
   color: var(--sheriff-link);
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   transition: color 0.15s ease;
 }
 
@@ -304,7 +306,7 @@ button a::after {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: var(--sheriff-muted);
 }
 
@@ -359,7 +361,7 @@ button a::after {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
@@ -375,7 +377,7 @@ button a::after {
 }
 
 .sheriff-page-meta-label {
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -396,7 +398,7 @@ button a::after {
 
 /* Byline: LEFT (author, readtime) | RIGHT (icons) */
 .sheriff-page-byline {
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: var(--sheriff-muted);
   margin-bottom: 0;
   display: flex;
@@ -435,6 +437,665 @@ button a::after {
   font-weight: 400;          /* same as author text */
   font-family: inherit;      /* no monospace here */
   letter-spacing: normal;
+  font-size: 0.9375rem;
+}
+
+/* ========================================================================== */
+/* ARTICLE NAV BLOCKS (::: nav) — VEKKE THEME                                 */
+/* ========================================================================== */
+
+.sheriff-nextprev {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 1rem 0;
+  margin: 0.5rem 0 0 0;
+}
+
+.sheriff-nextprev-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.sheriff-nextprev-item {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.sheriff-nextprev-prev { text-align: left; }
+.sheriff-nextprev-next { text-align: right; }
+
+.sheriff-nav-prev,
+.sheriff-nav-next {
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: #b8966a;
+  transition: color 0.15s ease;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.sheriff-nav-prev:hover,
+.sheriff-nav-next:hover {
+  color: #5de8f7;
+}
+
+.sheriff-nav-prev::before,
+.sheriff-nav-next::before {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #6b6558;
+  margin-bottom: 0.3rem;
+  transition: color 0.15s ease;
+}
+
+.sheriff-nav-prev::before { content: "← Previous"; }
+.sheriff-nav-next::before { content: "Next →"; }
+
+.sheriff-nav-prev:hover::before,
+.sheriff-nav-next:hover::before {
+  color: #5de8f7;
+}
+
+/* single-side edge cases */
+.sheriff-nextprev-row:has(.sheriff-nextprev-prev):not(:has(.sheriff-nextprev-next)) {
+  justify-content: flex-start;
+}
+.sheriff-nextprev-row:has(.sheriff-nextprev-next):not(:has(.sheriff-nextprev-prev)) {
+  justify-content: flex-end;
+}
+
+/* -------------------------------------------------------------------------- */
+/* RELATED                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.sheriff-related {
+  padding-top: 1rem;
+  margin-top: 0.25rem;
+}
+
+.sheriff-related-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #6b6558;
+  margin-bottom: 0.65rem;
+}
+
+.sheriff-related-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.sheriff-article .sheriff-related-list {
+  padding-left: 0;
+  margin: 0;
+}
+
+.sheriff-related-item {
+  margin: 0;
+  padding: 0;
+}
+
+.sheriff-related-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.sheriff-related-item:only-child {
+  grid-column: 1 / -1;
+}
+
+.sheriff-nav-related {
+  display: block;
+  padding: 0.85rem 2.5rem 0.8rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  text-decoration: none;
+  color: #b8966a;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  position: relative;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.15s ease;
+}
+
+.sheriff-nav-related:hover {
+  border-color: rgba(93, 232, 247, 0.35);
+  background: rgba(93, 232, 247, 0.04);
+  color: #5de8f7;
+}
+
+.sheriff-nav-related::after {
+  content: "→";
+  position: absolute;
+  top: 0.85rem;
+  right: 0.9rem;
+  font-size: 0.85rem;
+  color: #6b6558;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.sheriff-nav-related:hover::after {
+  color: #5de8f7;
+  transform: translateX(3px);
+}
+
+/* full card treatment — when renderer emits tag/desc spans */
+.sheriff-nav-related:has(.sheriff-related-tag) {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheriff-related-tag {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #6b6558;
+  margin-bottom: 0.4rem;
+  transition: color 0.15s ease;
+}
+
+.sheriff-nav-related:hover .sheriff-related-tag {
+  color: rgba(93, 232, 247, 0.6);
+}
+
+.sheriff-related-name {
+  display: block;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #b8966a;
+  line-height: 1.3;
+  margin-bottom: 0.35rem;
+  transition: color 0.15s ease;
+}
+
+.sheriff-nav-related:hover .sheriff-related-name {
+  color: #5de8f7;
+}
+
+.sheriff-related-desc {
+  display: block;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #6b6558;
+  line-height: 1.6;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tag accent stubs                                                           */
+/* -------------------------------------------------------------------------- */
+/*
+.sheriff-related-item[data-tag="reference"] .sheriff-nav-related { border-top: 2px solid #5de8f7; }
+.sheriff-related-item[data-tag="guide"]     .sheriff-nav-related { border-top: 2px solid #b8966a; }
+.sheriff-related-item[data-tag="lore"]      .sheriff-nav-related { border-top: 2px solid #4B2A7A; }
+.sheriff-related-item[data-tag="strategy"]  .sheriff-nav-related { border-top: 2px solid #0047AB; }
+.sheriff-related-item[data-tag="warning"]   .sheriff-nav-related { border-top: 2px solid #ee484c; }
+*/
+
+/* -------------------------------------------------------------------------- */
+/* Mobile                                                                     */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .sheriff-nextprev-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .sheriff-nextprev-next {
+    text-align: left;
+  }
+
+  .sheriff-related-list {
+    grid-template-columns: 1fr;
+  }
+
+  .sheriff-related-item:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+/* ========================================================================== */
+/* FOOTNOTES (Comrak) */
+/* 15px main, 14.4px paragraphs, tighter line-height */
+/* ========================================================================== */
+
+section.footnotes,
+section.sheriff-footnotes {
+  margin-top: 2.25rem;
+  font-family: var(--vk-font-body);
+  font-size: 0.9375rem;                  /* 15px */
+  line-height: 1.6;
+  color: var(--vk-text-secondary);
+}
+
+/* Section label */
+section.footnotes::before,
+section.sheriff-footnotes::before {
+  content: "References & Footnotes";
+  display: block;
+  margin: 0 0 0.75rem 0;
+  font-family: var(--vk-font-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--vk-gold-dim);
+  opacity: 0.9;
+}
+
+/* Divider if present */
+section.footnotes > hr,
+section.sheriff-footnotes > hr {
+  border: none;
+  border-top: 1px solid var(--sheriff-border);
+  margin: 0.75rem 0 1rem 0;
+}
+
+/* Footnote list */
+section.footnotes ol,
+section.sheriff-footnotes ol {
+  margin: 0;
+  padding-left: 1.75rem;
+}
+
+section.footnotes li,
+section.sheriff-footnotes li {
+  margin: 0.65rem 0;
+  font-size: inherit;
+  line-height: 1.6;
+}
+
+/* Paragraphs inside footnotes */
+section.footnotes li p,
+section.sheriff-footnotes li p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;                     /* 14.4px */
+  color: inherit;
+}
+
+/* Footnote marker ([1], [2], etc.) */
+section.footnotes li::marker,
+section.sheriff-footnotes li::marker {
+  color: var(--vk-text-muted);
+}
+
+/* Inline superscript references in body text */
+sup.footnote-ref,
+sup.sheriff-footnote-ref {
+  font-size: 0.625em;                    /* ~10px */
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 0.1rem;
+}
+
+sup.footnote-ref a,
+sup.sheriff-footnote-ref a {
+  text-decoration: none;
+  color: var(--sheriff-link);
+  font-family: var(--vk-font-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+sup.footnote-ref a:hover,
+sup.sheriff-footnote-ref a:hover {
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
+}
+
+/* Back-to-text link – use native Comrak arrow */
+a.footnote-backref,
+a.sheriff-footnote-backref {
+  text-decoration: none;
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--sheriff-link);
+  opacity: 0.9;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+a.footnote-backref:hover,
+a.sheriff-footnote-backref:hover {
+  color: var(--sheriff-link-hover);
+  opacity: 1;
+}
+
+/* ========================================================================== */
+/* ADMONITIONS (Flat margin-note style)                                       */
+/* Muted background wash + colored title + simple left border                 */
+/* ========================================================================== */
+
+:root {
+  /* =========================
+     ACCENT COLORS (DARK)
+     ========================= */
+
+  --admon-note:      #b8966a;  /* gold */
+  --admon-tip:       #c77a2c;  /* burnt orange */
+  --admon-warning:   #ee484c;  /* red */
+  --admon-important: #355e3b;  /* hunter green */
+  --admon-example:   #9a9487;  /* parchment neutral */
+  --admon-strategy:  #2f4f6b;  /* slate/navy */
+  --admon-lore: #1f5c5b;  /* deep teal */
+
+  /* =========================
+     MUTED BACKGROUND WASHES (DARK)
+     ========================= */
+
+  --admon-note-bg:      rgba(184,150,106,0.10);
+  --admon-tip-bg:       rgba(199,122,44,0.10);
+  --admon-warning-bg:   rgba(238,72,76,0.09);
+  --admon-important-bg: rgba(53,94,59,0.12);
+  --admon-example-bg:   rgba(154,148,135,0.08);
+  --admon-strategy-bg:  rgba(47,79,107,0.11);
+  --admon-lore-bg: rgba(31,92,91,0.14);
+
+  --admon-left-w: 5px;
+  --admon-divider: rgba(255,255,255,0.08);
+}
+
+:root[data-theme="light"] {
+  /* Light theme tuned separately so it doesn't look muddy */
+
+  --admon-note:      #b8966a;
+  --admon-tip:       #c06f20;
+  --admon-warning:   #c93737;
+  --admon-important: #2f5333;
+  --admon-example:   #7d776c;
+  --admon-strategy:  #2c4a63;
+  --admon-lore:      #7a5c3a;
+
+  --admon-note-bg:      rgba(184,150,106,0.18);
+  --admon-tip-bg:       rgba(192,111,32,0.14);
+  --admon-warning-bg:   rgba(201,55,55,0.14);
+  --admon-important-bg: rgba(47,83,51,0.14);
+  --admon-example-bg:   rgba(125,119,108,0.10);
+  --admon-strategy-bg:  rgba(44,74,99,0.14);
+  --admon-lore-bg:      rgba(122,92,58,0.12);
+
+  --admon-divider: rgba(0,0,0,0.10);
+}
+
+/* =========================
+   BASE BLOCK
+   ========================= */
+
+.sheriff-admon {
+  margin: 1.4rem 0 1.7rem 0;
+
+  background: var(--admon-bg);
+  border: none;
+  border-left: var(--admon-left-w) solid var(--admon-accent);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* =========================
+   HEADER
+   ========================= */
+
+.sheriff-admon-head {
+  padding: 0.85rem 1rem 0.55rem 1rem;
+  border-bottom: 1px solid var(--admon-divider);
+  background: transparent;
+}
+
+.sheriff-admon-title {
+  font-family: var(--vk-font-label);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  line-height: 1.15;
+  color: var(--admon-accent);
+}
+
+/* =========================
+   BODY
+   ========================= */
+
+.sheriff-admon-body {
+  padding: 0.85rem 1rem 1rem 1rem;
+  font-family: var(--vk-font-body);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.sheriff-admon-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.sheriff-admon-body p:last-child {
+  margin-bottom: 0;
+}
+
+.sheriff-admon-body ul,
+.sheriff-admon-body ol {
+  margin: 0.7rem 0 0.9rem 0;
+  padding-left: 2rem;
+}
+
+.sheriff-admon-body li {
+  margin: 0.25rem 0;
+  line-height: 1.7;
+}
+
+.sheriff-admon pre {
+  margin: 0.85rem 0 0.95rem 0;
+}
+
+/* =========================
+   TYPE MAPPING
+   ========================= */
+
+.sheriff-admon-note {
+  --admon-accent: var(--admon-note);
+  --admon-bg: var(--admon-note-bg);
+}
+
+.sheriff-admon-tip {
+  --admon-accent: var(--admon-tip);
+  --admon-bg: var(--admon-tip-bg);
+}
+
+.sheriff-admon-warning {
+  --admon-accent: var(--admon-warning);
+  --admon-bg: var(--admon-warning-bg);
+}
+
+.sheriff-admon-important {
+  --admon-accent: var(--admon-important);
+  --admon-bg: var(--admon-important-bg);
+}
+
+.sheriff-admon-example {
+  --admon-accent: var(--admon-example);
+  --admon-bg: var(--admon-example-bg);
+}
+
+.sheriff-admon-strategy {
+  --admon-accent: var(--admon-strategy);
+  --admon-bg: var(--admon-strategy-bg);
+}
+
+.sheriff-admon-lore {
+  --admon-accent: var(--admon-lore);
+  --admon-bg: var(--admon-lore-bg);
+}
+
+/* ========================================================================== */
+/* SPOILER (Matches Admonitions)                                              */
+/* Flat margin-note style + disclosure caret                                  */
+/* ========================================================================== */
+
+:root {
+  /* spoiler can be neutral or mapped to a type; neutral is safest */
+  --admon-spoiler: #9a9487;            /* same as example (neutral) */
+  --admon-spoiler-bg: rgba(154,148,135,0.08);
+}
+
+:root[data-theme="light"] {
+  --admon-spoiler: #7d776c;
+  --admon-spoiler-bg: rgba(125,119,108,0.10);
+}
+
+/* Base spoiler block */
+details.sheriff-spoiler {
+  margin: 1.4rem 0 1.7rem 0;
+
+  background: var(--admon-spoiler-bg);
+  border: none;
+  border-left: var(--admon-left-w) solid var(--admon-spoiler);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Header / summary */
+details.sheriff-spoiler > summary.sheriff-spoiler-head {
+  padding: 0.85rem 1rem 0.55rem 1rem;
+  border-bottom: 1px solid var(--admon-divider);
+  background: transparent;
+
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+details.sheriff-spoiler > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Caret matches the “flat” style */
+details.sheriff-spoiler > summary::before {
+  content: "▸";
+  display: inline-block;
+  transform: translateY(-1px);
+  transition: transform 120ms ease;
+  opacity: 0.9;
+  color: var(--admon-spoiler);
+}
+
+details.sheriff-spoiler[open] > summary::before {
+  transform: rotate(90deg) translateY(-1px);
+}
+
+/* Title matches admonition title */
+.sheriff-spoiler-title {
+  font-family: var(--vk-font-label);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  line-height: 1.15;
+  color: var(--admon-spoiler);
+}
+
+/* Body matches admonition body */
+.sheriff-spoiler-body {
+  padding: 0.85rem 1rem 1rem 1rem;
+  font-family: var(--vk-font-body);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.sheriff-spoiler-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.sheriff-spoiler-body p:last-child {
+  margin-bottom: 0;
+}
+
+.sheriff-spoiler-body ul,
+.sheriff-spoiler-body ol {
+  margin: 0.7rem 0 0.9rem 0;
+  padding-left: 2rem;
+}
+
+.sheriff-spoiler-body li {
+  margin: 0.25rem 0;
+  line-height: 1.7;
+}
+
+.sheriff-spoiler-body pre {
+  margin: 0.85rem 0 0.95rem 0;
+}
+
+/* ========================================================================== */
+/* WIKILINK TOOLTIP — MATCH ACTIVE NAV ITEM */
+/* ========================================================================== */
+.sheriff-gloss-tip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 420px;
+  background: #1a130d;
+  border: 1px solid rgba(184,150,106,0.30);
+  border-radius: 4px;
+  padding: 10px 12px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
+}
+
+/* Body text */
+.sheriff-gloss-text {
+  margin: 0;
+  font-family: "EB Garamond", Georgia, serif;
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 400;
+  color: #b0aa9e;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1.55;
+}
+
+/* CTA — subdued, right-aligned, smaller */
+.sheriff-gloss-hint {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(184,150,106,0.15);
+  display: block;
+  text-align: right;
+  font-family: "Cinzel", serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7a5c3a;
+}
+
+@media (max-width: 560px) {
+  .sheriff-gloss-tip {
+    left: 50% !important;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 2rem);
+    width: calc(100vw - 2rem);
+  }
 }
 
 /* ========================================================================== */
@@ -469,7 +1130,7 @@ button a::after {
 .sheriff-image-block .sheriff-image-caption {
   display: block;
   margin-top: 0.4rem;
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   line-height: 1.25;
   color: var(--text-muted);
 }
@@ -546,7 +1207,7 @@ button a::after {
 .sheriff-video-caption{
   display: block;
   margin-top: 0.4rem;
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   line-height: 1.25;
   color: var(--text-muted);
 }
@@ -637,7 +1298,7 @@ button a::after {
   padding-top: 0;          /* no divider line in wiki frame style */
   border-top: 0;
 
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   line-height: 1.25;
   color: var(--text-muted);
 }
@@ -709,7 +1370,7 @@ button a::after {
   width: 15rem;
   padding-left: 1.75rem;
   border-left: 1px solid var(--sheriff-border);
-  font-size: 0.8rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -719,7 +1380,7 @@ button a::after {
   flex: 0 0 15rem;
   padding-left: 1.75rem;
   border-left: 1px solid var(--sheriff-border);
-  font-size: 0.8rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -801,7 +1462,7 @@ button a::after {
 
 /* Section titles in dropdown */
 .sheriff-header-nav .dropdown-section-title {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--sheriff-muted);
   text-transform: uppercase;
@@ -824,7 +1485,7 @@ button a::after {
 .sheriff-header-nav .dropdown-section a {
   display: block;
   padding: 0.4rem 0;
-  font-size: 0.85rem;
+  font-size: 1rem;
   text-decoration: none;
   color: var(--sheriff-link);
   transition: color 0.15s ease;
@@ -841,7 +1502,7 @@ button a::after {
 /* Wrap <aside class="toc"> inside .sheriff-toc */
 .sheriff-toc .toc {
   margin-top: 0.5rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -851,7 +1512,7 @@ button a::after {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--sheriff-muted);
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   margin-bottom: 0.75rem;
   list-style: none; /* kill default marker */
 }
@@ -880,7 +1541,7 @@ button a::after {
 .sheriff-toc .toc-item > a {
   text-decoration: none;
   color: var(--sheriff-link);
-  font-size: 0.95rem;
+  font-size: 1rem;
   display: block;
   line-height: 1.4;
   transition: color 0.15s ease;
@@ -899,17 +1560,17 @@ button a::after {
 /* Indentation by heading level (H2 / H3 / H4) */
 .sheriff-toc .toc-level-2 {
   padding-left: 0;          /* top-level */
-  font-size: 0.8rem;
+  font-size: 1rem;
 }
 
 .sheriff-toc .toc-level-3 {
   padding-left: 0.85rem;    /* one step in */
-  font-size: 0.78rem;
+  font-size: 0.9375rem;
 }
 
 .sheriff-toc .toc-level-4 {
   padding-left: 1.7rem;     /* two steps in */
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   opacity: 0.9;
 }
 
@@ -935,7 +1596,7 @@ button a::after {
   border-top: 1px solid var(--sheriff-border);
   margin-top: 2rem;
   padding-top: 1.25rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: var(--sheriff-muted);
   display: flex;
   justify-content: space-between;
@@ -1026,7 +1687,7 @@ a.sheriff-missing-link:hover {
   font-family: var(--vk-font-display);
   font-weight: 700;
   letter-spacing: 0.01em;
-  font-size: 2.4rem;
+  font-size: 2.75rem;
   line-height: 1.1;
   margin-top: 0;
   margin-bottom: 0.9rem;
@@ -1042,22 +1703,22 @@ a.sheriff-missing-link:hover {
 
 .sheriff-article h2 {
   font-weight: 600;
-  font-size: 1.3rem;
+  font-size: 1.875rem;
 }
 
 .sheriff-article h3 {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
 }
 
 .sheriff-article h4 {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.25rem;
 }
 
 .sheriff-article p {
-  font-size: 1.15rem;
-  line-height: 1.75;
+  font-size: 1.25rem;
+  line-height: 1.85;
   margin: 0 0 1rem 0;
   color: var(--sheriff-text);
 }
@@ -1074,10 +1735,27 @@ a.sheriff-missing-link:hover {
 .sheriff-article ol {
   padding-left: 2.2rem;
   margin: 1.25rem 0 2.1rem 0;
+  font-size: inherit;
 }
 
 .sheriff-article li {
   margin: 0.25rem 0;
+  font-size: 1.25rem;
+  line-height: 1.85;
+}
+
+.sheriff-article p,
+.sheriff-article li,
+.sheriff-article {
+  opacity: 0.94;
+}
+
+.sheriff-muted,
+.sheriff-text-muted,
+.sheriff-toc a:not(:hover),
+.sheriff-sidebar a:not(:hover),
+.sheriff-left-nav a:not(:hover) {
+  opacity: 0.88;
 }
 
 .sheriff-article a.anchor {
@@ -1090,34 +1768,41 @@ a.sheriff-missing-link:hover {
 /* INLINE CODE & CODE BLOCKS                                                  */
 /* ========================================================================== */
 
-.sheriff-article code {
-  font-family: var(--vk-font-mono);
-  font-size: 0.82em;
-  padding: 0.06rem 0.22rem;
-  border-radius: 0.2rem;
-  background-color: var(--sheriff-inline-code-bg);
-  border: 1px solid var(--sheriff-border);
-}
+/* shared styling foundation */
 
-.sheriff-article pre {
-  margin-top: 1.1rem;
-  margin-bottom: 2rem;
+.sheriff-article code,
+.sheriff-article pre{
+  font-family: var(--vk-font-mono);
   background: var(--sheriff-codeblock-bg);
-  color: var(--sheriff-text);
-  border-radius: 0.2rem;
-  border: none;
-  font-family: var(--vk-font-mono);
-  font-size: 0.98rem;
-  line-height: 1.7;
-  overflow-x: auto;
-  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--sheriff-code-border);
+  color: #cd5858;
 }
 
-.sheriff-article pre code {
+.sheriff-article code{
+  font-size: 0.9em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+/* code blocks */
+
+.sheriff-article pre{
+  margin-top: 1.2rem;
+  margin-bottom: 2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+.sheriff-article pre code{
   background: transparent;
   border: none;
   padding: 0;
   font-size: 1em;
+  color: inherit;
 }
 
 /* ========================================================================== */
@@ -1147,7 +1832,7 @@ a.sheriff-missing-link:hover {
   width: 100%;
   border-collapse: collapse;
   margin: 1.5rem 0 2rem 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .sheriff-article th,
@@ -1160,7 +1845,7 @@ a.sheriff-missing-link:hover {
   border-bottom: 2px solid var(--sheriff-border);
   text-align: left;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--sheriff-muted);
@@ -1227,7 +1912,7 @@ a.sheriff-missing-link:hover {
   gap: 0.55rem;
   margin: 0 0 0.75rem 0;
 
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--sheriff-muted);
   letter-spacing: normal;
   text-transform: none;
@@ -1282,7 +1967,7 @@ a.sheriff-missing-link:hover {
 .campfire-post-preview{
   margin: 0 0 0.75rem 0;
   color: var(--sheriff-text);
-  font-size: 1.02rem;
+  font-size: 1.125rem;
   line-height: 1.7;
   max-width: 44rem; /* keeps it from feeling like a wall of text */
 }
@@ -1304,7 +1989,7 @@ a.sheriff-missing-link:hover {
 }
 
 .campfire-tag{
-  font-size: 0.78rem;
+  font-size: 0.9375rem;
   padding: 0.18rem 0.55rem;
   border: 1px solid var(--sheriff-border);
   border-radius: 999px;
@@ -1319,7 +2004,7 @@ a.sheriff-missing-link:hover {
 
 /* Read more */
 .campfire-post-readmore{
-  font-size: 0.9rem;
+  font-size: 1rem;
   margin: 0;
 }
 
@@ -1404,7 +2089,7 @@ a.sheriff-missing-link:hover {
   width: 13.5rem;
   padding-right: 1.75rem;
   border-right: 1px solid var(--sheriff-border);
-  font-size: 0.86rem;
+  font-size: 1rem;
 }
 
 /* Top-level heading: "DOCUMENTATION" - match TOC style exactly */
@@ -1414,7 +2099,7 @@ a.sheriff-missing-link:hover {
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: var(--vk-gold);
-  font-size: 0.62rem;
+  font-size: 0.9rem;
   margin-bottom: 0.75rem;
   display: block;
 }
@@ -1426,7 +2111,7 @@ a.sheriff-missing-link:hover {
 
 /* Section titles: "Getting started", "Guides", "Reference" */
 .sheriff-left-nav .submenu-header {
-  font-size: 0.8rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--sheriff-text);
   margin-top: 0.2rem;
@@ -1519,7 +2204,7 @@ a.sheriff-missing-link:hover {
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: var(--vk-gold);
-  font-size: 0.62rem;
+  font-size: 0.9rem;
   margin: 0 0 0.75rem 0;
 }
 
@@ -1532,6 +2217,7 @@ a.sheriff-missing-link:hover {
 .sheriff-toc a,
 .sheriff-sidebar a {
   text-decoration: none;
+  font-size: 1rem;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1543,7 +2229,7 @@ a.sheriff-missing-link:hover {
   padding: 0.6rem 0.8rem;
   background-color: var(--sheriff-panel);
   border-radius: 0.35rem;
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: var(--sheriff-muted);
   display: flex;
   flex-direction: column;
@@ -1565,7 +2251,7 @@ a.sheriff-missing-link:hover {
 
 /* The little arrow */
 .sheriff-breadcrumb-arrow {
-  font-size: 0.8rem;
+  font-size: 1rem;
   line-height: 1;
   color: var(--sheriff-muted);
 }
@@ -1602,7 +2288,7 @@ a.sheriff-missing-link:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.7rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--sheriff-link);
   transition: color 0.15s ease;
@@ -1614,7 +2300,7 @@ a.sheriff-missing-link:hover {
 
 .code-tab {
   padding: 0.35rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   border: none;
   background: transparent;
@@ -1636,7 +2322,7 @@ a.sheriff-missing-link:hover {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.8rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -1810,6 +2496,42 @@ a.sheriff-missing-link:hover {
   opacity: 0.35 !important;
   cursor: default !important;
   pointer-events: none !important;
+}
+
+/* ---- Modern dark scrollbar (global) ---- */
+:root {
+  color-scheme: dark; /* helps browsers pick dark UI defaults */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(184, 150, 106, 0.45) rgba(19, 19, 26, 0.9);
+}
+
+/* Chromium / Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(19, 19, 26, 0.9);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(184, 150, 106, 0.35);
+  border-radius: 999px;
+  border: 2px solid rgba(19, 19, 26, 0.9);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 150, 106, 0.55);
+}
+
+*::-webkit-scrollbar-corner {
+  background: rgba(19, 19, 26, 0.9);
 }
 
 /* ========================================================================== */

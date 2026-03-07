@@ -368,7 +368,6 @@ function UserDropdown(
                     letterSpacing: "0.06em",
                     color: "#e8e4d8",
                     cursor: "pointer",
-                    cursor: "pointer",
                     textDecoration: "none",
                   }}
                 >

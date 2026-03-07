@@ -1,863 +1,645 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vekke - The Game of Routes.</title>
-  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
-
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      min-height: 100vh;
-      background: #2a2a2e;
-      color: #d8d8dc;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .shell {
-      width: 100%;
-      max-width: 80rem;
-      margin: 0 auto;
-      padding: 2.5rem 1.75rem;
-      flex: 1;
-    }
-
-    /* Header */
-    header {
-      margin-bottom: 4rem;
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem 0;
-      gap: 1.5rem;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .logo-text {
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      font-size: 1.05rem;
-      color: #d8d8dc;
-    }
-
-    .version-badge {
-      font-size: 0.75rem;
-      font-weight: 400;
-      color: #a0a0a5;
-      line-height: 1.2;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    nav {
-      display: flex;
-      gap: 1.5rem;
-      font-size: 0.9rem;
-    }
-
-    .sheriff-link {
-      color: #d85c68;
-      text-decoration: none;
-      transition: color 0.15s ease;
-    }
-
-    .sheriff-link:hover {
-      color: #4db8b0;
-    }
-
-    .cta-button {
-      padding: 0.5rem 1.25rem;
-      border-radius: 0.5rem;
-      border: none;
-      background: linear-gradient(135deg, #d85c68, #e85555);
-      color: #d8d8dc;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .cta-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(216, 92, 104, 0.25);
-    }
-
-    /* Hero */
-    .hero {
-      text-align: center;
-      padding: 4rem 2rem 6rem 2rem;
-      position: relative;
-    }
-
-    .hero-backdrop {
-      position: absolute;
-      top: 45%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 40rem;
-      height: 40rem;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(43, 207, 206, 0.08), transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-logos {
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 3.5rem;
-      margin-bottom: 3.25rem;
-      flex-wrap: wrap;
-    }
-
-    .hero-logo-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem;
-      text-align: center;
-    }
-
-    .hero-logo-img {
-      width: 240px;
-      height: 240px;
-      object-fit: contain;
-      display: block;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-    }
-
-    .hero-logo-name {
-      font-size: 1.35rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #d8d8dc;
-      line-height: 1.1;
-    }
-
-    .hero-logo-sub {
-      font-size: 0.85rem;
-      color: #a0a0a5;
-      line-height: 1.3;
-      margin-top: -0.25rem;
-      max-width: 16rem;
-    }
-
-    .hero-title {
-      font-size: 4rem;
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.1;
-      margin: 0 0 1.5rem 0;
-      background: linear-gradient(135deg, #d8d8dc, #a0a0a5);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .hero-subtitle {
-      font-size: 1.35rem;
-      color: #a0a0a5;
-      line-height: 1.6;
-      max-width: 50rem;
-      margin: 0 auto 3rem auto;
-    }
-
-    .hero-requirement {
-      font-size: 0.95rem;
-      color: #a0a0a5;
-      margin-top: -1.5rem;
-      margin-bottom: 3rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .primary-button {
-      padding: 0.85rem 2rem;
-      border-radius: 0.5rem;
-      border: none;
-      background: linear-gradient(135deg, #d85c68, #e85555);
-      color: #d8d8dc;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .primary-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(216, 92, 104, 0.25);
-    }
-
-    .secondary-button {
-      padding: 0.85rem 2rem;
-      border-radius: 0.5rem;
-      border: 1px solid #44444a;
-      background: transparent;
-      color: #d8d8dc;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.15s ease;
-    }
-
-    .secondary-button:hover {
-      background: #35353a;
-      border-color: #d85c68;
-    }
-
-    /* Stats */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem;
-      margin-bottom: 6rem;
-    }
-
-    .stat-card {
-      text-align: center;
-      padding: 2rem;
-      background: #35353a;
-      border: 1px solid #44444a;
-      border-radius: 0.75rem;
-    }
-
-    .stat-number {
-      font-size: 3rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #d85c68, #4db8b0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-label {
-      font-size: 0.9rem;
-      color: #a0a0a5;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 600;
-    }
-
-    /* Features */
-    .features {
-      margin-bottom: 6rem;
-    }
-
-    .section-title {
-      font-size: 2.5rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    .section-subtitle {
-      font-size: 1.1rem;
-      color: #a0a0a5;
-      text-align: center;
-      margin-bottom: 4rem;
-      max-width: 45rem;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 2rem;
-    }
-
-    .feature-card {
-      background: #35353a;
-      border: 1px solid #44444a;
-      border-radius: 0.75rem;
-      padding: 2rem;
-      transition: all 0.2s ease;
-    }
-
-    .feature-card:hover {
-      transform: translateY(-4px);
-      border-color: #d85c68;
-      box-shadow: 0 8px 24px rgba(216, 92, 104, 0.12);
-    }
-
-    .feature-icon {
-      width: 3rem;
-      height: 3rem;
-      border-radius: 0.5rem;
-      background: linear-gradient(135deg, rgba(43, 207, 206, 0.19), rgba(232, 85, 85, 0.19));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .feature-icon svg {
-      width: 1.5rem;
-      height: 1.5rem;
-      color: #4db8b0;
-    }
-
-    .feature-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-    }
-
-    .feature-desc {
-      font-size: 0.95rem;
-      color: #a0a0a5;
-      line-height: 1.6;
-    }
-
-    .feature-desc code {
-      font-family: monospace;
-      background: #1e1e22;
-      padding: 0.1rem 0.3rem;
-      border-radius: 0.2rem;
-    }
-
-    .features-footer {
-      font-size: 1.1rem;
-      color: #a0a0a5;
-      text-align: center;
-      margin-top: 3rem;
-      max-width: 45rem;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    /* Quick Start */
-    .quick-start {
-      background: #35353a;
-      border: 1px solid #44444a;
-      border-radius: 0.75rem;
-      padding: 3rem;
-      margin-bottom: 6rem;
-    }
-
-    .quick-start-title {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-
-    .steps {
-      display: grid;
-      gap: 2rem;
-      max-width: 50rem;
-      margin: 0 auto;
-    }
-
-    .step {
-      display: flex;
-      gap: 1.5rem;
-      align-items: flex-start;
-    }
-
-    .step-number {
-      width: 2.5rem;
-      height: 2.5rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #d85c68, #e85555);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      font-weight: 700;
-      flex-shrink: 0;
-    }
-
-    .step-content {
-      flex: 1;
-    }
-
-    .step-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .step-desc {
-      font-size: 0.95rem;
-      color: #a0a0a5;
-      line-height: 1.6;
-    }
-
-    .step-desc code {
-      font-family: monospace;
-      background: #1e1e22;
-      padding: 0.1rem 0.3rem;
-      border-radius: 0.2rem;
-    }
-
-    .code-block {
-      background: #1e1e22;
-      color: #d8d8dc;
-      border-radius: 0.5rem;
-      padding: 1rem 1.25rem;
-      font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-      font-size: 0.85rem;
-      margin-top: 0.75rem;
-      position: relative;
-      overflow-x: auto;
-      white-space: pre;
-    }
-
-    .copy-code {
-      position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
-      background: transparent;
-      border: none;
-      color: #d85c68;
-      cursor: pointer;
-      padding: 0.35rem;
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.75rem;
-      transition: color 0.15s ease;
-    }
-
-    .copy-code:hover {
-      color: #4db8b0;
-    }
-
-    .step-note {
-      font-size: 0.95rem;
-      color: #a0a0a5;
-      line-height: 1.6;
-      margin-top: 0.75rem;
-      text-align: center;
-    }
-
-    /* CTA Section */
-    .cta-section {
-      text-align: center;
-      padding: 4rem 2rem;
-      background: #35353a;
-      border: 1px solid #44444a;
-      border-radius: 0.75rem;
-      margin-bottom: 4rem;
-    }
-
-    .cta-title {
-      font-size: 2.5rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 1rem;
-    }
-
-    .cta-subtitle {
-      font-size: 1.1rem;
-      color: #a0a0a5;
-      margin-bottom: 2rem;
-    }
-
-    .cta-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid #44444a;
-      padding-top: 2rem;
-      padding-bottom: 2rem;
-      font-size: 0.85rem;
-      color: #a0a0a5;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .footer-left {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .footer-note {
-      font-size: 0.75rem;
-      color: #a0a0a5;
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 2rem;
-    }
-  </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vekke Overview</title>
+    
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/css/siegemate.css">
+    <link rel="stylesheet" href="/public/css/override.css">
+    
+    <script src="http://localhost:5173/vekke-header.js"></script>
 </head>
 <body>
-  <div class="shell">
-    <!-- Header -->
-    <header>
-      <div class="header-top">
-        <div class="logo">
-          <img src="public/logo.png" alt="Sheriff" style="height: 2.5rem; width: auto;">
-          <div style="display: flex; align-items: baseline; gap: 0.4rem;">
-            <div class="logo-text">SHERIFF</div>
-            <span class="version-badge">v0.9.5</span>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
+    <div class="sheriff-shell" id="top">
+        <div class="sheriff-header">
+          <div class="sheriff-header-bottom">
+            
+<nav class="sheriff-header-nav">
+  <ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/about.html">About</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/downloads.html">Downloads</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/faq.html">FAQ</a>
+</li>
+  </ul>
+</nav>
+
           </div>
         </div>
+        <div class="sheriff-main-layout-three">
+            
+<aside class="sheriff-left-nav">
 
-        <div class="header-right">
-          <nav>
-            <a href="/docs/index.html" class="sheriff-link">Docs</a>
-            <a href="#" class="sheriff-link">Guide</a>
-            <a href="https://github.com/ddonche/sheriff" class="sheriff-link">GitHub</a>
-          </nav>
-          <a href="#" class="cta-button">Get Started</a>
-        </div>
-      </div>
-    </header>
+            <div class="section-header">
+              <span>DOCUMENTATION</span>
+            </div>
+            
+<ul>
 
-    <!-- Hero -->
-    <section class="hero">
-      <div class="hero-backdrop"></div>
-      <div class="hero-content">
-        <!-- Big logos -->
-        <div class="hero-logos">
-          <div class="hero-logo-box">
-            <img class="hero-logo-img" src="public/images/sheriff.png" alt="Sheriff" loading="eager" />
-            <span class="hero-logo-name">Sheriff</span>
-            <span class="hero-logo-sub">Static site generator</span>
-          </div>
-          
-          <div class="hero-logo-box">
-            <img class="hero-logo-img" src="public/images/goblin.png" alt="Goblin" loading="eager" />
-            <span class="hero-logo-name">Goblin</span>
-            <span class="hero-logo-sub">Powers Sheriff</span>
-          </div>
-        </div>
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Getting started</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-        <h1 class="hero-title">Markdown in. Website out.</h1>
-        <p class="hero-subtitle">
-          Sheriff is a static site generator for docs, wikis, and blogs. Write content. Sheriff builds clean, fast sites—no framework hell, no lock-in.
-        </p>
-        <p class="hero-requirement">
-          Requires Goblin — a fast, minimal scripting language designed for build tools.
-        </p>
-        <div class="hero-actions">
-          <a href="#" class="primary-button">
-            Get Started
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-              <polyline points="12 5 19 12 12 19"/>
-            </svg>
-          </a>
-          <a href="#" class="secondary-button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-            </svg>
-            View on GitHub
-          </a>
-        </div>
-      </div>
-    </section>
+            <li>
+              <a class="sheriff-link" href="/index.html">Introduction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Print and Play</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+            </li>
+            </ul>
 
-    <!-- Stats -->
-    <section class="stats">
-      <div class="stat-card">
-        <div class="stat-number">📄</div>
-        <div class="stat-label">Static Output</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">[[📎]]</div>
-        <div class="stat-label">Wiki Links</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">🎨</div>
-        <div class="stat-label">Themeable</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">🚀</div>
-        <div class="stat-label">Multi-Portal</div>
-      </div>
-    </section>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-    <!-- Features -->
-    <section class="features">
-      <h2 class="section-title">Why Sheriff?</h2>
-      <p class="section-subtitle">Sheriff focuses on structure, not ceremony.</p>
-      
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Wiki-style Linking</h3>
-          <p class="feature-desc">
-            Use <code>[[Page Name]]</code> and let Sheriff wire everything together.
-          </p>
-        </div>
+            <li>
+              <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Timeout</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Resignation</a>
+            </li>
+            </ul>
 
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="8" y1="6" x2="21" y2="6"/>
-              <line x1="8" y1="12" x2="21" y2="12"/>
-              <line x1="8" y1="18" x2="21" y2="18"/>
-              <line x1="3" y1="6" x2="3.01" y2="6"/>
-              <line x1="3" y1="12" x2="3.01" y2="12"/>
-              <line x1="3" y1="18" x2="3.01" y2="18"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Automatic Navigation</h3>
-          <p class="feature-desc">
-            Sidebar, breadcrumbs, and table of contents generated from content.
-          </p>
-        </div>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Terminology</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Multi-portal Builds</h3>
-          <p class="feature-desc">
-            Docs, blogs, and sites built together or independently.
-          </p>
-        </div>
+            <li>
+              <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Abandoning</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/board.html">Board</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Drafting</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Early Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Extra Reinforcement</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Flanking</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Illegal Actions</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Invasion</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Korochev Maneuver</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/notation.html">Notation</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Opening</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Ransom</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Recoil</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reference Cards</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reinforcements</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reserves</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Routes</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Hand</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Markers</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Queue</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Segura</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Space</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Units</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wildcards</a>
+            </li>
+            </ul>
 
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Static Output</h3>
-          <p class="feature-desc">
-            Plain HTML. Host anywhere. Own your files.
-          </p>
-        </div>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Orders</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v6l3-3-3-3z"/>
-              <path d="M12 8l-3 3 3 3"/>
-              <path d="M12 14v8"/>
-              <circle cx="12" cy="12" r="2"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Theme System</h3>
-          <p class="feature-desc">
-            Drop-in themes without rewriting your content.
-          </p>
-        </div>
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Dragon</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Wolf</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Serpent</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Spider</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Raven</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Kraken</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Turtle</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Stag</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Fox</a>
+            </li>
+            </ul>
 
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </div>
-          <h3 class="feature-title">Fast Builds</h3>
-          <p class="feature-desc">
-            Build one portal—or all of them—on demand.
-          </p>
-        </div>
-      </div>
-      
-      <p class="features-footer">
-        No databases. No JavaScript framework required. No runtime dependency.
-      </p>
-    </section>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Formats</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-    <!-- Prerequisites -->
-    <section class="quick-start">
-      <h2 class="quick-start-title">Prerequisites</h2>
-      <p class="section-subtitle" style="margin-bottom: 2rem;">
-        Before using Sheriff, install Goblin:
-      </p>
-      <div style="max-width: 50rem; margin: 0 auto;">
-        <div class="code-block">
-          <button class="copy-code" aria-label="Copy code">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </button>curl -fsSL https://goblin-lang.org/install | sh</div>
-        <p class="step-note">Verify:</p>
-        <div class="code-block">
-          <button class="copy-code" aria-label="Copy code">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </button>goblin --version</div>
-        <p class="step-note">Then continue with Sheriff.</p>
-      </div>
-    </section>
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wild</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Explorer</a>
+            </li>
+            </ul>
 
-    <!-- Quick Start -->
-    <section class="quick-start">
-      <h2 class="quick-start-title">Get Started in Minutes</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h3 class="step-title">Build a portal</h3>
-            <p class="step-desc">
-              Builds a single portal into <code>dist/{portal-name}</code>.
-            </p>
-            <div class="code-block">
-              <button class="copy-code" aria-label="Copy code">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>goblin run main.gbln {portal-name}</div>
-            <p class="step-desc" style="margin-top: 0.75rem;">To build everything:</p>
-            <div class="code-block">
-              <button class="copy-code" aria-label="Copy code">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>goblin run main.gbln all</div>
-          </div>
-        </div>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Technical</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-        <div class="step">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h3 class="step-title">Start the local server</h3>
-            <p class="step-desc">
-              Navigate to your built portal and start the development server.
-            </p>
-            <div class="code-block">
-              <button class="copy-code" aria-label="Copy code">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>cd dist/{portal-name}
-goblin start</div>
-          </div>
-        </div>
+            <li>
+              <a class="sheriff-link" href="/docs/vekke_game_notation.html">Vekke Game Notation</a>
+            </li>
+            </ul>
 
-        <div class="step">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h3 class="step-title">View it in the browser</h3>
-            <p class="step-desc">
-              Open your browser and check out your site.
-            </p>
-            <div class="code-block">
-              <button class="copy-code" aria-label="Copy code">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>http://localhost:5173</div>
-            <p class="step-desc" style="margin-top: 0.75rem;">
-              That's it. No bundlers. No configs to babysit.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
+              </details>
+            </li>
+            </ul>
 
-    <!-- CTA -->
-    <section class="cta-section">
-      <h2 class="cta-title">Ready to Build?</h2>
-      <p class="cta-subtitle">Static sites. No lock-in.</p>
-      <div class="cta-actions">
-        <a href="#" class="primary-button">Get Started</a>
-        <a href="#" class="secondary-button">View Documentation</a>
-      </div>
-    </section>
+            
+</aside>
 
-    <!-- Footer -->
-    <footer>
-      <div class="footer-left">
-        <span>Built with Goblin. Files stay yours.</span>
-        <span class="footer-note">
-          Goblin is a lightweight scripting language for build tools and automation.
+            <article class="sheriff-article">
+              <header class="sheriff-page-header">
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">overview</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">documentation</span>
         </span>
-      </div>
-      <div class="footer-links">
-        <a href="#" class="sheriff-link">Documentation</a>
-        <a href="#" class="sheriff-link">GitHub</a>
-        <a href="#" class="sheriff-link">Community</a>
-      </div>
-    </footer>
-  </div>
+        
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">[[index]]</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="[[index]]"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    
+                  </div>
+                </div>
+                <h1>Vekke Overview</h1>
+                <div class="sheriff-title-underline"></div>
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
+                    
+        <span class="sheriff-byline-readtime">
+          ~ 10 min read
+        </span>
+        
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    
+<button id="sheriff-page-toggle"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle page mode"
+        title="Toggle page mode">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true">
+    <rect x="4" y="3" width="16" height="18" rx="2" ry="2"/>
+    <path d="M12 3v18"/>
+  </svg>
+</button>
+<button id="sheriff-markdown-help"
+        class="copy-wikilink sheriff-util-btn"
+        type="button"
+        aria-label="Markdown cheatsheet"
+        title="Markdown cheatsheet">
+  <svg
+    class="copy-wikilink-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+    <path d="M12 17h.01"/>
+    <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>
+  </svg>
+</button>
 
-  <script>
-    // Copy code button functionality
-    document.querySelectorAll('.copy-code').forEach(button => {
-      button.addEventListener('click', () => {
-        const codeBlock = button.parentElement;
-        const code = codeBlock.textContent.replace(/Copy/g, '').trim();
-        navigator.clipboard.writeText(code);
-        button.textContent = 'Copied!';
-        setTimeout(() => {
-          button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>`;
-        }, 2000);
-      });
-    });
-  </script>
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <p><strong>Vekke</strong> (<em>to awaken</em> in Norwegian) is a language-independent abstract strategy game played using universal symbols. Two players compete to eliminate or lock all opposing <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">units</a> (tokens) from the board using a fixed movement language of 24 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">routes</a>—predefined pairings of <a href="/docs/direction.html" class="sheriff-link" data-gloss="There are 8 directions in Vekke. These, along with distance, dictate where you can move units.">direction</a> and <a href="/docs/distance.html" class="sheriff-link" data-gloss="There are 4 distances in Vekke. These, along with direction, dictate where you can move units.">distance</a>. Players maneuver tokens through <a href="/docs/capture.html" class="sheriff-link" data-gloss="Taking an enemy unit via invasion or perfect siege.">capture</a> and <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a>, with victory achieved by locking or removing all opposing tokens from play (there are others, but these are the primary ones).</p>
+<p>Unlike many maneuver-based strategy games, Vekke features <em><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">flanking</a></em>, allowing tokens to traverse beyond the board edge and re-enter from the opposite side. This creates continuous spatial pressure and prevents static end states. As a result, Vekke does not permit draws: every match resolves decisively.</p>
+<p>With the exception of optional <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">wildcards</a> (used in certain formats), Vekke contains no random elements. All outcomes arise from player choice, foresight, and positional judgment.</p>
+<hr />
+<p><strong>Quick Overview:</strong></p>
+<ul>
+<li><strong>Players:</strong> 2</li>
+<li><strong>Duration:</strong> 15–45 minutes</li>
+<li><strong>Complexity:</strong> Medium</li>
+<li><strong>Components:</strong> Symbol-based (no text)</li>
+<li><strong>Win Condition:</strong> Multiple (elimination and siegemate primary)</li>
+</ul>
+<hr />
+<h2><a href="#win-conditions" aria-hidden="true" class="anchor" id="win-conditions"></a>Win Conditions</h2>
+<p>Vekke ends decisively—no draws possible due to flanking and economy pressure.<sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-nodraws" id="fnref-nodraws" data-footnote-ref>1</a></sup></p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Elimination</strong></td>
+<td>Remove all enemy <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">units</a> from play via <a href="/docs/capture.html" class="sheriff-link" data-gloss="Taking an enemy unit via invasion or perfect siege.">capture</a> or <a href="/docs/perfect_siege.html" class="sheriff-link" data-gloss="Surrounding an enemy token on all 8 sides; results in a capture.">Perfect Siege</a>.</td>
+</tr>
+<tr>
+<td><strong>Siegemate</strong></td>
+<td>All enemy units under <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a> with no <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a> left.</td>
+</tr>
+<tr>
+<td><strong>Collapse</strong></td>
+<td>Opponent has no legal moves and no <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a> (self-inflicted).<sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-collapse" id="fnref-collapse" data-footnote-ref>2</a></sup></td>
+</tr>
+<tr>
+<td><strong>Resignation</strong></td>
+<td>Opponent concedes.</td>
+</tr>
+<tr>
+<td><strong>Timeout</strong></td>
+<td>Opponent exceeds time limit.<sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-timeout" id="fnref-timeout" data-footnote-ref>3</a></sup></td>
+</tr>
+</tbody>
+</table>
+<div class="sheriff-admon sheriff-admon-note"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Note</span></div><div class="sheriff-admon-body">No draws in Vekke: flanking lets units wrap around board edges to prevent stalemates, while visible routes and reserves create constant pressure until one player eliminates or locks out the opponent.</div></div>
+<hr />
+<h2><a href="#history" aria-hidden="true" class="anchor" id="history"></a>History</h2>
+<p>Vekke was first developed around 2014 as a supplemental system for an unreleased mystery-style game. <sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-mystery" id="fnref-mystery" data-footnote-ref>4</a></sup> In its original conception, the game’s movement system—based on fixed <em>routes</em>—was intended to function as a cipher. Players of the mystery game were expected to discover the actual game rules online and apply them as part of the larger puzzle structure.</p>
+<p>When the mystery project did not come to fruition, development continued independently on the abstract strategy game itself. During this period, the game was known as <em>Betaori</em>, a reference to <strong>Beta Orionis (Rigel)</strong>, the brightest star in the Orion constellation. <sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-rigel" id="fnref-rigel" data-footnote-ref>5</a></sup> Rigel’s blue-white coloration directly informed the game’s use of blue and white tokens, which are still the default in each set.</p>
+<p>Prior to final prototyping in 2026, the game was renamed <strong>Vekke</strong>. The change was made to avoid confusion with the Japanese mahjong term <em>betaori</em> and to establish a standalone identity. The name <em>Vekke</em>—meaning <em>“to awaken”</em> in Norwegian—was selected to reflect the game’s emphasis on insight, discovery, and deliberate play. <sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-vekke" id="fnref-vekke" data-footnote-ref>6</a></sup> At the time of renaming, the domain associated with the name was already under the creator’s control and unused.</p>
+<div class="sheriff-admon sheriff-admon-lore"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Lore</span></div><div class="sheriff-admon-body">Following the name change, it was also decided that players would be allowed to use custom &quot;gear&quot; (tokens and routes, boards, etc). This meant not everyone would be using white and blue tokens for units. Since the website had already coded player sides as W and B, names of the sides changed from &quot;white&quot; and &quot;blue&quot; to <em>&quot;wake&quot;</em> and <em>&quot;brake&quot;.</em> Wake was chosen because of Vekke's Norwegian meaning, and since W plays first (awakens), brake was chosen to represent the counter-balance to this.</div></div>
+<hr />
+<h2><a href="#components-and-board" aria-hidden="true" class="anchor" id="components-and-board"></a>Components and Board</h2>
+<p><span class="sheriff-image-block"><img src="/public/images/board.png" alt="Vekke intersection-style board" class="sheriff-image sheriff-image-thumb sheriff-align-right"><span class="sheriff-image-caption">Vekke intersection-style board</span></span></p>
+<p>Vekke is played on a 6×6 grid, which may be represented either as square spaces or as intersecting lines with placement points at each intersection. Players sit on opposite sides of the <a href="/docs/board.html" class="sheriff-link" data-gloss="Vekke is played on a 6x6 grid or intersection style board.">board</a>. Originally, one player used white tokens, and the other used blue tokens. Now, any color or material may be used, with one side being <em>wake</em> and the other being <em>brake</em>. The board still indicates which is which with blue or white edges.</p>
+<p>Unit tokens are typically flat stones (such as glass or resin pieces similar to those used in Go), though some sets may use checkers-style pieces instead. Players take turns using their available <em>routes</em> to maneuver units. Play continues until one player has eliminated or locked all opposing units from the board.</p>
+<hr />
+<h3><a href="#list-of-components" aria-hidden="true" class="anchor" id="list-of-components"></a>List of Components</h3>
+<p>A standard Vekke game set consists of the following components:</p>
+<p><strong>Core Components:</strong></p>
+<ul>
+<li>game <a href="/docs/board.html" class="sheriff-link" data-gloss="Vekke is played on a 6x6 grid or intersection style board.">board</a></li>
+<li>18 white unit <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">tokens</a></li>
+<li>18 blue unit tokens</li>
+<li>28 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">route markers</a> (cards, tiles, or dominoes)</li>
+<li>3 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reference cards</a></li>
+<li>rule booklet</li>
+<li>box</li>
+</ul>
+<p><strong>Optional / Format-Specific:</strong></p>
+<ul>
+<li>12 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">wildcards</a></li>
+<li>8 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">direction markers</a> (cards or tiles)</li>
+</ul>
+<hr />
+<h2><a href="#core-principles" aria-hidden="true" class="anchor" id="core-principles"></a>Core Principles</h2>
+<p>The mechanics and concept of the game are meant to be simple. Identical units. Use routes to move them. <a href="/docs/capture.html" class="sheriff-link" data-gloss="Taking an enemy unit via invasion or perfect siege.">Capture</a> or <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a>. That's the core concept. That's <a href="/docs/standard_format.html" class="sheriff-link" data-gloss="The basic format of Vekke, which does not use Special Actions.">Standard Format</a>. Of course, there is endless depth once you add token economy into the mix, which is <a href="/docs/tournament_format.html" class="sheriff-link" data-gloss="The full format for Vekke, which includes the use of Special Actions.">Tournament Format</a>.</p>
+<p>Movement and notation in Vekke rely on a purely symbolic system rather than written language. <a href="/docs/direction.html" class="sheriff-link" data-gloss="There are 8 directions in Vekke. These, along with distance, dictate where you can move units.">Direction</a> and <a href="/docs/distance.html" class="sheriff-link" data-gloss="There are 4 distances in Vekke. These, along with direction, dictate where you can move units.">distance</a> are represented visually, allowing the game to be played without translation and understood across cultures (for the components; rules will still need to be translated). This symbolic foundation supports international competition, accessibility, and consistent interpretation in both casual and tournament play.</p>
+<hr />
+<h2><a href="#balance" aria-hidden="true" class="anchor" id="balance"></a>Balance</h2>
+<p>Vekke is designed to become progressively more intense as play advances. Each player begins with three unit tokens in play, with the remaining tokens held in the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a>. As the game unfolds, players introduce additional units through <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reinforcements</a>, increasing board density and tactical pressure over time.</p>
+<p>To offset the structural advantage of being first to place the opening unit (B <em>brake</em>), the W <em>wake</em> player is granted first move. Balance is further reinforced by full route visibility: each player’s available routes are kept in view, allowing both sides to anticipate potential maneuvers and plan accordingly. Routes in the queue are also visible.</p>
+<div class="sheriff-admon sheriff-admon-note"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Perfect Information</span></div><div class="sheriff-admon-body">In game design, having all information available to all players is called &quot;perfect information.&quot; <sup class="footnote-ref sheriff-footnote-ref"><a href="#fn-perfect" id="fnref-perfect" data-footnote-ref>7</a></sup></div></div>
+<p>Players may optionally introduce directional randomization by using <em><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Explorer format</a></em>, which alters orientation while preserving the underlying movement system.</p>
+<hr />
+<h2><a href="#rewarding-skill" aria-hidden="true" class="anchor" id="rewarding-skill"></a>Rewarding Skill</h2>
+<p>Vekke's movement via routes to achieve capture or siege is only part of the tactical skill involved. The other half of the game requires timing and decision regarding token economy. Do you spend reserves to buy an <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">extra reinforcement</a>? Do you spend captives to use an <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">early route swap</a> or do you hold them to get <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a> back? Can you time a <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">recoil</a> to disrupt your opponent? Do you sacrifice a live unit (<a href="/docs/defection.html" class="sheriff-link" data-gloss="A special action where you sacrifice a unit in play to pull an enemy unit from the void to your captives.">defection</a>) to prevent your opponent from <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">drafting</a>? Do you preoccupy your units by holding a siege or do you abandon it to get a capture?</p>
+<p>These are all questions you will think to yourself.</p>
+<p>Vekke is also structured so that higher-difficulty maneuvers yield greater rewards than simpler plays. While a basic <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">ransom</a> can return 1 unit from the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">void</a>, one can return 2 units via the more complex drafting, which demands additional coordination and positional foresight.</p>
+<hr />
+<h2><a href="#tournament-play" aria-hidden="true" class="anchor" id="tournament-play"></a>Tournament Play</h2>
+<p>Vekke was designed with organized competition in mind. As a result, official tournaments use a single standardized ruleset known as <a href="/docs/tournament_format.html" class="sheriff-link" data-gloss="The full format for Vekke, which includes the use of Special Actions.">Tournament Format</a>, commonly referred to as <em>escalating</em>.</p>
+<p>Tournament Format differs from other formats in several key ways. Directions are fixed, with direction 8 defined as <em>northwest from the B side</em>. <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Wildcards</a> are not used. <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Special Actions</a> <em>are</em> used.</p>
+<p>This structure ensures consistency, eliminates ambiguity, and allows competitive play to scale in complexity as a match progresses.</p>
+<hr />
+<h2><a href="#identity-through-order" aria-hidden="true" class="anchor" id="identity-through-order"></a>Identity Through Order</h2>
+<p>Vekke also includes 9 different factions called <em>Orders</em>. These are purely aesthetic and philosophical; there is no competitive advantage. The rules remain the same for all. These Orders represent various styles of play, and each comes with an animal sigil, color scheme, banner, and order-specific gear set. You may join any order at any time, and you may leave at any time.</p>
+<nav class="sheriff-nextprev" aria-label="Article navigation"><div class="sheriff-nextprev-row"><div class="sheriff-nextprev-item sheriff-nextprev-prev"><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link sheriff-nav-prev">Print and Play</a></div><div class="sheriff-nextprev-item sheriff-nextprev-next"><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link sheriff-nav-next">How to Play</a></div></div></nav>
+<nav class="sheriff-nextprev sheriff-related-nav" aria-label="Article navigation"><div class="sheriff-related"><div class="sheriff-related-title">Related</div><ul class="sheriff-related-list"><li class="sheriff-related-item"><a href="/docs/standard_format.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Standard Format</span><span class="sheriff-related-desc">The basic format of Vekke, which does not use Special Actions.</span></a></li><li class="sheriff-related-item"><a href="/docs/tournament_format.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Tournament Format</span><span class="sheriff-related-desc">The full format for Vekke, which includes the use of Special Actions.</span></a></li><li class="sheriff-related-item"><a href="/docs/missing.html" class="sheriff-nav-related"><span class="sheriff-related-tag">Reference</span><span class="sheriff-related-name">Invites</span><span class="sheriff-related-desc"></span></a></li></ul></div></nav>
+<section id="footnotes" class="footnotes sheriff-footnotes" data-footnotes>
+<ol>
+<li id="fn-nodraws">
+<p><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Flanking</a> prevents edge-locking; <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a>/<a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">sieges</a> force resolution. <a href="#fnref-nodraws" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="fn-collapse">
+<p>Differs from <a href="/docs/siegemate.html" class="sheriff-link" data-gloss="Winning by locking up all enemy units in play via siege while they have no reinforcements.">siegemate</a>—no active sieges required; from poor positioning. <a href="#fnref-collapse" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="2" aria-label="Back to reference 2">↩</a></p>
+</li>
+<li id="fn-timeout">
+<p>Timed formats only. <a href="#fnref-timeout" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="3" aria-label="Back to reference 3">↩</a></p>
+</li>
+<li id="fn-mystery">
+<p>Donche, D. (2026). <em>Vekke: Notes on Building an Evergreen Abstract Strategy Game from Scratch</em>. Medium. <a href="https://medium.com/@dandonche/vekke-notes-on-building-an-evergreen-abstract-strategy-game-from-scratch-746a83fbd620">https://medium.com/@dandonche/vekke-notes-on-building-an-evergreen-abstract-strategy-game-from-scratch-746a83fbd620</a> <a href="#fnref-mystery" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="4" aria-label="Back to reference 4">↩</a></p>
+</li>
+<li id="fn-rigel">
+<p><em>Rigel</em>. Wikipedia. <a href="https://en.wikipedia.org/wiki/Rigel">https://en.wikipedia.org/wiki/Rigel</a> <a href="#fnref-rigel" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="5" aria-label="Back to reference 5">↩</a></p>
+</li>
+<li id="fn-vekke">
+<p><em>Vekke</em>. Linq. <a href="https://www.lingq.com/en/learn-norwegian-online/translate/no/vekke/">https://www.lingq.com/en/learn-norwegian-online/translate/no/vekke/</a> <a href="#fnref-vekke" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="6" aria-label="Back to reference 6">↩</a></p>
+</li>
+<li id="fn-perfect">
+<p><em>Perfect Information</em>. Wikipedia. <a href="https://en.wikipedia.org/wiki/Perfect_information">https://en.wikipedia.org/wiki/Perfect_information</a> <a href="#fnref-perfect" class="footnote-backref sheriff-footnote-backref" data-footnote-backref data-footnote-backref-idx="7" aria-label="Back to reference 7">↩</a></p>
+</li>
+</ol>
+</section>
+
+              <div class="sheriff-clear"></div>
+            </article>
+            <aside class="sheriff-toc">
+              <div class="sheriff-focus-slot">
+                  
+              </div>
+                
+                 <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-2"><a href="#win-conditions">Win Conditions</a></li>
+<li class="toc-item toc-level-2"><a href="#history">History</a></li>
+<li class="toc-item toc-level-2"><a href="#components-and-board">Components and Board</a></li>
+<li class="toc-item toc-level-3"><a href="#list-of-components">List of Components</a></li>
+<li class="toc-item toc-level-2"><a href="#core-principles">Core Principles</a></li>
+<li class="toc-item toc-level-2"><a href="#balance">Balance</a></li>
+<li class="toc-item toc-level-2"><a href="#rewarding-skill">Rewarding Skill</a></li>
+<li class="toc-item toc-level-2"><a href="#tournament-play">Tournament Play</a></li>
+<li class="toc-item toc-level-2"><a href="#identity-through-order">Identity Through Order</a></li>
+<li class="toc-item toc-level-2"><a href="#footnotes">References & Footnotes</a></li>
+</ul></details></aside>
+
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                
+<div class="sheriff-footer-links">
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
+
+            </div>
+            <div class="sheriff-footer-right">
+                
+<div class="sheriff-footer-links">
+<a href="https://github.com/ddonche/sheriff" class="sheriff-link">Sheriff</a></div>
+
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    
+    <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
+    <script src="/public/js/focus_panel.js" defer></script>
+    <script src="/public/js/gloss_tooltips.js" defer></script>
+    
 </body>
 </html>

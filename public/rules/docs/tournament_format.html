@@ -9,10 +9,18 @@
     <link rel="stylesheet" href="/public/css/siegemate.css">
     <link rel="stylesheet" href="/public/css/override.css">
     
+    <script src="http://localhost:5173/vekke-header.js"></script>
 </head>
 <body>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
     <div class="sheriff-shell" id="top">
-            <header class="sheriff-header">
+        <div class="sheriff-header">
           <div class="sheriff-header-bottom">
             
 <nav class="sheriff-header-nav">
@@ -33,15 +41,15 @@
 </nav>
 
           </div>
-        </header>
+        </div>
         <div class="sheriff-main-layout-three">
             
 <aside class="sheriff-left-nav">
 
-<div class="section-header">
-  <span>DOCUMENTATION</span>
-</div>
-
+            <div class="section-header">
+              <span>DOCUMENTATION</span>
+            </div>
+            
 <ul>
 
             <li class="has-submenu">
@@ -53,18 +61,51 @@
                 
 <ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/index.html">Introduction</a>
-</li>
+            <li>
+              <a class="sheriff-link" href="/index.html">Introduction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Print and Play</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+            </li>
+            </ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/pnp.html">Print and Play</a>
-</li>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/basics.html">Basics</a>
-</li>
-</ul>
+            <li>
+              <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Timeout</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Resignation</a>
+            </li>
+            </ul>
 
               </details>
             </li>
@@ -78,150 +119,158 @@
                 
 <ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/board.html">Board</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/captives.html">Captives</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/capture.html">Capture</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/components.html">Components</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/defection.html">Defection</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/direction.html">Direction</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/distance.html">Distance</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/drafting.html">Drafting</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/early_route_swap.html">Early Route Swap</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/ending.html">Ending the Game</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/extra_reinforcement.html">Extra Reinforcement</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/flanking.html">Flanking</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/illegal.html">Illegal Actions</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/korochev.html">Korochev Maneuver</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/ransom.html">Ransom</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/recoil.html">Recoil</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/reference_cards.html">Reference Cards</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/reinforcements.html">Reinforcements</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/reserves.html">Reserves</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/routes.html">Routes</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/route_hand.html">Route Hand</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/route_markers.html">Route Markers</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/route_queue.html">Route Queue</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/route_swap.html">Route Swap</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/segura.html">Segura</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/siege.html">Siege</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/space.html">Space</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/unit.html">Units</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/wildcards.html">Wildcards</a>
-</li>
-</ul>
+            <li>
+              <a class="sheriff-link" href="/docs/seattle_siege.html">4-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/ikeda_siege.html">5-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/worthington_siege.html">6-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/july_siege.html">7-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/perfect_siege.html">8-Sided Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Abandoning</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/board.html">Board</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/captives.html">Captives</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/capture.html">Capture</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/defection.html">Defection</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/direction.html">Direction</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/distance.html">Distance</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/double_siege.html">Double Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Drafting</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Early Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Extra Reinforcement</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Flanking</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Illegal Actions</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Invasion</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Korochev Maneuver</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/notation.html">Notation</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Opening</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Ransom</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Recoil</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reference Cards</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reinforcements</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Reserves</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Routes</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Hand</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Markers</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Queue</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Route Swap</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Segura</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Siege</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Space</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tokens.html">Tokens</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Units</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wildcards</a>
+            </li>
+            </ul>
 
               </details>
             </li>
@@ -235,42 +284,42 @@
                 
 <ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/dragon_order.html">Order of the Dragon</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/wolf_order.html">Order of the Wolf</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/serpent_order.html">Order of the Serpent</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/spider_order.html">Order of the Spider</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/raven_order.html">Order of the Raven</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/kraken_order.html">Order of the Kraken</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/turtle_order.html">Order of the Turtle</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/stag_order.html">Order of the Stag</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/fox_order.html">Order of the Fox</a>
-</li>
-</ul>
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Dragon</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Wolf</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Serpent</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Spider</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Raven</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Kraken</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Turtle</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Stag</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Order of the Fox</a>
+            </li>
+            </ul>
 
               </details>
             </li>
@@ -284,28 +333,45 @@
                 
 <ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
-</li>
+            <li>
+              <a class="sheriff-link" href="/docs/standard_format.html">Standard</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Wild</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
+            </li>
+            
+            <li>
+              <a class="sheriff-missing-link" href="/docs/missing.html">Explorer</a>
+            </li>
+            </ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/wild_format.html">Wild</a>
-</li>
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Technical</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
 
-<li>
-  <a class="sheriff-link" href="/docs/tournament_format.html">Tournament</a>
-</li>
-
-<li>
-  <a class="sheriff-link" href="/docs/explorer_format.html">Explorer</a>
-</li>
-</ul>
+            <li>
+              <a class="sheriff-link" href="/docs/vekke_game_notation.html">Vekke Game Notation</a>
+            </li>
+            </ul>
 
               </details>
             </li>
             </ul>
 
-
+            
 </aside>
 
             <article class="sheriff-article">
@@ -346,19 +412,15 @@
     
                   </div>
                 </div>
-                <h1>
-                  Tournament Format Rules
-                </h1>
+                <h1>Tournament Format Rules</h1>
                 <div class="sheriff-title-underline"></div>
                 <div class="sheriff-page-byline">
                   <div class="sheriff-page-byline-main">
                     By
-                    <span class="sheriff-page-byline-author">
-                      Intl. Vekke Council
-                    </span>
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
                     
         <span class="sheriff-byline-readtime">
-          ~ 7 min read
+          ~ 8 min read
         </span>
         
                   </div>
@@ -412,7 +474,7 @@
               <p>Welcome to <strong>Vekke</strong>, the Game of Routes. These rules are for Tournament Format. This format is the only format used in Tournament play. If you are looking for the rules for the other formats, see the bottom of the left navigation panel.</p>
 <hr />
 <h2><a href="#introduction" aria-hidden="true" class="anchor" id="introduction"></a>Introduction</h2>
-<p>Tournament format is the full game. If you know <a href="/docs/standard_format.html" class="sheriff-link">Standard</a>, you already know the foundation — the same 6×6 grid, the same win conditions, and a similar turn structure. What Tournament adds is economy. You now have tools to spend your captives and reserves on tactical advantages, a defensive reaction maneuver called <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Recoil</a>, and a <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Mulligan</a> phase before the game begins. Learn to use these well and you will find Standard feels like a warm-up.</p>
+<p>Tournament format is the full game. If you know <a href="/docs/standard_format.html" class="sheriff-link" data-gloss="The basic format of Vekke, which does not use Special Actions.">Standard</a>, you already know the foundation — the same 6×6 grid, the same win conditions, and a similar turn structure. What Tournament adds is economy. You now have tools to spend your captives and reserves on tactical advantages, a defensive reaction maneuver called <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Recoil</a>, and a <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Mulligan</a> phase before the game begins. Learn to use these well and you will find Standard feels like a warm-up.</p>
 <hr />
 <h2><a href="#setup" aria-hidden="true" class="anchor" id="setup"></a>Setup</h2>
 <p>Setup follows the same procedure as Standard, with one addition: the Mulligan.</p>
@@ -451,7 +513,7 @@
 <hr />
 <h2><a href="#recoil" aria-hidden="true" class="anchor" id="recoil"></a>Recoil</h2>
 <p>Each player may perform only one action during their opponent's turn: a Recoil.</p>
-<p>To perform a Recoil, yield 1 token from your reserves and 1 captive to the Void. You then move 1 friendly token 1 space onto any empty adjacent space.</p>
+<p>To perform a Recoil, you must declare your intent first. Just say, &quot;recoil&quot; or &quot;recoiling&quot;. This pauses your opponent's actions until your recoil resolves (or you cancel it). Yield 1 token from your reserves and 1 captive to the Void. You may then move 1 friendly token 1 space any direction onto any empty adjacent space.</p>
 <p>You may recoil before or immediately after any single opponent move, or after your opponent places reinforcements. If your opponent makes another move before you declare, that window closes.</p>
 <p>You can recoil before a token would be taken, but if it is captured, you cannot use recoil to &quot;undo&quot; that capture.</p>
 <h3><a href="#turn-one-exception" aria-hidden="true" class="anchor" id="turn-one-exception"></a>Turn One Exception</h3>
@@ -463,7 +525,7 @@
 <li><strong>Elimination:</strong> All enemy tokens removed.</li>
 <li><strong>Siegemate:</strong> Opponent cannot move and has no reserves.*</li>
 <li><strong>Collapse:</strong> Opponent cannot use all required routes and has no reserves to yield.</li>
-<li><strong>Resignation or timeout.</strong></li>
+<li><strong>Opponent resignation or timeout.</strong></li>
 </ul>
 <p>There is no draw in Vekke. Play continues until one player is the victor.</p>
 <p><em>Siegemate requires the opponent to have no reinforcements in reserve.</em></p>
@@ -496,7 +558,7 @@
             <div class="sheriff-footer-left">
                 
 <div class="sheriff-footer-links">
-<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
 
             </div>
             <div class="sheriff-footer-right">
@@ -512,6 +574,7 @@
     <script src="/public/js/soft_pagination.js" defer></script>
     <script src="/public/js/sheriff-markdown-help.js" defer></script>
     <script src="/public/js/focus_panel.js" defer></script>
+    <script src="/public/js/gloss_tooltips.js" defer></script>
     
 </body>
 </html>

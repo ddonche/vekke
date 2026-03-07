@@ -9,126 +9,18 @@
     <link rel="stylesheet" href="/public/css/siegemate.css">
     <link rel="stylesheet" href="/public/css/override.css">
     
+    <script src="http://localhost:5173/vekke-header.js"></script>
 </head>
 <body>
+    <vekke-header
+      base-url="http://localhost:5173"
+      active-page="rules"
+      supabase-url="{{{SITE::SUPABASE_URL}}}"
+      supabase-key="{{{SITE::SUPABASE_KEY}}}">
+    </vekke-header>
+
     <div class="sheriff-shell" id="top">
-        <header class="sheriff-header">
-          <div class="sheriff-header-top">
-            <div class="sheriff-header-left">
-              <a href="/" class="sheriff-logo-link">
-                
-    <img class="sheriff-logo-mark" src="/public/logo.png" alt="VEKKE">
-    
-                <div class="sheriff-logo-text-wrap">
-                  
-    <div class="sheriff-logo-text">VEKKE</div>
-    
-                  <span class="sheriff-version-badge">1.0</span>
-                </div>
-              </a>
-            </div>
-            <div class="sheriff-header-right">
-              
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
-        <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13zM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061zM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8zM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0z"/>
-        </svg>
-        <svg class="theme-icon theme-icon-dark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display: none;">
-            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
-        </svg>
-    </button>
-
-    <script>
-    (function() {
-      var KEY = 'brindle-theme';
-      var root = document.documentElement;
-      var toggle = document.getElementById('theme-toggle');
-      if (!toggle) return;
-
-      var lightIcon = toggle.querySelector('.theme-icon-light');
-      var darkIcon  = toggle.querySelector('.theme-icon-dark');
-
-      function apply(theme) {
-        root.dataset.theme = theme; // "dark" or "light"
-        if (theme === 'dark') {
-          lightIcon.style.display = 'inline-block';
-          darkIcon.style.display  = 'none';
-        } else {
-          lightIcon.style.display = 'none';
-          darkIcon.style.display  = 'inline-block';
-        }
-        try { localStorage.setItem(KEY, theme); } catch(e) {}
-      }
-
-      var stored = null;
-      try { stored = localStorage.getItem(KEY); } catch(e) {}
-      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-      apply(initial);
-
-      toggle.addEventListener('click', function() {
-        var current = root.dataset.theme || 'dark';
-        apply(current === 'dark' ? 'light' : 'dark');
-      });
-    })();
-    </script>
-    
-              
-    <div class="sheriff-version-select">
-      <span class="sheriff-version-select-label">v2.0</span>
-      <span class="sheriff-version-select-chevron">&#9662;</span>
-    </div>
-    
-              
-    <div class="sheriff-search-wrapper" id="sheriff-search">
-      <div class="sheriff-search-icon"></div>
-      <input
-        class="sheriff-search-input"
-        type="search"
-        id="sheriff-search-input"
-        placeholder="Search..."
-        aria-label="Search"
-        autocomplete="off"
-      />
-      <span class="sheriff-search-shortcut">/</span>
-    </div>
-    
-              
-<a href="https://github.com/ddonche/sheriff" class="sheriff-github-badge">
-  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
-  </svg>
-  <div class="sheriff-github-info">
-    <div class="sheriff-github-repo">ddonche/sheriff</div>
-    <div class="sheriff-github-stats">
-      <div class="sheriff-github-stat">
-        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-          <line x1="7" y1="7" x2="7.01" y2="7"/>
-        </svg>
-        1.0
-      </div>
-      <div class="sheriff-github-stat">
-        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-        1
-      </div>
-      <div class="sheriff-github-stat">
-        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="18" r="3"/>
-          <circle cx="6" cy="6" r="3"/>
-          <circle cx="18" cy="6" r="3"/>
-          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
-          <path d="M12 12v3"/>
-        </svg>
-        0
-      </div>
-    </div>
-  </div>
-</a>
-
-            </div>
-          </div>
+        <div class="sheriff-header">
           <div class="sheriff-header-bottom">
             
 <nav class="sheriff-header-nav">
@@ -149,7 +41,7 @@
 </nav>
 
           </div>
-        </header>
+        </div>
         <div class="sheriff-main-layout-three">
             
 <aside class="sheriff-left-nav">
@@ -170,7 +62,7 @@
 <ul>
 
 <li>
-  <a class="sheriff-link" href="/docs/index.html">Introduction</a>
+  <a class="sheriff-link" href="/index.html">Introduction</a>
 </li>
 
 <li>
@@ -178,7 +70,40 @@
 </li>
 
 <li>
-  <a class="sheriff-link" href="/docs/basics.html">Basics</a>
+  <a class="sheriff-link" href="/docs/standard_format.html">Basics</a>
+</li>
+</ul>
+
+              </details>
+            </li>
+            
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>Win Conditions</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                
+<ul>
+
+<li>
+  <a class="sheriff-link" href="/docs/elimination.html">Elimination</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/siegemate.html">Siegemate</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/collapse.html">Collapse</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/timeout.html">Timeout</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/resignation.html">Resignation</a>
 </li>
 </ul>
 
@@ -227,10 +152,6 @@
 </li>
 
 <li>
-  <a class="sheriff-link" href="/docs/components.html">Components</a>
-</li>
-
-<li>
   <a class="sheriff-link" href="/docs/defection.html">Defection</a>
 </li>
 
@@ -255,10 +176,6 @@
 </li>
 
 <li>
-  <a class="sheriff-link" href="/docs/ending.html">Ending the Game</a>
-</li>
-
-<li>
   <a class="sheriff-link" href="/docs/extra_reinforcement.html">Extra Reinforcement</a>
 </li>
 
@@ -268,6 +185,10 @@
 
 <li>
   <a class="sheriff-link" href="/docs/illegal.html">Illegal Actions</a>
+</li>
+
+<li>
+  <a class="sheriff-link" href="/docs/invasion.html">Invasion</a>
 </li>
 
 <li>
@@ -425,19 +346,16 @@
 </aside>
 
             <article class="sheriff-article">
-              <!-- Page header (meta strip + title + byline) -->
               <header class="sheriff-page-header">
-                <!-- Top meta strip -->
                 <div class="sheriff-page-meta-bar">
                   <div class="sheriff-page-meta-left">
                     
         <span class="sheriff-page-meta-label">
           <span class="sheriff-page-meta-kind">overview</span>
           <span class="sheriff-page-meta-dot"></span>
-          <span class="sheriff-page-meta-type">docs</span>
+          <span class="sheriff-page-meta-type">documentation</span>
         </span>
         
-                    <!-- e.g. THEME PREVIEW · ARTICLE -->
                   </div>
                   <div class="sheriff-page-meta-right">
                     
@@ -463,27 +381,19 @@
       </button>
     </div>
     
-                    <!-- e.g. canonical wikilink + copy icon -->
                   </div>
                 </div>
-                <!-- Title (your existing .sheriff-article h1 + ::after underline) -->
-                <h1>
-                  Vekke Overview
-                </h1>
+                <h1>Vekke Overview</h1>
                 <div class="sheriff-title-underline"></div>
-                <!-- Byline / meta row -->
                 <div class="sheriff-page-byline">
                   <div class="sheriff-page-byline-main">
                     By
-                    <span class="sheriff-page-byline-author">
-                      Intl. Vekke Council
-                    </span>
+                    <span class="sheriff-page-byline-author">Intl. Vekke Council</span>
                     
         <span class="sheriff-byline-readtime">
-          ~ 8 min read
+          ~ 7 min read
         </span>
         
-                    <!-- e.g. " · " + BADGE::READTIME -->
                   </div>
                   <div class="sheriff-page-byline-actions">
                     
@@ -528,13 +438,11 @@
   </svg>
 </button>
 
-                    <!-- e.g. BADGE::UTILICONS -->
                   </div>
                 </div>
                 <hr class="sheriff-page-header-divider" />
               </header>
-              <!-- Markdown / main content -->
-              <p><strong>Vekke</strong> (<em>to awaken</em> in Norwegian) is a language-independent abstract strategy game played using universal symbols. Two players compete to eliminate all opposing <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">tokens</a> from the board using a fixed movement language of 24 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">routes</a>—predefined pairings of <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">direction</a> and <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">distance</a>. Players maneuver tokens through <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">capture</a> and <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a>, with victory achieved by removing all opposing tokens from play.</p>
+              <p><strong>Vekke</strong> (<em>to awaken</em> in Norwegian) is a language-independent abstract strategy game played using universal symbols. Two players compete to eliminate or lock all opposing <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">units</a> (tokens) from the board using a fixed movement language of 24 <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">routes</a>—predefined pairings of <a href="/docs/direction.html" class="sheriff-link">direction</a> and <a href="/docs/distance.html" class="sheriff-link">distance</a>. Players maneuver tokens through <a href="/docs/capture.html" class="sheriff-link">capture</a> and <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a>, with victory achieved by locking or removing all opposing tokens from play (there are others, but these are the primary ones).</p>
 <p>Unlike many maneuver-based strategy games, Vekke features <em><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">flanking</a></em>, allowing tokens to traverse beyond the board edge and re-enter from the opposite side. This creates continuous spatial pressure and prevents static end states. As a result, Vekke does not permit draws: every match resolves decisively.</p>
 <p>With the exception of optional <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">wildcards</a> (used in certain formats), Vekke contains no random elements. All outcomes arise from player choice, foresight, and positional judgment.</p>
 <hr />
@@ -544,54 +452,59 @@
 <li><strong>Duration:</strong> 15–45 minutes</li>
 <li><strong>Complexity:</strong> Medium</li>
 <li><strong>Components:</strong> Symbol-based (no text)</li>
-<li><strong>Win Condition:</strong> Eliminate all opponent tokens</li>
+<li><strong>Win Condition:</strong> Multiple (elimination and siegemate primary)</li>
 </ul>
 <hr />
 <h2><a href="#history" aria-hidden="true" class="anchor" id="history"></a>History</h2>
-<p>Vekke was first developed around 2015 as a supplemental system for an unreleased mystery-style game. In its original conception, the game’s movement system—based on fixed <em>routes</em>—was intended to function as a cipher. Players of the mystery game were expected to discover the rules online and apply them as part of the larger puzzle structure.</p>
-<p>When the mystery project did not come to fruition, development continued independently on the abstract strategy game itself. During this period, the game was known as <em>Betaori</em>, a reference to <strong>Beta Orionis (Rigel)</strong>, the brightest star in the Orion constellation. Rigel’s blue-white coloration directly informed the game’s use of blue and white tokens.</p>
+<p>Vekke was first developed around 2014 as a supplemental system for an unreleased mystery-style game. In its original conception, the game’s movement system—based on fixed <em>routes</em>—was intended to function as a cipher. Players of the mystery game were expected to discover the actual game rules online and apply them as part of the larger puzzle structure.</p>
+<p>When the mystery project did not come to fruition, development continued independently on the abstract strategy game itself. During this period, the game was known as <em>Betaori</em>, a reference to <strong>Beta Orionis (Rigel)</strong>, the brightest star in the Orion constellation. Rigel’s blue-white coloration directly informed the game’s use of blue and white tokens, which are still the default in each set.</p>
 <p>Prior to final prototyping in 2026, the game was renamed <strong>Vekke</strong>. The change was made to avoid confusion with the Japanese mahjong term <em>betaori</em> and to establish a standalone identity. The name <em>Vekke</em>—meaning <em>“to awaken”</em> in Norwegian—was selected to reflect the game’s emphasis on insight, discovery, and deliberate play. At the time of renaming, the domain associated with the name was already under the creator’s control and unused.</p>
+<div class="sheriff-admon sheriff-admon-lore"><div class="sheriff-admon-head"><span class="sheriff-admon-title">Lore</span></div><div class="sheriff-admon-body">Following the name change, it was also decided that players would be allowed to use custom &quot;gear&quot; (tokens and routes, boards, etc). This meant not everyone would be using white and blue tokens for units. Since the website had already coded player sides as W and B, names of the sides changes from &quot;white&quot; and &quot;blue&quot; to <em>&quot;wake&quot;</em> and <em>&quot;brake&quot;.</em> Wake was chosen because of Vekke's Norwegian meaning, and since W plays first (awakens), brake was chosen to represent the counter-balance to this.</div></div>
 <hr />
 <h2><a href="#components-and-board" aria-hidden="true" class="anchor" id="components-and-board"></a>Components and Board</h2>
 <p><span class="sheriff-image-block"><img src="/public/images/board.png" alt="Vekke intersection-style board" class="sheriff-image sheriff-image-thumb sheriff-align-right"><span class="sheriff-image-caption">Vekke intersection-style board</span></span></p>
-<p>Vekke is played on a 6×6 grid, which may be represented either as square spaces or as intersecting lines with placement points at each intersection. Players sit on opposite sides of the board. One player uses white tokens, and the other uses blue tokens.</p>
-<p>Tokens are typically flat stones (such as glass or resin pieces similar to those used in Go), though some sets may use checkers-style pieces instead. Players take turns using their available <em>routes</em> to maneuver tokens. Play continues until one player has eliminated all opposing tokens from the board.</p>
+<p>Vekke is played on a 6×6 grid, which may be represented either as square spaces or as intersecting lines with placement points at each intersection. Players sit on opposite sides of the board. Originally, one player used white tokens, and the other used blue tokens. Now, any color or material may be used, with one side being <em>wake</em> and the other being <em>brake</em>. The board still indicates which is which with blue or white edges.</p>
+<p>Unit tokens are typically flat stones (such as glass or resin pieces similar to those used in Go), though some sets may use checkers-style pieces instead. Players take turns using their available <em>routes</em> to maneuver units. Play continues until one player has eliminated or locked all opposing units from the board.</p>
 <hr />
 <h3><a href="#list-of-components" aria-hidden="true" class="anchor" id="list-of-components"></a>List of Components</h3>
 <p>A standard Vekke game set consists of the following components:</p>
 <p><strong>Core Components:</strong></p>
 <ul>
 <li>game board</li>
-<li>18 white tokens</li>
-<li>18 blue tokens</li>
-<li>24 route markers (cards, tiles, or dominoes)</li>
-<li>8 direction markers (cards or tiles)</li>
-</ul>
-<p><strong>Optional / Format-Specific:</strong></p>
-<ul>
-<li>12 wildcards</li>
+<li>18 white unit tokens</li>
+<li>18 blue unit tokens</li>
+<li>28 route markers (cards, tiles, or dominoes)</li>
 <li>3 reference cards</li>
 <li>rule booklet</li>
 <li>box</li>
 </ul>
+<p><strong>Optional / Format-Specific:</strong></p>
+<ul>
+<li>12 wildcards</li>
+<li>8 direction markers (cards or tiles)</li>
+</ul>
 <hr />
 <h2><a href="#core-principles" aria-hidden="true" class="anchor" id="core-principles"></a>Core Principles</h2>
+<p>The mechanics and concept of the game are meant to be simple. Identical units. Use routes to move them. Capture or siege. That's the core concept. That's <a href="/docs/standard_format.html" class="sheriff-link">Standard Format</a>. Of course, there is endless depth once you add token economy into the mix, which is <a href="/docs/tournament_format.html" class="sheriff-link">Tournament Format</a>.</p>
 <p>Movement and notation in Vekke rely on a purely symbolic system rather than written language. Direction and distance are represented visually, allowing the game to be played without translation and understood across cultures. This symbolic foundation supports international competition, accessibility, and consistent interpretation in both casual and tournament play.</p>
 <hr />
 <h2><a href="#balance" aria-hidden="true" class="anchor" id="balance"></a>Balance</h2>
-<p>Vekke is designed to become progressively more intense as play advances. In the standard format, each player begins with four tokens in play, with the remaining tokens held in the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">token queue</a>. As the game unfolds, players may introduce additional tokens through <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reinforcements</a>, increasing board density and tactical pressure over time.</p>
-<p>To offset the structural advantage of moving first and selecting an initial formation, the blue player is granted first selection of routes during setup. Balance is further reinforced by full route visibility: each player’s available routes are kept in view, allowing both sides to anticipate potential maneuvers and plan accordingly. The sole exception is the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">hidden route</a> wildcard, which is intentionally concealed.</p>
+<p>Vekke is designed to become progressively more intense as play advances. In the standard format, each player begins with three unit tokens in play, with the remaining tokens held in the <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reserves</a>. As the game unfolds, players introduce additional units through <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">reinforcements</a>, increasing board density and tactical pressure over time.</p>
+<p>To offset the structural advantage of being first to place the opening unit (B <em>brake</em>), the W <em>wake</em> player is granted first move. Balance is further reinforced by full route visibility: each player’s available routes are kept in view, allowing both sides to anticipate potential maneuvers and plan accordingly. Routes in the queue are also visible.</p>
 <p>Players may optionally introduce directional randomization by using <em><a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Explorer format</a></em>, which alters orientation while preserving the underlying movement system.</p>
 <hr />
 <h2><a href="#rewarding-skill" aria-hidden="true" class="anchor" id="rewarding-skill"></a>Rewarding Skill</h2>
-<p>Vekke is structured so that higher-difficulty maneuvers yield greater rewards than simpler plays. While a basic <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">siege</a> requires surrounding an opposing token on four sides, more complex sieges demand additional coordination and positional foresight.</p>
-<p>A standard four-sided siege enables the attacking player to earn a <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">route swap</a>. If a siege is completed using five or six tokens, the attacking player is additionally rewarded with extra queue token placements for that turn. These enhanced rewards reflect the increased difficulty and risk involved in executing larger, more precise formations.</p>
+<p>Vekke's movement via routes to achieve capture or siege is only part of the tactical skill involved. The other half of the game requires timing and decision regarding token economy. Do you spend reserves to buy an extra reinforcement? Do you spend captives to use an early route swap or do you hold them to get reserves back? Can you time a recoil to disrupt your opponent? Do you sacrifice a live unit to prevent your opponent from drafting? Do you preoccupy your units by holding a siege or do you abandon it to get a capture?</p>
+<p>These are all questions you will think to yourself.</p>
+<p>Vekke is also structured so that higher-difficulty maneuvers yield greater rewards than simpler plays. While a basic <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">ransom</a> can return 1 unit from the void, one can return 2 units via the more complex <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">drafting</a>, which demands additional coordination and positional foresight.</p>
 <hr />
 <h2><a href="#tournament-play" aria-hidden="true" class="anchor" id="tournament-play"></a>Tournament Play</h2>
 <p>Vekke was designed with organized competition in mind. As a result, official tournaments use a single standardized ruleset known as <a href="/docs/tournament_format.html" class="sheriff-link">Tournament Format</a>, commonly referred to as <em>escalating</em>.</p>
-<p>Tournament Format differs from other formats in several key ways. Directions are fixed, with direction 8 defined as <em>northwest from the blue side</em>. <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Wildcards</a> are not used. Each player begins with a single route and gains one additional random route at the start of each round, up to a maximum of four routes. In championship matches, this route cap is removed.</p>
+<p>Tournament Format differs from other formats in several key ways. Directions are fixed, with direction 8 defined as <em>northwest from the B side</em>. <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Wildcards</a> are not used. <a href="/docs/missing.html" class="sheriff-missing-link sheriff-missing-link">Special Actions</a> are used.</p>
 <p>This structure ensures consistency, eliminates ambiguity, and allows competitive play to scale in complexity as a match progresses.</p>
-<p>For full gameplay details, see the official <a href="/docs/standard_format.html" class="sheriff-link">Rules</a>.</p>
+<hr />
+<h2><a href="#identity-through-order" aria-hidden="true" class="anchor" id="identity-through-order"></a>Identity Through Order</h2>
+<p>Vekke also includes 9 different factions called <em>Orders</em>. These are purely aesthetic and philosophical; there is not competitive advantage. The rules remain the same for all. These Orders represent various styles of play, and each comes with an animal sigil, color scheme, banner, and order-specific gear set. You may join any order at any time, and you may leave at any time.</p>
 
               <div class="sheriff-clear"></div>
             </article>
@@ -608,6 +521,7 @@
 <li class="toc-item toc-level-2"><a href="#balance">Balance</a></li>
 <li class="toc-item toc-level-2"><a href="#rewarding-skill">Rewarding Skill</a></li>
 <li class="toc-item toc-level-2"><a href="#tournament-play">Tournament Play</a></li>
+<li class="toc-item toc-level-2"><a href="#identity-through-order">Identity Through Order</a></li>
 </ul></details></aside>
 
             </aside>
@@ -616,7 +530,7 @@
             <div class="sheriff-footer-left">
                 
 <div class="sheriff-footer-links">
-<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">built with Goblin</a></div>
+<span>© 2025-2026 Vekke</span> · <a href="https://goblinlang.org" class="sheriff-link">documentation built with Goblin and Sheriff</a></div>
 
             </div>
             <div class="sheriff-footer-right">

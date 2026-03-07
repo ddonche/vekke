@@ -1,7 +1,7 @@
-import { GameState, Player, Token } from "./state"
-import { Coord, toSq } from "./coords"
-import { Route, traceByRoute, stepFlank } from "./move"
-import { Direction } from "./directions"
+import type { GameState, Player, Token } from "./state"
+import type { Coord } from "./coords"
+import type { Route } from "./move"
+import type { Direction } from "./directions"
 
 // ------------------------------------------------------------
 // Helpers
