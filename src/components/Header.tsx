@@ -407,7 +407,7 @@ function UserDropdown(
             <DropdownItem
               label="Sign Out"
               onClick={() => {
-                handleSignOut()
+                onSignOut?.()
                 setOpen(false)
               }}
               danger
