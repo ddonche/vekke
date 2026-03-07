@@ -1511,6 +1511,25 @@ export default function HomePage() {
       )}
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      <footer style={{
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        padding: "24px",
+        textAlign: "center",
+        fontFamily: "'Cinzel', serif",
+        fontSize: "0.58rem",
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        color: "#3a3830",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 20,
+        flexWrap: "wrap",
+      }}>
+        <span>© {new Date().getFullYear()} Vekke</span>
+        <a href="/privacy.html" style={{ color: "#4a4540", textDecoration: "none" }}>Privacy Policy</a>
+        <a href="https://rules.vekke.net" target="_blank" rel="noopener noreferrer" style={{ color: "#4a4540", textDecoration: "none" }}>Rules</a>
+      </footer>
     </div>
   )
 }
