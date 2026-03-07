@@ -511,7 +511,7 @@ export function Header(props: HeaderProps) {
   }, [props.userId])
 
   const handleSignIn   = () => setAuthModalOpen(true)
-  const handleSignOut  = props.onSignOut  ?? (async () => { await supabase.auth.signOut(); navigate("/") })
+  const handleSignOut  = props.onSignOut  ?? (() => { supabase.auth.signOut().then(() => navigate("/")) })
   const handleOpenSkins = props.onOpenSkins ?? (() => navigate("/skins"))
   const handleOpenPro   = props.onOpenPro   ?? (() => {})
   const goHome         = () => navigate("/")
