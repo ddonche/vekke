@@ -348,7 +348,7 @@ export function PuzzlesListPage() {
         ) : (
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(190px, calc(50% - 8px)), 1fr))",
             gap: 16,
             alignItems: "start",
           }}>
