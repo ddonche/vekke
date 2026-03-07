@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
 import { createChallenge } from "../services/pvp"
 import { AuthModal } from "../AuthModal"
+import { OnboardingModal } from "../OnboardingModal"
 
 type ViewerProfile = {
   id: string
@@ -423,6 +424,7 @@ export default function HomePage() {
 
   const [userId, setUserId] = useState<string | null>(null)
   const [me, setMe] = useState<ViewerProfile | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [stats, setStats] = useState<ViewerStats | null>(null)
 
   const [ladderFormat, setLadderFormat] = useState<Format>("standard")
@@ -507,8 +509,10 @@ export default function HomePage() {
 
       if (!isMountedRef.current) return
 
-      setMe((p as ViewerProfile | null) ?? null)
+      const profile = (p as ViewerProfile | null) ?? null
+      setMe(profile)
       setStats((s as ViewerStats | null) ?? null)
+      if (profile && profile.username.startsWith("user_")) setShowOnboarding(true)
       setLoading(false)
     })().catch((e: any) => {
       setErr(e?.message ?? String(e))
@@ -1116,11 +1120,24 @@ export default function HomePage() {
                                       fontSize: "0.88rem",
                                       fontWeight: 600,
                                       letterSpacing: "0.04em",
-                                      color: "#e8e4d8",
+                                      color: r.user_id === userId ? "#5de8f7" : "#e8e4d8",
                                     }}
                                   >
                                     {r.username}
                                   </span>
+                                  {r.user_id === userId && (
+                                    <span style={{
+                                      fontFamily: "'Cinzel', serif",
+                                      fontSize: "0.55rem",
+                                      fontWeight: 700,
+                                      letterSpacing: "0.2em",
+                                      color: "#5de8f7",
+                                      border: "1px solid rgba(93,232,247,0.4)",
+                                      borderRadius: 3,
+                                      padding: "1px 5px",
+                                      textTransform: "uppercase",
+                                    }}>YOU</span>
+                                  )}
                                   {r.account_tier === "pro" ? <ProFlair /> : null}
                                 </div>
 
@@ -1218,12 +1235,14 @@ export default function HomePage() {
                             }}
                           >
                             <div
+                              onClick={() => navigate(`/u/${encodeURIComponent(me.username)}`)}
                               style={{
                                 fontFamily: "'Cinzel', serif",
                                 fontSize: "1.12rem",
                                 fontWeight: 800,
                                 letterSpacing: "0.04em",
                                 color: "#e8e4d8",
+                                cursor: "pointer",
                               }}
                             >
                               {me.username}
@@ -1511,6 +1530,17 @@ export default function HomePage() {
       )}
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showOnboarding && userId && (
+        <OnboardingModal
+          userId={userId}
+          onComplete={async () => {
+            setShowOnboarding(false)
+            const { data: profile } = await supabase.from("profiles").select("id,username,avatar_url,account_tier").eq("id", userId).maybeSingle()
+            if (profile) setMe(profile as any)
+            navigate("/tutorial")
+          }}
+        />
+      )}
       <footer style={{
         borderTop: "1px solid rgba(255,255,255,0.05)",
         padding: "24px",
