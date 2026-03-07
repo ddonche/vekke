@@ -427,6 +427,7 @@ export default function HomePage() {
   const [ladderFormat, setLadderFormat] = useState<Format>("standard")
   const [topRows, setTopRows] = useState<LeaderboardRow[]>([])
   const [ladderLoading, setLadderLoading] = useState(true)
+  const [pvpToast, setPvpToast] = useState(false)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -871,7 +872,7 @@ export default function HomePage() {
           await supabase.auth.signOut()
           navigate("/")
         }}
-        onPlay={() => navigate("/")}
+        onPlay={() => navigate("/play?openNewGame=1")}
         onMyGames={() => navigate("/challenges")}
         onLeaderboard={() => navigate("/leaderboard")}
         onChallenges={() => navigate("/challenges")}
@@ -952,10 +953,34 @@ export default function HomePage() {
                 </div>
 
                 <div className="hero-actions">
-                  <HomeButton variant="primary" onClick={() => navigate("/")}>
-                    Play vs Player
-                  </HomeButton>
-                  <HomeButton variant="secondary" onClick={() => navigate("/")}>
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <HomeButton variant="primary" onClick={() => { setPvpToast(true); setTimeout(() => setPvpToast(false), 3000) }}>
+                      Play vs Player
+                    </HomeButton>
+                    {pvpToast && (
+                      <div style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 8px)",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        background: "#1a1a22",
+                        border: "1px solid rgba(184,150,106,0.3)",
+                        borderRadius: 6,
+                        padding: "8px 14px",
+                        whiteSpace: "nowrap",
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: "0.65rem",
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        color: "#b8966a",
+                        pointerEvents: "none",
+                        zIndex: 100,
+                      }}>
+                        Matchmaking coming soon — challenge players from the Leaderboard
+                      </div>
+                    )}
+                  </div>
+                  <HomeButton variant="secondary" onClick={() => navigate("/play?openNewGame=1")}>
                     Play vs Computer
                   </HomeButton>
                   <HomeButton variant="ghost" onClick={() => navigate("/tutorial")}>

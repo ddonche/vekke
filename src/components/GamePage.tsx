@@ -1249,7 +1249,7 @@ if (wantsNewGame) {
           onOpenProfile={() => setShowProfileModal(true)}
           onOpenSkins={() => setSkinsOpen(true)}
           onSignOut={async () => { await supabase.auth.signOut() }}
-          onPlay={() => navigate("/")}
+          onPlay={() => { setNewGameOpen(true); setNewGameMsg(null) }}
           onMyGames={() => navigate("/my-games")}
           onLeaderboard={() => navigate("/leaderboard")}
           onChallenges={() => navigate("/challenges")}
