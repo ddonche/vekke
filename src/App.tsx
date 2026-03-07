@@ -40,7 +40,7 @@ function TutorialWrapper() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<GamePage />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/home" element={<HomePage />} />
       <Route path="/u/:username" element={<ProfilePage />} />
       <Route path="/auth" element={<AuthGatePage />} />
@@ -69,6 +69,8 @@ function App() {
       <Route path="/puzzle-editor" element={<PuzzleEditorPage />} />
       <Route path="/puzzles" element={<PuzzlesListPage />} />
       <Route path="/puzzle/:id" element={<PuzzlePage />} />
+      <Route path="/play" element={<GamePage />} />
+
     </Routes>
   )
 }
