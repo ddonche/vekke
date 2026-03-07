@@ -210,8 +210,6 @@ function UserDropdown(
     userId,
     username,
     avatarUrl,
-    titleLabel,
-    elo,
     isPro,
     onSignIn,
     onOpenPro,
@@ -247,7 +245,6 @@ function UserDropdown(
       window.setTimeout(() => setCopied(false), 1500)
     }
   }
-
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -318,7 +315,6 @@ function UserDropdown(
           >
             {username ?? "Player"}
           </div>
-
         </div>
         <svg
           width="10"
@@ -373,7 +369,6 @@ function UserDropdown(
                 >
                   {username ?? "Player"}
                 </div>
-
               </div>
             </div>
           </div>
@@ -486,7 +481,7 @@ export function Header(props: HeaderProps) {
   const [profileModalOpen, setProfileModalOpen] = React.useState(false)
   const navigate = useNavigate()
 
-  const { activePage } = props
+  const { activePage, isLoggedIn } = props
 
   const [turnCount, setTurnCount] = useState(0)
 
@@ -513,16 +508,16 @@ export function Header(props: HeaderProps) {
     return () => window.clearInterval(t)
   }, [props.userId])
 
-  const goHome = () => navigate("/home")
-  const goPlay = props.onPlay ?? (() => navigate("/"))
-  const goMyGames = props.onMyGames ?? (() => navigate("/challenges"))
+  const goHome        = () => navigate("/")
+  const goPlay        = props.onPlay        ?? (() => navigate("/play?openNewGame=1"))
+  const goMyGames     = props.onMyGames     ?? (() => navigate("/challenges"))
   const goLeaderboard = props.onLeaderboard ?? (() => navigate("/leaderboard"))
-  const goOrders = props.onOrders ?? (() => navigate("/orders"))
-  const goRules = props.onRules ?? (() => navigate("/rules"))
-  const goTutorial = props.onTutorial ?? (() => navigate("/tutorial"))
-  const goPuzzles = props.onPuzzles ?? (() => navigate("/puzzles"))
+  const goOrders      = props.onOrders      ?? (() => navigate("/orders"))
+  const goRules       = props.onRules       ?? (() => navigate("/rules"))
+  const goTutorial    = props.onTutorial    ?? (() => navigate("/tutorial"))
+  const goPuzzles     = props.onPuzzles     ?? (() => navigate("/puzzles"))
   const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
-  const goChallenges = props.onChallenges ?? (() => navigate("/challenges"))
+  const goChallenges  = props.onChallenges  ?? (() => navigate("/challenges"))
 
   return (
     <>
@@ -634,7 +629,9 @@ export function Header(props: HeaderProps) {
 
           <nav className="vekke-nav">
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
-            <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
+            {isLoggedIn && (
+              <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
+            )}
             <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
             <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
@@ -688,12 +685,14 @@ export function Header(props: HeaderProps) {
         >
           Play
         </button>
-        <button
-          className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`}
-          onClick={() => { goMyGames(); setMobileOpen(false) }}
-        >
-          My Games{turnCount > 0 ? ` (${turnCount})` : ""}
-        </button>
+        {isLoggedIn && (
+          <button
+            className={`vekke-mobile-nav-item${activePage === "mygames" ? " active" : ""}`}
+            onClick={() => { goMyGames(); setMobileOpen(false) }}
+          >
+            My Games{turnCount > 0 ? ` (${turnCount})` : ""}
+          </button>
+        )}
         <button
           className={`vekke-mobile-nav-item${activePage === "puzzles" ? " active" : ""}`}
           onClick={() => { goPuzzles(); setMobileOpen(false) }}
