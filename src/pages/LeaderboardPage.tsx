@@ -917,7 +917,7 @@ export function LeaderboardPage() {
                                           : `Challenge (${FORMAT_LABELS[format]})`
                               }
                             >
-                              {!userId ? "Login to Challenge" : isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
+                              {isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
                             </button>
                           </td>
                         </tr>

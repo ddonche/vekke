@@ -1152,7 +1152,7 @@ export default function ProfilePage() {
                                     : `Challenge (${FORMAT_LABELS[challengeTc]})`
                       }
                     >
-                      {!userId ? "Login to Challenge" : challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
+                      {challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
                     </button>
                   </div>
 

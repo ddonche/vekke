@@ -882,6 +882,11 @@ export default function HomePage() {
           opacity: 0.35;
           cursor: default;
         }
+        @media (max-width: 600px) {
+          .challenge-btn {
+            display: none;
+          }
+        }
 
         .sticky-rail {
           position: static;
@@ -1177,7 +1182,7 @@ export default function HomePage() {
                                   disabled={!!challenged[r.user_id] || !!challenging[r.user_id]}
                                   onClick={(e) => { e.stopPropagation(); onChallengeClick(r) }}
                                 >
-                                  {!userId ? "Login to Challenge" : challenged[r.user_id] ? "Challenged" : challenging[r.user_id] ? "Sending..." : "Challenge"}
+                                  {challenged[r.user_id] ? "Challenged" : challenging[r.user_id] ? "Sending..." : "Challenge"}
                                 </button>
                               )}
                             </div>
