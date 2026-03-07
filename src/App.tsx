@@ -23,7 +23,7 @@ import { PuzzlePage } from "./pages/PuzzlePage"
 import { PuzzlesListPage } from "./pages/PuzzlesListPage"
 
 function RulesRedirect() {
-  window.location.replace("/rules/index.html")
+  window.location.replace("https://rules.vekke.net")
   return null
 }
 

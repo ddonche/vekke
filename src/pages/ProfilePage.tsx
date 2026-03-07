@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
 import { createChallenge, type TimeControlId } from "../services/pvp"
+import { AuthModal } from "../AuthModal"
 import { newGame } from "../engine/state"
 import { RouteDomino } from "../RouteDomino"
 
@@ -384,6 +385,7 @@ export default function ProfilePage() {
   const [rewardSkins, setRewardSkins] = useState<Record<string, any[]>>({})
   const [challenging, setChallenging] = useState(false)
   const [challenged, setChallenged] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -666,7 +668,6 @@ export default function ProfilePage() {
   }, [derived])
 
   function canChallengeTarget() {
-    if (!userId) return false
     if (!profile) return false
     if (profile.id === userId) return false
     if (profile.is_ai) return false
@@ -678,6 +679,7 @@ export default function ProfilePage() {
   async function onChallengeClick(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
+    if (!userId) { setShowAuthModal(true); return }
 
     if (!profile) return
 
@@ -1019,7 +1021,7 @@ export default function ProfilePage() {
         onLeaderboard={() => navigate("/leaderboard")}
         onChallenges={() => navigate("/challenges")}
         onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
+        onRules={() => window.open("https://rules.vekke.net", "_blank")}
         onTutorial={() => navigate("/tutorial")}
       />
 
@@ -1163,7 +1165,7 @@ export default function ProfilePage() {
                                     : `Challenge (${FORMAT_LABELS[challengeTc]})`
                       }
                     >
-                      {challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
+                      {!userId ? "Login to Challenge" : challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
                     </button>
                   </div>
 
@@ -1787,6 +1789,8 @@ export default function ProfilePage() {
           <div style={{ height: 12 }} />
         </div>
       </div>
+
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { AuthModal } from "../AuthModal"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -135,11 +136,12 @@ function SolveRateBar({ solveCount, attemptCount, diffColor }: {
 
 // ── Puzzle card ────────────────────────────────────────────────────────────────
 
-function PuzzleCard({ p, solved, onClick }: {
+function PuzzleCard({ p, solved, onClick, loggedIn }: {
   p: PuzzleRow
   solved: boolean
   attempted: boolean
   onClick: () => void
+  loggedIn: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   const diffColor = DIFF_COLOR[p.difficulty] ?? "#b8966a"
@@ -162,6 +164,28 @@ function PuzzleCard({ p, solved, onClick }: {
         boxShadow: !solved && hovered ? "0 8px 24px rgba(0,0,0,0.3)" : "none",
       }}
     >
+      {!loggedIn && !solved && hovered && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: 12,
+          background: "rgba(10,10,12,0.82)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2,
+          pointerEvents: "none",
+        }}>
+          <span style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "#b8966a",
+          }}>Sign In to Play</span>
+        </div>
+      )}
       {/* Board preview */}
       <div style={{ padding: "8px 8px 4px" }}>
         <PuzzleBoardPreview boardState={p.board_state} solved={solved} />
@@ -220,6 +244,7 @@ export function PuzzlesListPage() {
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState<DifficultyFilter>("all")
   const [userId, setUserId]           = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [me, setMe]                   = useState<{ username: string; avatar_url: string | null } | null>(null)
 
   useEffect(() => {
@@ -291,7 +316,7 @@ export function PuzzlesListPage() {
         onLeaderboard={() => navigate("/leaderboard")}
         onChallenges={() => navigate("/challenges")}
         onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
+        onRules={() => window.open("https://rules.vekke.net", "_blank")}
         onTutorial={() => navigate("/tutorial")}
         onAnnouncements={() => navigate("/announcements")}
         onPuzzles={() => navigate("/puzzles")}
@@ -346,12 +371,14 @@ export function PuzzlesListPage() {
                 p={p}
                 solved={completions[p.id] === true}
                 attempted={p.id in completions && completions[p.id] !== true}
-                onClick={() => navigate(`/puzzle/${p.id}`)}
+                onClick={() => userId ? navigate(`/puzzle/${p.id}`) : setShowAuthModal(true)}
+                loggedIn={!!userId}
               />
             ))}
           </div>
         )}
       </div>
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

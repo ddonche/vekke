@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { createChallenge } from "../services/pvp"
+import { AuthModal } from "../AuthModal"
 
 type ViewerProfile = {
   id: string
@@ -317,7 +319,9 @@ function HomeButton({
   variant?: "primary" | "secondary" | "ghost"
   full?: boolean
 }) {
+
   const base: React.CSSProperties = {
+    position: "relative",
     fontFamily: "'Cinzel', serif",
     borderRadius: 4,
     padding: "10px 14px",
@@ -348,20 +352,17 @@ function HomeButton({
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        onClick?.()
+      }}
       style={base}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.filter = "brightness(1.08)"
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.filter = "none"
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.08)" }}
+      onMouseLeave={(e) => { e.currentTarget.style.filter = "none" }}
     >
       {children}
     </button>
   )
 }
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="section-label">
@@ -427,6 +428,9 @@ export default function HomePage() {
   const [ladderFormat, setLadderFormat] = useState<Format>("standard")
   const [topRows, setTopRows] = useState<LeaderboardRow[]>([])
   const [ladderLoading, setLadderLoading] = useState(true)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [challenged, setChallenged] = useState<Record<string, boolean>>({})
+  const [challenging, setChallenging] = useState<Record<string, boolean>>({})
   const [pvpToast, setPvpToast] = useState(false)
 
   useEffect(() => {
@@ -510,6 +514,15 @@ export default function HomePage() {
       setErr(e?.message ?? String(e))
       setLoading(false)
     })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setUserId(null)
+        setMe(null)
+        setStats(null)
+      }
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -536,7 +549,7 @@ export default function HomePage() {
         `)
         .gt(eloCol, 0)
         .order(eloCol, { ascending: false })
-        .limit(6)
+        .limit(50)
 
       if (statsErr) {
         if (!isMountedRef.current) return
@@ -622,7 +635,7 @@ export default function HomePage() {
         })
 
       if (!isMountedRef.current) return
-      setTopRows(merged)
+      setTopRows(merged.slice(0, 6))
       setLadderLoading(false)
     })().catch((e: any) => {
       if (!isMountedRef.current) return
@@ -668,6 +681,26 @@ export default function HomePage() {
   }
 
   const isPro = me?.account_tier === "pro"
+
+  function canChallengeRow(userId_: string | null, r: LeaderboardRow) {
+    if (r.user_id === userId_) return false
+    if (r.is_ai) return false
+    if (challenged[r.user_id]) return false
+    if (challenging[r.user_id]) return false
+    return true
+  }
+
+  async function onChallengeClick(r: LeaderboardRow) {
+    if (!userId) { setShowAuthModal(true); return }
+    if (!canChallengeRow(userId, r)) return
+    setChallenging((m) => ({ ...m, [r.user_id]: true }))
+    try {
+      await createChallenge({ invitedUserId: r.user_id, timeControlId: "standard" })
+      setChallenged((m) => ({ ...m, [r.user_id]: true }))
+    } finally {
+      setChallenging((m) => ({ ...m, [r.user_id]: false }))
+    }
+  }
   const myElo = safeInt(stats?.elo)
   const myWins = safeInt(stats?.wins_active)
   const myLosses = safeInt(stats?.losses_active)
@@ -827,6 +860,25 @@ export default function HomePage() {
           background: rgba(255,255,255,0.03);
         }
 
+        .challenge-btn {
+          font-family: 'Cinzel', serif;
+          background: rgba(184,150,106,0.10);
+          border: 1px solid rgba(184,150,106,0.35);
+          color: #d4af7a;
+          border-radius: 4px;
+          padding: 6px 10px;
+          font-size: 0.55rem;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .challenge-btn:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
+
         .sticky-rail {
           position: static;
         }
@@ -864,7 +916,7 @@ export default function HomePage() {
         activePage="play"
         myGamesTurnCount={0}
         onSignIn={() => {
-          window.location.assign(`/?openAuth=1&returnTo=${encodeURIComponent("/")}`)
+          setShowAuthModal(true)
         }}
         onOpenProfile={() => navigate("/?openProfile=1")}
         onOpenSkins={() => navigate("/skins")}
@@ -877,7 +929,7 @@ export default function HomePage() {
         onLeaderboard={() => navigate("/leaderboard")}
         onChallenges={() => navigate("/challenges")}
         onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
+        onRules={() => window.open("https://rules.vekke.net", "_blank")}
         onTutorial={() => navigate("/tutorial")}
       />
 
@@ -901,7 +953,7 @@ export default function HomePage() {
 
           <SectionLabel>Hall</SectionLabel>
           <SurfaceCard topAccent="#b8966a">
-            <div style={{ position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "relative", overflow: "visible" }}>
               <div
                 aria-hidden
                 style={{
@@ -953,33 +1005,9 @@ export default function HomePage() {
                 </div>
 
                 <div className="hero-actions">
-                  <div style={{ position: "relative", display: "inline-block" }}>
-                    <HomeButton variant="primary" onClick={() => { setPvpToast(true); setTimeout(() => setPvpToast(false), 3000) }}>
-                      Play vs Player
-                    </HomeButton>
-                    {pvpToast && (
-                      <div style={{
-                        position: "absolute",
-                        bottom: "calc(100% + 8px)",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        background: "#1a1a22",
-                        border: "1px solid rgba(184,150,106,0.3)",
-                        borderRadius: 6,
-                        padding: "8px 14px",
-                        whiteSpace: "nowrap",
-                        fontFamily: "'Cinzel', serif",
-                        fontSize: "0.65rem",
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "#b8966a",
-                        pointerEvents: "none",
-                        zIndex: 100,
-                      }}>
-                        Matchmaking coming soon — challenge players from the Leaderboard
-                      </div>
-                    )}
-                  </div>
+                  <HomeButton variant="primary" onClick={() => setPvpToast(true)}>
+                    Play vs Player
+                  </HomeButton>
                   <HomeButton variant="secondary" onClick={() => navigate("/play?openNewGame=1")}>
                     Play vs Computer
                   </HomeButton>
@@ -1132,15 +1160,25 @@ export default function HomePage() {
                               </div>
                             </div>
 
-                            <div
-                              style={{
-                                justifySelf: "end",
-                                fontFamily: "monospace",
-                                fontWeight: 900,
-                                color: eloColor(elo),
-                              }}
-                            >
-                              {elo}
+                            <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 10 }}>
+                              <div
+                                style={{
+                                  fontFamily: "monospace",
+                                  fontWeight: 900,
+                                  color: eloColor(elo),
+                                }}
+                              >
+                                {elo}
+                              </div>
+                              {!r.is_ai && r.user_id !== userId && (
+                                <button
+                                  className="challenge-btn"
+                                  disabled={!!challenged[r.user_id] || !!challenging[r.user_id]}
+                                  onClick={(e) => { e.stopPropagation(); onChallengeClick(r) }}
+                                >
+                                  {!userId ? "Login to Challenge" : challenged[r.user_id] ? "Challenged" : challenging[r.user_id] ? "Sending..." : "Challenge"}
+                                </button>
+                              )}
                             </div>
                           </div>
                         )
@@ -1322,7 +1360,7 @@ export default function HomePage() {
                           variant="primary"
                           full
                           onClick={() => {
-                            window.location.assign(`/?openAuth=1&returnTo=${encodeURIComponent("/")}`)
+                            setShowAuthModal(true)
                           }}
                         >
                           Sign In
@@ -1383,6 +1421,112 @@ export default function HomePage() {
           <div style={{ height: 12 }} />
         </div>
       </div>
+
+      {pvpToast && (
+        <div
+          onClick={() => setPvpToast(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#13131a",
+              border: "1px solid rgba(184,150,106,0.35)",
+              borderRadius: 10,
+              padding: "28px 36px",
+              maxWidth: 440,
+              textAlign: "center",
+            }}
+          >
+            <div style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              color: "#b8966a",
+              marginBottom: 12,
+            }}>
+              Coming Soon
+            </div>
+            <div style={{
+              fontFamily: "'EB Garamond', serif",
+              fontSize: "1.05rem",
+              color: "#b0aa9e",
+              lineHeight: 1.6,
+              marginBottom: 24,
+            }}>
+              Matchmaking is not yet available. Challenge players directly from the Leaderboard or their profile — or play one of our AI opponents, each with a unique playstyle and Elo rating, or sharpen your game with Puzzles.
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
+              <button
+                onClick={() => { setPvpToast(false); navigate("/play?openNewGame=1") }}
+                style={{
+                  fontFamily: "'Cinzel', serif",
+                  fontSize: "0.62rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  padding: "9px 22px",
+                  borderRadius: 4,
+                  background: "#13131a",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  color: "#e8e4d8",
+                  cursor: "pointer",
+                }}
+              >
+                Play vs Computer
+              </button>
+              <button
+                onClick={() => { setPvpToast(false); navigate("/puzzles") }}
+                style={{
+                  fontFamily: "'Cinzel', serif",
+                  fontSize: "0.62rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  padding: "9px 22px",
+                  borderRadius: 4,
+                  background: "rgba(184,150,106,0.10)",
+                  border: "1px solid rgba(184,150,106,0.35)",
+                  color: "#d4af7a",
+                  cursor: "pointer",
+                }}
+              >
+                Try Puzzles
+              </button>
+            </div>
+            <button
+              onClick={() => setPvpToast(false)}
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: "0.6rem",
+                fontWeight: 600,
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                padding: "6px 14px",
+                borderRadius: 4,
+                background: "transparent",
+                border: "none",
+                color: "#6b6558",
+                cursor: "pointer",
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

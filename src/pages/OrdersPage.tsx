@@ -76,32 +76,17 @@ export default function OrdersPage() {
   }, [])
 
   useEffect(() => {
-    if (!userId) return
     let mounted = true
     ;(async () => {
       setLoading(true)
       setErr(null)
 
-      const [ordersRes, profileRes, membershipRes] = await Promise.all([
-        supabase
-          .from("orders")
-          .select("id,name,doctrine,primary_color,secondary_color,sigil_url,sort_order,is_active")
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("profiles")
-          .select("id,username,avatar_url")
-          .eq("id", userId)
-          .maybeSingle(),
-        supabase
-          .from("order_memberships")
-          .select("order_id,joined_at")
-          .eq("user_id", userId)
-          .is("left_at", null)
-          .order("joined_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ])
+      // Always fetch orders (public)
+      const ordersRes = await supabase
+        .from("orders")
+        .select("id,name,doctrine,primary_color,secondary_color,sigil_url,sort_order,is_active")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
 
       if (!mounted) return
       if (ordersRes.error) {
@@ -109,27 +94,42 @@ export default function OrdersPage() {
         setLoading(false)
         return
       }
-      if (profileRes.error) {
-        setErr(profileRes.error.message)
-        setLoading(false)
-        return
-      }
-      if (membershipRes.error) {
-        setErr(membershipRes.error.message)
-        setLoading(false)
-        return
-      }
 
       const ords = (ordersRes.data ?? []) as OrderRow[]
-      const profile = profileRes.data as any
-      const membership = (membershipRes.data ?? null) as ActiveMembershipRow | null
-      const oid = membership?.order_id ?? null
-
       setOrders(ords)
-      setMe(profile ?? null)
-      setCurrentOrderId(oid)
-      setCurrentJoinedAt(membership?.joined_at ?? null)
-      setSelectedOrderId(oid)
+
+      // Only fetch profile/membership when logged in
+      if (userId) {
+        const [profileRes, membershipRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id,username,avatar_url")
+            .eq("id", userId)
+            .maybeSingle(),
+          supabase
+            .from("order_memberships")
+            .select("order_id,joined_at")
+            .eq("user_id", userId)
+            .is("left_at", null)
+            .order("joined_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ])
+
+        if (!mounted) return
+        if (profileRes.error) { setErr(profileRes.error.message); setLoading(false); return }
+        if (membershipRes.error) { setErr(membershipRes.error.message); setLoading(false); return }
+
+        const profile = profileRes.data as any
+        const membership = (membershipRes.data ?? null) as ActiveMembershipRow | null
+        const oid = membership?.order_id ?? null
+
+        setMe(profile ?? null)
+        setCurrentOrderId(oid)
+        setCurrentJoinedAt(membership?.joined_at ?? null)
+        setSelectedOrderId(oid)
+      }
+
       setLoading(false)
     })()
     return () => {
@@ -358,7 +358,7 @@ export default function OrdersPage() {
         onLeaderboard={() => navigate("/leaderboard")}
         onOrders={() => navigate("/orders")}
         onChallenges={() => navigate("/challenges")}
-        onRules={() => navigate("/rules")}
+        onRules={() => window.open("https://rules.vekke.net", "_blank")}
         onTutorial={() => navigate("/tutorial")}
       />
 
@@ -615,7 +615,7 @@ export default function OrdersPage() {
             }}
           >
             <button
-              disabled={busy || loading || selectedOrderId === null}
+              disabled={!userId || busy || loading || selectedOrderId === null}
               onClick={() => setSelectedOrderId(null)}
               style={{
                 fontFamily: "'Cinzel', serif",
@@ -635,7 +635,7 @@ export default function OrdersPage() {
             </button>
 
             <button
-              disabled={!dirty || busy || loading}
+              disabled={!userId || !dirty || busy || loading}
               onClick={() => save().catch((e) => setErr((e as any)?.message ?? "Failed to save."))}
               style={{
                 fontFamily: "'Cinzel', serif",

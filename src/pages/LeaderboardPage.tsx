@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
 import { createChallenge } from "../services/pvp"
+import { AuthModal } from "../AuthModal"
 import { newGame } from "../engine/state"
 
 type Format = "standard" | "rapid" | "blitz" | "daily"
@@ -182,6 +183,9 @@ export function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
+  // Auth modal
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
   // per-row challenge state
   const [challenging, setChallenging] = useState<Record<string, boolean>>({})
   const [challenged, setChallenged] = useState<Record<string, boolean>>({})
@@ -353,7 +357,6 @@ export function LeaderboardPage() {
   }
 
   function canChallengeRow(r: LeaderboardRow) {
-    if (!userId) return false
     if (r.user_id === userId) return false
     if (r.is_ai) return false
     if (challenged[r.user_id]) return false
@@ -364,6 +367,7 @@ export function LeaderboardPage() {
   async function onChallengeClick(e: React.MouseEvent, r: LeaderboardRow) {
     e.preventDefault()
     e.stopPropagation()
+    if (!userId) { setShowAuthModal(true); return }
 
     if (!userId) return
     if (r.user_id === userId) return
@@ -603,7 +607,7 @@ export function LeaderboardPage() {
         onLeaderboard={() => navigate("/leaderboard")}
         onChallenges={() => navigate("/challenges")}
         onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
+        onRules={() => window.open("https://rules.vekke.net", "_blank")}
         onTutorial={() => navigate("/tutorial")}
       />
 
@@ -929,7 +933,7 @@ export function LeaderboardPage() {
                                           : `Challenge (${FORMAT_LABELS[format]})`
                               }
                             >
-                              {isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
+                              {!userId ? "Login to Challenge" : isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
                             </button>
                           </td>
                         </tr>
@@ -1117,6 +1121,8 @@ export function LeaderboardPage() {
           )}
         </div>
       </div>
+
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

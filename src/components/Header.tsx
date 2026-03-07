@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { ProfileModal } from "../ProfileModal"
+import { AuthModal } from "../AuthModal"
 
 const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
 
@@ -479,6 +480,7 @@ export function Header(props: HeaderProps) {
   injectFonts()
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [profileModalOpen, setProfileModalOpen] = React.useState(false)
+  const [authModalOpen, setAuthModalOpen] = React.useState(false)
   const navigate = useNavigate()
 
   const { activePage, isLoggedIn } = props
@@ -508,6 +510,7 @@ export function Header(props: HeaderProps) {
     return () => window.clearInterval(t)
   }, [props.userId])
 
+  const handleSignIn  = () => setAuthModalOpen(true)
   const goHome        = () => navigate("/")
   const goPlay        = props.onPlay        ?? (() => navigate("/play?openNewGame=1"))
   const goMyGames     = props.onMyGames     ?? (() => navigate("/challenges"))
@@ -670,6 +673,7 @@ export function Header(props: HeaderProps) {
 
             <UserDropdown
               {...props}
+              onSignIn={handleSignIn}
               goOrders={goOrders}
               goChallenges={goChallenges}
               onOpenProfileModal={() => setProfileModalOpen(true)}
@@ -738,6 +742,10 @@ export function Header(props: HeaderProps) {
           onClose={() => setProfileModalOpen(false)}
           onUpdate={() => setProfileModalOpen(false)}
         />
+      )}
+
+      {authModalOpen && (
+        <AuthModal onClose={() => setAuthModalOpen(false)} />
       )}
     </>
   )
