@@ -15,6 +15,7 @@ export type ActivePage =
   | "tutorial"
   | "skins"
   | "announcements"
+  | "puzzles"
   | null
 
 export interface HeaderProps {
@@ -41,6 +42,7 @@ export interface HeaderProps {
   onOrders?: () => void
   onRules?: () => void
   onTutorial?: () => void
+  onPuzzles?: () => void
   onAnnouncements?: () => void
 
   // User callbacks
@@ -519,6 +521,7 @@ export function Header(props: HeaderProps) {
   const goOrders = props.onOrders ?? (() => navigate("/orders"))
   const goRules = props.onRules ?? (() => navigate("/rules"))
   const goTutorial = props.onTutorial ?? (() => navigate("/tutorial"))
+  const goPuzzles = props.onPuzzles ?? (() => navigate("/puzzles"))
   const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
   const goChallenges = props.onChallenges ?? (() => navigate("/challenges"))
 
@@ -633,6 +636,7 @@ export function Header(props: HeaderProps) {
           <nav className="vekke-nav">
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
             <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
+            <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
             <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
@@ -690,6 +694,12 @@ export function Header(props: HeaderProps) {
           onClick={() => { goMyGames(); setMobileOpen(false) }}
         >
           My Games{turnCount > 0 ? ` (${turnCount})` : ""}
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "puzzles" ? " active" : ""}`}
+          onClick={() => { goPuzzles(); setMobileOpen(false) }}
+        >
+          Puzzles
         </button>
         <button
           className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}

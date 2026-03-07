@@ -27,6 +27,7 @@ import {
 } from "../services/skinService"
 import { NewGameModal } from "../NewGameModal"
 import { GameOverModal } from "../GameOverModal"
+import { AchievementsModal } from "./AchievementsModal"
 
 class ErrBoundary extends React.Component<
   { children: React.ReactNode },
@@ -86,6 +87,13 @@ type GamePageProps = {
   onRequestRematch?: () => void
   /** AI level from DB — passed straight to controller so first move uses correct logic */
   aiDifficulty?: string
+  newlyUnlockedAchievements?: any[]
+  /** Puzzle mode: suppress new-game modal, chat, and game-over modal */
+  puzzleMode?: boolean
+  /** Current moves remaining — displayed in place of the clock in puzzle mode */
+  puzzleMovesLeft?: number
+  /** Rendered as a banner strip directly below the Header in puzzle mode */
+  puzzleBanner?: React.ReactNode
 }
 
 export function GamePage(props: GamePageProps = {}) {
@@ -151,6 +159,8 @@ export function GamePage(props: GamePageProps = {}) {
     if (props.opponentType === "pvp") return false
     // If we already have a DB-backed game loaded (wrapper), don't show "new game" modal.
     if (props.externalGameData) return false
+    // Puzzle mode never shows the new game modal.
+    if (props.puzzleMode) return false
     return true
   })
   const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
@@ -159,6 +169,7 @@ export function GamePage(props: GamePageProps = {}) {
   const [showLogExpanded, setShowLogExpanded] = useState(true)
   const [showChatExpanded, setShowChatExpanded] = useState(false)
   const [showGameOverModal, setShowGameOverModal] = useState(true)
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false)
   const mulliganTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const authReturnToRef = useRef<string | null>(null)
@@ -198,6 +209,8 @@ export function GamePage(props: GamePageProps = {}) {
   const [opponentLoadout, setOpponentLoadout] = useState<ResolvedLoadout | null>(null)
   const [suppressOpponentSkin, setSuppressOpponentSkin] = useState(false)
   const [myLoadoutIds, setMyLoadoutIds] = useState<PlayerLoadout | null>(null)
+  const [routeSkinStyles, setRouteSkinStyles] = useState<Record<string, any>>({})
+  const [boardSkinStyle, setBoardSkinStyle] = useState<Record<string, string> | undefined>(undefined)
   const [opponentLoadoutIds, setOpponentLoadoutIds] = useState<PlayerLoadout | null>(null)
   const [skinImageById, setSkinImageById] = useState<Record<string, string | null>>({})
 
@@ -223,6 +236,18 @@ export function GamePage(props: GamePageProps = {}) {
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
+
+  // ── Puzzle mode: detect B→W turn transitions and call onMoveComplete ──
+  const puzzlePrevPlayerRef = React.useRef<string | null>("B")
+  useEffect(() => {
+    if (!props.puzzleMode) return
+    const prev = puzzlePrevPlayerRef.current
+    puzzlePrevPlayerRef.current = g.player
+    if (prev === "B" && g.player === "W") {
+      props.onMoveComplete?.(g, clocks)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g.player, g.turn])
 
   const eloForFormat = (ps: PlayerStats | null, tc: typeof timeControlId): number => {
     if (!ps) return 1200
@@ -371,6 +396,13 @@ export function GamePage(props: GamePageProps = {}) {
     }
   }, [currentUserId])
 
+  // Show achievements modal after game over modal is closed, if achievements arrived
+  useEffect(() => {
+    if (!showGameOverModal && (props.newlyUnlockedAchievements?.length ?? 0) > 0) {
+      setShowAchievementsModal(true)
+    }
+  }, [showGameOverModal, props.newlyUnlockedAchievements])
+
   // Show game over modal whenever a new game ends.
   useEffect(() => {
     if (g.gameOver) setShowGameOverModal(true)
@@ -436,6 +468,41 @@ export function GamePage(props: GamePageProps = {}) {
 
       if (cancelled) return
       setSkinImageById(imgMap)
+
+      // Fetch style JSON for equipped route skins
+      const routeSkinIds = [
+        mineIds?.route_skin_id,
+        theirsIds?.route_skin_id,
+      ].filter(Boolean) as string[]
+
+      if (routeSkinIds.length > 0) {
+        const { data: routeSkinRows } = await supabase
+          .from("skins")
+          .select("id, style")
+          .in("id", routeSkinIds)
+        if (!cancelled && routeSkinRows) {
+          const styleMap: Record<string, any> = {}
+          for (const row of routeSkinRows as any[]) {
+            if (row.style && typeof row.style === "object" && Object.keys(row.style).length > 0) {
+              styleMap[row.id] = row.style
+            }
+          }
+          setRouteSkinStyles(styleMap)
+        }
+      }
+
+      // Fetch board skin style for current player
+      const boardSkinId = mineIds?.board_skin_id
+      if (boardSkinId) {
+        const { data: boardSkinRow } = await supabase
+          .from("skins")
+          .select("id, style")
+          .eq("id", boardSkinId)
+          .maybeSingle()
+        if (!cancelled && boardSkinRow?.style && typeof boardSkinRow.style === "object" && Object.keys(boardSkinRow.style).length > 0) {
+          setBoardSkinStyle(boardSkinRow.style as Record<string, string>)
+        }
+      }
     }
 
     load()
@@ -1107,6 +1174,12 @@ if (wantsNewGame) {
     if (orderColors) return orderColors
     return side === "W" ? W_DEFAULT_COLORS : undefined
   }
+  const routeSkinStyleForSide = (side: "W" | "B"): Record<string, string> | undefined => {
+    const ids = side === mySide ? myLoadoutIds : opponentLoadoutIds
+    const skinId = ids?.route_skin_id
+    if (!skinId) return undefined
+    return routeSkinStyles[skinId] ?? undefined
+  }
   const activeRouteColors = routeColorsForSide(g.player as "W" | "B")
 
   const tokenClass = (side: "W" | "B") => (side === "W" ? wTokenClass : bTokenClass)
@@ -1184,6 +1257,8 @@ if (wantsNewGame) {
           onTutorial={() => navigate("/tutorial")}
         />
 
+        {props.puzzleBanner}
+
         {newGameOpen && (
           <NewGameModal
             isOpen={newGameOpen}
@@ -1225,6 +1300,7 @@ if (wantsNewGame) {
           /* ===== MOBILE LAYOUT ===== */
           <>
             {/* Chat Section */}
+            {!props.puzzleMode && (
             <div
               style={{
                 backgroundColor: "#0d0d10",
@@ -1333,6 +1409,7 @@ if (wantsNewGame) {
                 </div>
               )}
             </div>
+            )}
 
             {/* Scrollable Content Area */}
             <div style={{ flex: 1, overflowY: "auto" }} className="hide-scrollbar">
@@ -1568,6 +1645,7 @@ if (wantsNewGame) {
                           route={r}
                           primaryColor={routeColorsForSide(topPlayer.avatar as "W" | "B")?.primary}
                           secondaryColor={routeColorsForSide(topPlayer.avatar as "W" | "B")?.secondary}
+                          skinStyle={routeSkinStyleForSide(topPlayer.avatar as "W" | "B")}
                           selected={isSelected}
                           routeClass={routeClassForSide(topPlayer.avatar as "W" | "B")}
                           style={{
@@ -1764,8 +1842,9 @@ if (wantsNewGame) {
                     <RouteIcon
                       key={`${r.id}-${idx}`}
                       route={r}
-                      primaryColor={activeRouteColors?.primary}     
+                      primaryColor={activeRouteColors?.primary}
                       secondaryColor={activeRouteColors?.secondary}
+                      skinStyle={routeSkinStyleForSide(g.player as "W" | "B")}
                       onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                       selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                       routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
@@ -1798,6 +1877,7 @@ if (wantsNewGame) {
                     defectionArmed={defectionArmed}
                     defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
+                    boardSkinStyle={boardSkinStyle}
                   />
                 ) : (
                   <IntersectionBoard
@@ -2137,6 +2217,7 @@ if (wantsNewGame) {
                           route={r}
                           primaryColor={routeColorsForSide(bottomPlayer.avatar as "W" | "B")?.primary}
                           secondaryColor={routeColorsForSide(bottomPlayer.avatar as "W" | "B")?.secondary}
+                          skinStyle={routeSkinStyleForSide(bottomPlayer.avatar as "W" | "B")}
                           onClick={() => isActive && !used && actions.playRoute(bottomPlayer.avatar as "W" | "B", r.id)}
                           selected={isSelected}
                           routeClass={routeClassForSide(bottomPlayer.avatar as "W" | "B")}
@@ -2696,7 +2777,8 @@ if (wantsNewGame) {
                             key={r.id}
                             route={r}
                             primaryColor={routeColorsForSide(leftPlayer.avatar as "W" | "B")?.primary}
-                            secondaryColor={routeColorsForSide(leftPlayer.avatar as "W" | "B")?.secondary}
+                          secondaryColor={routeColorsForSide(leftPlayer.avatar as "W" | "B")?.secondary}
+                          skinStyle={routeSkinStyleForSide(leftPlayer.avatar as "W" | "B")}
                             onClick={() => isActive && !used && actions.playRoute(leftPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={routeClassForSide(leftPlayer.avatar as "W" | "B")}
@@ -2717,6 +2799,7 @@ if (wantsNewGame) {
                 </div>
 
                 {/* Chat Section */}
+                {!props.puzzleMode && (
                 <div
                   style={{
                     backgroundColor: "rgba(184,150,106,0.18)",
@@ -2828,6 +2911,8 @@ if (wantsNewGame) {
                     </div>
                   )}
                 </div>
+                )}
+
               </div>
 
               {/* Queue */}
@@ -2852,8 +2937,9 @@ if (wantsNewGame) {
                   <RouteIcon
                     key={`${r.id}-${idx}`}
                     route={r}
-                    primaryColor={activeRouteColors?.primary}     
+                    primaryColor={activeRouteColors?.primary}
                     secondaryColor={activeRouteColors?.secondary}
+                    skinStyle={routeSkinStyleForSide(g.player as "W" | "B")}
                     onClick={() => canPickQueueForSwap && actions.pickQueueIndex(idx)}
                     selected={canPickQueueForSwap && g.pendingSwap.queueIndex === idx}
                     routeClass={routeClassForSide(g.player as "W" | "B")}
@@ -2871,6 +2957,33 @@ if (wantsNewGame) {
 
               {/* Center: Timers + Board */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                {props.puzzleMode && props.puzzleMovesLeft !== undefined ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 16,
+                      alignItems: "center",
+                      padding: "12px 28px",
+                      backgroundColor: "rgba(184,150,106,0.18)",
+                      border: `1px solid ${props.puzzleMovesLeft <= 1 ? "rgba(238,72,76,0.35)" : "rgba(184,150,106,0.30)"}`,
+                      borderRadius: 12,
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#5a5550" }}>
+                      Moves Left
+                    </span>
+                    <span style={{
+                      fontFamily: "'Cinzel', serif",
+                      fontSize: 32, fontWeight: 900,
+                      color: props.puzzleMovesLeft <= 1 ? "#ee484c" : "#e8e4d8",
+                      minWidth: 40, textAlign: "center",
+                      transition: "color 0.2s",
+                    }}>
+                      {props.puzzleMovesLeft}
+                    </span>
+                  </div>
+                ) : (
                 <div
                   style={{
                     display: "flex",
@@ -2901,6 +3014,7 @@ if (wantsNewGame) {
                     <div style={{ fontSize: 18, color: "#b0aa9e", opacity: 0.75 }}>{timeControl.label}</div>
                   </div>
                 </div>
+                )}
 
                 {/* Phase Banner - moved between clock and board */}
                 <div style={{ width: "100%", maxWidth: 597, display: "flex", flexDirection: "column", gap: 6, marginBottom: 2 }}>
@@ -3028,6 +3142,7 @@ if (wantsNewGame) {
                     defectionArmed={defectionArmed}
                     defectionPlayer={defectionArmed ? g.player : null}
                     tokenClass={tokenClass}
+                    boardSkinStyle={boardSkinStyle}
                   />
                 ) : (
                   <IntersectionBoard
@@ -3569,7 +3684,8 @@ if (wantsNewGame) {
                             key={r.id}
                             route={r}
                             primaryColor={routeColorsForSide(rightPlayer.avatar as "W" | "B")?.primary}
-                            secondaryColor={routeColorsForSide(rightPlayer.avatar as "W" | "B")?.secondary}
+                          secondaryColor={routeColorsForSide(rightPlayer.avatar as "W" | "B")?.secondary}
+                          skinStyle={routeSkinStyleForSide(rightPlayer.avatar as "W" | "B")}
                             onClick={() => isActive && !used && actions.playRoute(rightPlayer.avatar as "W" | "B", r.id)}
                             selected={isSelected}
                             routeClass={routeClassForSide(rightPlayer.avatar as "W" | "B")}
@@ -3650,7 +3766,7 @@ if (wantsNewGame) {
 
         )}
 
-        {g.gameOver && (
+        {g.gameOver && !props.puzzleMode && (
           <GameOverModal
             isOpen={showGameOverModal}
             onClose={() => setShowGameOverModal(false)}
@@ -3665,6 +3781,7 @@ if (wantsNewGame) {
               setShowGameOverModal(false)
               setNewGameOpen(true)
             }}
+            newlyUnlockedAchievements={props.newlyUnlockedAchievements}
             onRematch={() => {
               if (props.opponentType === "pvp") {
                 setShowGameOverModal(false)
@@ -3676,6 +3793,13 @@ if (wantsNewGame) {
             }}
           />
         )}
+
+        {/* Achievements Modal */}
+        <AchievementsModal
+          isOpen={showAchievementsModal}
+          onClose={() => setShowAchievementsModal(false)}
+          achievements={props.newlyUnlockedAchievements ?? []}
+        />
 
         {/* Auth Modal */}
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}

@@ -15,6 +15,7 @@ export function RouteIcon({
   highlightColor = "#5de8f7",
   primaryColor,
   secondaryColor,
+  skinStyle,
 }: {
   route: Route
   style?: CSSProperties
@@ -23,6 +24,7 @@ export function RouteIcon({
   highlightColor?: string
   primaryColor?: string
   secondaryColor?: string
+  skinStyle?: Record<string, string>
 }) {
   // Derive pixel size from style.width - supports px numbers or rem strings
   const rawWidth = style?.width
@@ -53,6 +55,7 @@ export function RouteIcon({
         highlightColor={highlightColor}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
+        skinStyle={skinStyle}
       />
     </div>
   )

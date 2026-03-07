@@ -182,7 +182,7 @@ const PIP_LAYOUTS = {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7", primaryColor, secondaryColor }) {
+export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7", primaryColor, secondaryColor, skinStyle }) {
   injectStyles()
 
   const rotation = DIR_ROTATION[dir] ?? 0
@@ -193,31 +193,74 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
   const arrowEm = 2.2         // arrow box in em
   const pipEm = 0.46          // pip radius in em
 
-  const bodyStyle = primaryColor
-    ? { background: `radial-gradient(circle at 50% 55%, rgba(0,0,0,0.00) 35%, rgba(0,0,0,0.30) 100%), linear-gradient(175deg, ${primaryColor}cc 0%, ${primaryColor} 40%, ${primaryColor}88 100%)` }
-    : {}
   const accentColor = secondaryColor ?? null
+  const ss = skinStyle ?? {}
+
+  // When skinStyle is provided, primaryColor/secondaryColor are ignored in favour of skinStyle values
+  const bodyBackground = ss.bodyBackground
+    ?? (primaryColor
+      ? `radial-gradient(circle at 50% 55%, rgba(0,0,0,0.00) 35%, rgba(0,0,0,0.30) 100%), linear-gradient(175deg, ${primaryColor}cc 0%, ${primaryColor} 40%, ${primaryColor}88 100%)`
+      : undefined)
+
+  const selectedShadow = `0 0 10px ${highlightColor}72,
+    inset -0.14em -0.14em 0.55em rgba(0,0,0,0.55),
+    inset 0.14em 0.14em 0.55em rgba(255,255,255,0.16),
+    inset 0 0 1.2em rgba(0,0,0,0.18),
+    0 0.40em 1.00em rgba(0,0,0,0.72),
+    0 0.15em 0.30em rgba(0,0,0,0.45)`
+
+  const pipStyle = ss.pipBackground
+    ? { background: ss.pipBackground, ...(ss.pipBoxShadow ? { boxShadow: ss.pipBoxShadow } : {}) }
+    : accentColor
+      ? { background: `radial-gradient(circle at 35% 35%, ${accentColor}ff 0%, ${accentColor} 55%, ${accentColor}ee 100%)` }
+      : {}
+
+  const arrowBodyBg = ss.arrowBodyBackground
+    ?? (accentColor ? `linear-gradient(160deg, ${accentColor}ff 0%, ${accentColor} 50%, ${accentColor}ee 100%)` : undefined)
 
   return (
     <div
       className="route-domino"
       style={{
         "--domino-fs": `${fs}px`,
-        ...bodyStyle,
+        ...(bodyBackground ? { background: bodyBackground } : {}),
+        ...(ss.bodyBoxShadow ? { boxShadow: ss.bodyBoxShadow } : {}),
+        ...(ss.bodyBorderRadius ? { borderRadius: ss.bodyBorderRadius } : {}),
         ...(selected ? {
           border: `2px solid ${highlightColor}`,
           boxSizing: "border-box",
-          boxShadow: `0 0 10px ${highlightColor}72,
-            inset -0.14em -0.14em 0.55em rgba(0,0,0,0.55),
-            inset 0.14em 0.14em 0.55em rgba(255,255,255,0.16),
-            inset 0 0 1.2em rgba(0,0,0,0.18),
-            0 0.40em 1.00em rgba(0,0,0,0.72),
-            0 0.15em 0.30em rgba(0,0,0,0.45)`,
+          boxShadow: selectedShadow,
           transform: "translateZ(0) translateY(-1px)",
         } : {})
       }}
     >
-      <div className="divider" />
+      {/* Replace ::before rim bevel when skinStyle provided */}
+      {ss.rimBoxShadow && (
+        <div style={{
+          position: "absolute", inset: "0.10em",
+          borderRadius: ss.bodyBorderRadius ? `calc(${ss.bodyBorderRadius} - 0.07em)` : "0.48em",
+          boxShadow: ss.rimBoxShadow,
+          pointerEvents: "none", zIndex: 6,
+        }} />
+      )}
+
+      {/* Replace ::after specular when skinStyle provided */}
+      {ss.specularBackground && (
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: "45%",
+          background: ss.specularBackground,
+          pointerEvents: "none", zIndex: 5,
+          borderRadius: ss.bodyBorderRadius ? `${ss.bodyBorderRadius} ${ss.bodyBorderRadius} 0 0` : "0.55em 0.55em 0 0",
+        }} />
+      )}
+
+      {/* Divider */}
+      <div className="divider" style={{
+        ...(ss.dividerBackground ? { background: ss.dividerBackground } : {}),
+        ...(ss.dividerBoxShadow  ? { boxShadow: ss.dividerBoxShadow }   : {}),
+        ...(ss.dividerHeight     ? { height: ss.dividerHeight }          : {}),
+        ...(ss.dividerInset      ? { left: 0, right: 0 }                : {}),
+      }} />
 
       {/* Top half: arrow */}
       <div className="half half-top">
@@ -230,11 +273,9 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
             filter: "drop-shadow(0.06em 0.08em 0.10em rgba(0,0,0,0.45))",
           }}
         >
-          <div className="arrow-body" style={accentColor ? {
-            background: `linear-gradient(160deg, ${accentColor}ff 0%, ${accentColor} 50%, ${accentColor}ee 100%)`
-          } : {}} />
-          <div className="arrow-hi" />
-          <div className="arrow-shadow" />
+          <div className="arrow-body" style={arrowBodyBg ? { background: arrowBodyBg } : {}} />
+          <div className="arrow-hi"   style={ss.arrowHiBackground    ? { background: ss.arrowHiBackground }    : {}} />
+          <div className="arrow-shadow" style={ss.arrowCatchBackground ? { background: ss.arrowCatchBackground } : {}} />
         </div>
       </div>
 
@@ -249,9 +290,7 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
               top:    `calc(${pip.y}% - ${pipEm}em)`,
               width:  `${pipEm * 2}em`,
               height: `${pipEm * 2}em`,
-              ...(accentColor ? {
-                background: `radial-gradient(circle at 35% 35%, ${accentColor}ff 0%, ${accentColor} 55%, ${accentColor}ee 100%)`,
-              } : {}),
+              ...pipStyle,
             }}
           />
         ))}

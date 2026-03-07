@@ -45,3 +45,8 @@ entrypoint = "./functions/create_challenge_from_invite/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/respond_to_challenge/index.ts"
+
+[functions.check_achievements]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/check_achievements/index.ts"

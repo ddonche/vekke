@@ -51,6 +51,12 @@ export const sounds = {
     onloaderror: (id, error) => console.error("SiegeBreak sound load error:", error),
   }),
 
+  achievement: new Howl({
+    src: ["/assets/sounds/achievement.mp3"],
+    volume: 0.7,
+    onloaderror: (id, error) => console.error("Achievement sound load error:", error),
+  }),
+
   gameOver: new Howl({
     src: ["/assets/sounds/gameover.mp3"],
     volume: 0.7,

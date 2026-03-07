@@ -56,6 +56,7 @@ export function PvPGameWrapper() {
   const [opponentAvatarUrl, setOpponentAvatarUrl] = useState<string | null>(null)
   const [opponentCountryCode, setOpponentCountryCode] = useState<string | null>(null)
   const [showIntro, setShowIntro] = useState(false)
+  const [newlyUnlockedAchievements, setNewlyUnlockedAchievements] = useState<any[]>([])
 
   const [myUserId, setMyUserId] = useState<string | null>(null)
   const [opponentUserId, setOpponentUserId] = useState<string | null>(null)
@@ -343,6 +344,12 @@ export function PvPGameWrapper() {
           winner: go.winner,
           reason: go.reason,
         }).catch((e) => console.error("finalize_game failed:", e))
+        try {
+          const achResult = await invokeAuthed<{ newlyUnlocked: any[] }>("check_achievements", { gameId })
+          if (achResult?.newlyUnlocked?.length) setNewlyUnlockedAchievements(achResult.newlyUnlocked)
+        } catch (e) {
+          console.error("check_achievements failed (PvP):", e)
+        }
       }
     },
     [gameId]
@@ -492,6 +499,7 @@ export function PvPGameWrapper() {
         initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
         initialClocks={initialClocks}
         onMoveComplete={handleMoveComplete}
+      newlyUnlockedAchievements={newlyUnlockedAchievements}
         onRequestRematch={requestRematch}
         onPlayComputer={() => navigate("/")}
       />

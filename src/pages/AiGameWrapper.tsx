@@ -53,6 +53,7 @@ export function AiGameWrapper() {
   const [opponentAvatarUrl, setOpponentAvatarUrl] = useState<string | null>(null)
   const [opponentCountryCode, setOpponentCountryCode] = useState<string | null>(null)
   const [showIntro, setShowIntro] = useState(false)
+  const [newlyUnlockedAchievements, setNewlyUnlockedAchievements] = useState<any[]>([])
 
   const [initialClocks, setInitialClocks] = useState<{ W: number; B: number } | undefined>(
     undefined
@@ -239,6 +240,12 @@ export function AiGameWrapper() {
         } catch (e) {
           console.error("finalize_game failed (AI):", e)
         }
+        try {
+          const achResult = await invokeAuthed<{ newlyUnlocked: any[] }>("check_achievements", { gameId })
+          if (achResult?.newlyUnlocked?.length) setNewlyUnlockedAchievements(achResult.newlyUnlocked)
+        } catch (e) {
+          console.error("check_achievements failed (AI):", e)
+        }
       }
     },
     [gameId]
@@ -301,6 +308,7 @@ export function AiGameWrapper() {
       initialClocks={initialClocks}
       onMoveComplete={handleMoveComplete}
       onRequestRematch={requestRematch}
+      newlyUnlockedAchievements={newlyUnlockedAchievements}
     />
   )
 }
