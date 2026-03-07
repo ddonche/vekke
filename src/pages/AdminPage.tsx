@@ -1154,18 +1154,6 @@ export function AdminPage() {
         username={me?.username ?? undefined}
         avatarUrl={me?.avatar_url ?? null}
         activePage={null}
-        onSignIn={() => window.location.assign("/?openAuth=1&returnTo=/admin")}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => { await supabase.auth.signOut(); navigate("/") }}
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onChallenges={() => navigate("/challenges")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
-        onTutorial={() => navigate("/tutorial")}
-        onAnnouncements={() => navigate("/announcements")}
       />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px", display: "flex", gap: 0, alignItems: "flex-start" }}>

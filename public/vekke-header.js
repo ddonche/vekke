@@ -1,24 +1,25 @@
 /**
  * vekke-header.js
- * Self-contained Web Component for the Vekke site header.
- * Drop into any HTML page:
- *   <script src="https://vekke.net/vekke-header.js"></script>
- *   <vekke-header base-url="https://vekke.net"></vekke-header>
+ * Shared Vekke header Web Component for static pages like rules.vekke.net
+ *
+ * Usage:
+ *   <script src="/assets/vekke-header.js"></script>
+ *   <vekke-header
+ *     base-url="https://vekke.net"
+ *     active-page="rules"
+ *   ></vekke-header>
  *
  * Attributes:
- *   base-url        Root URL of the Vekke app (default: http://localhost:5173)
- *   active-page     One of: play, mygames, leaderboard, orders, rules, tutorial
- *   supabase-url    Your Supabase project URL
- *   supabase-key    Your Supabase anon key
+ *   base-url     Root URL of the main Vekke site
+ *   active-page  One of: play, leaderboard, orders, rules, tutorial, puzzles, announcements
  */
-
 (function () {
-  // ── Inject Cinzel font once per page ──────────────────────────────────────
-  if (!document.getElementById('vekke-fonts')) {
+  if (!document.getElementById('vekke-header-fonts')) {
     const link = document.createElement('link')
-    link.id = 'vekke-fonts'
+    link.id = 'vekke-header-fonts'
     link.rel = 'stylesheet'
-    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap'
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap'
     document.head.appendChild(link)
   }
 
@@ -28,7 +29,10 @@
       width: 100%;
       font-family: 'Cinzel', serif;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    * {
+      box-sizing: border-box;
+    }
 
     .vekke-header {
       position: sticky;
@@ -41,6 +45,7 @@
       border-bottom: 1px solid rgba(184,150,106,0.15);
       box-shadow: 0 4px 24px rgba(0,0,0,0.3);
     }
+
     .vekke-header-inner {
       max-width: 1280px;
       margin: 0 auto;
@@ -51,6 +56,7 @@
       padding: 0 24px;
       height: 56px;
     }
+
     .vekke-logo {
       display: flex;
       align-items: center;
@@ -58,21 +64,30 @@
       cursor: pointer;
       flex-shrink: 0;
       text-decoration: none;
+      user-select: none;
     }
+
     .vekke-logo img {
       width: 40px;
       height: 40px;
       object-fit: contain;
       flex-shrink: 0;
     }
-    .vekke-logo-text { line-height: 1.05; }
+
+    .vekke-logo-text {
+      line-height: 1.05;
+    }
+
     .vekke-logo-name {
       font-size: 20px;
       font-weight: 700;
       letter-spacing: 0.12em;
       color: #e8e4d8;
+      font-family: 'Cinzel', serif;
     }
+
     .vekke-logo-sub {
+      font-family: 'Cinzel', serif;
       font-size: 9px;
       opacity: 0.65;
       letter-spacing: 0.3em;
@@ -81,11 +96,13 @@
       text-transform: uppercase;
       margin-top: 4px;
     }
+
     .vekke-nav {
       display: flex;
       align-items: center;
       gap: 2px;
     }
+
     .nav-item {
       position: relative;
       background: transparent;
@@ -104,181 +121,54 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      text-decoration: none;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
     }
+
     .nav-item:hover {
       background: rgba(255,255,255,0.05);
       color: #e8e4d8;
     }
+
     .nav-item.active {
       background: rgba(184,150,106,0.10);
-      border-color: rgba(184,150,106,0.30);
+      border: 1px solid rgba(184,150,106,0.30);
       color: #d4af7a;
     }
-    .nav-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 18px;
-      height: 18px;
-      border-radius: 999px;
-      background: #ee484c;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 900;
-      padding: 0 4px;
-      line-height: 1;
-    }
+
     .vekke-header-right {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-shrink: 0;
     }
-    .online-indicator {
-      font-size: 10px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #6b6558;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .online-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #34d399;
-      display: inline-block;
-      box-shadow: 0 0 6px #34d399;
-    }
 
-    /* User area */
-    .user-btn {
-      display: flex;
-      gap: 9px;
-      align-items: center;
-      padding: 6px 10px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.10);
-      color: #e8e4d8;
-      cursor: pointer;
-      transition: background 0.12s;
-      font-family: 'Cinzel', serif;
-    }
-    .user-btn:hover { background: rgba(255,255,255,0.07); }
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #13131a;
-      border: 1px solid rgba(184,150,106,0.2);
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      font-size: 10px;
-      color: #e8e4d8;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .user-info { display: grid; line-height: 1.15; text-align: left; }
-    .user-name {
-      font-weight: 600;
-      font-size: 12px;
-      letter-spacing: 0.06em;
-      white-space: nowrap;
-      color: #e8e4d8;
-    }
-    .user-elo {
-      opacity: 0.7;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      white-space: nowrap;
-      color: #b8966a;
-    }
-    .chevron {
-      opacity: 0.5;
-      margin-left: 2px;
-      transition: transform 0.15s;
-    }
-    .chevron.open { transform: rotate(180deg); }
-
-    /* Dropdown */
-    .dropdown {
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      min-width: 200px;
-      background: #0d0d10;
-      border: 1px solid rgba(184,150,106,0.2);
-      border-radius: 8px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-      overflow: hidden;
-      z-index: 9999;
-      display: none;
-    }
-    .dropdown.open { display: block; }
-    .dropdown-header {
-      padding: 14px 16px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .dropdown-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: #13131a;
-      border: 1px solid rgba(184,150,106,0.2);
-      display: grid;
-      place-items: center;
-      font-size: 13px;
-      font-weight: 800;
-      color: #e8e4d8;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .dropdown-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .dropdown-name {
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.06em;
-      color: #e8e4d8;
-    }
-    .dropdown-elo {
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      color: #b8966a;
-      margin-top: 4px;
-    }
-    .dropdown-item {
-      display: block;
-      width: 100%;
-      text-align: left;
-      padding: 11px 16px;
+    .announcements-btn {
       background: transparent;
       border: none;
-      font-family: 'Cinzel', serif;
-      color: #b0aa9e;
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      font-weight: 600;
       cursor: pointer;
-      transition: background 0.1s;
-      text-decoration: none;
+      padding: 6px 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #b8966a;
+      transition: color 0.2s, background 0.15s ease;
+      appearance: none;
+      -webkit-appearance: none;
     }
-    .dropdown-item:hover { background: rgba(184,150,106,0.07); }
-    .dropdown-item.danger { color: #f87171; }
-    .dropdown-divider { border-top: 1px solid rgba(255,255,255,0.06); }
-    .user-area { position: relative; }
 
-    /* Sign in button */
-    .signin-btn {
+    .announcements-btn:hover {
+      color: #e8e4d8;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .announcements-btn.active {
+      color: #5de8f7;
+    }
+
+    .account-btn {
       font-family: 'Cinzel', serif;
       padding: 8px 18px;
       border-radius: 4px;
@@ -292,11 +182,18 @@
       cursor: pointer;
       transition: all 0.15s;
       text-decoration: none;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      appearance: none;
+      -webkit-appearance: none;
     }
-    .signin-btn:hover { background: rgba(184,150,106,0.22); }
 
-    /* Hamburger */
+    .account-btn:hover {
+      background: rgba(184,150,106,0.22);
+    }
+
     .vekke-hamburger {
       display: none;
       flex-direction: column;
@@ -310,25 +207,38 @@
       cursor: pointer;
       padding: 0 8px;
       flex-shrink: 0;
+      appearance: none;
+      -webkit-appearance: none;
     }
+
     .vekke-hamburger span {
       display: block;
       height: 1px;
       background: #b0aa9e;
       border-radius: 1px;
+      transition: all 0.2s;
     }
 
-    /* Mobile drawer */
-    .mobile-drawer {
+    .vekke-mobile-drawer {
       display: none;
-      flex-direction: column;
+      position: fixed;
+      top: 56px;
+      left: 0;
+      right: 0;
       background: rgba(10,10,12,0.98);
       border-bottom: 1px solid rgba(184,150,106,0.15);
       backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 999;
+      flex-direction: column;
       padding: 8px 0 12px;
     }
-    .mobile-drawer.open { display: flex; }
-    .mobile-nav-item {
+
+    .vekke-mobile-drawer.open {
+      display: flex;
+    }
+
+    .vekke-mobile-nav-item {
       width: 100%;
       text-align: left;
       padding: 12px 20px;
@@ -342,14 +252,18 @@
       color: #b0aa9e;
       cursor: pointer;
       transition: background 0.1s, color 0.1s;
-      text-decoration: none;
-      display: block;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
     }
-    .mobile-nav-item:hover, .mobile-nav-item.active {
+
+    .vekke-mobile-nav-item:hover,
+    .vekke-mobile-nav-item.active {
       background: rgba(184,150,106,0.07);
       color: #d4af7a;
     }
-    .mobile-divider {
+
+    .vekke-mobile-divider {
       height: 1px;
       background: rgba(255,255,255,0.07);
       margin: 6px 0;
@@ -367,270 +281,58 @@
       super()
       this.attachShadow({ mode: 'open' })
       this._mobileOpen = false
-      this._dropdownOpen = false
-      this._user = null
-      this._turnCount = 0
-      this._pollInterval = null
-      this._supabase = null
-      this._clickOutsideHandler = null
     }
 
     static get observedAttributes() {
-      return ['base-url', 'active-page', 'supabase-url', 'supabase-key']
+      return ['base-url', 'active-page']
     }
 
     get baseUrl() {
-      return this.getAttribute('base-url') || 'http://localhost:5173'
+      return (this.getAttribute('base-url') || 'https://vekke.net').replace(/\/+$/, '')
     }
 
     get activePage() {
       return this.getAttribute('active-page') || null
     }
 
-    get supabaseUrl() {
-      return this.getAttribute('supabase-url') || ''
-    }
-
-    get supabaseKey() {
-      return this.getAttribute('supabase-key') || ''
-    }
-
     connectedCallback() {
       this._render()
-      this._initSupabase()
     }
 
-    disconnectedCallback() {
-      if (this._pollInterval) clearInterval(this._pollInterval)
-      if (this._clickOutsideHandler) {
-        document.removeEventListener('mousedown', this._clickOutsideHandler)
-      }
+    attributeChangedCallback() {
+      if (this.shadowRoot) this._render()
     }
 
-    async _initSupabase() {
-      if (!this.supabaseUrl || !this.supabaseKey) return
-
-      try {
-        // Load Supabase via CDN if not already present
-        if (!window.__supabaseClient) {
-          await this._loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js')
-          window.__supabaseClient = window.supabase.createClient(this.supabaseUrl, this.supabaseKey)
-        }
-        this._supabase = window.__supabaseClient
-
-        // Get session
-        const { data: { session } } = await this._supabase.auth.getSession()
-        if (session?.user) {
-          await this._loadUserProfile(session.user)
-          this._startTurnCountPoll(session.user.id)
-        }
-
-        // Listen for auth changes
-        this._supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
-            await this._loadUserProfile(session.user)
-            this._startTurnCountPoll(session.user.id)
-          } else {
-            this._user = null
-            this._turnCount = 0
-            if (this._pollInterval) clearInterval(this._pollInterval)
-            this._render()
-          }
-        })
-      } catch (e) {
-        console.warn('VekkeHeader: Supabase init failed', e)
-      }
-    }
-
-    async _loadUserProfile(user) {
-      try {
-        const { data } = await this._supabase
-          .from('profiles')
-          .select('username, avatar_url, elo, title_label, is_pro')
-          .eq('id', user.id)
-          .single()
-        this._user = { id: user.id, ...data }
-        this._render()
-      } catch (e) {
-        this._user = { id: user.id, username: user.email }
-        this._render()
-      }
-    }
-
-    _startTurnCountPoll(uid) {
-      const fetchCount = async () => {
-        try {
-          const { count } = await this._supabase
-            .from('games')
-            .select('id', { count: 'exact', head: true })
-            .is('ended_at', null)
-            .or(`and(wake_id.eq.${uid},turn.eq.W),and(brake_id.eq.${uid},turn.eq.B)`)
-          this._turnCount = count ?? 0
-          this._updateTurnBadge()
-        } catch (e) {}
-      }
-      fetchCount()
-      if (this._pollInterval) clearInterval(this._pollInterval)
-      this._pollInterval = setInterval(fetchCount, 15000)
-    }
-
-    _updateTurnBadge() {
-      const badge = this.shadowRoot.querySelector('.my-games-badge')
-      if (!badge) return
-      if (this._turnCount > 0) {
-        badge.textContent = this._turnCount
-        badge.style.display = 'inline-flex'
-      } else {
-        badge.style.display = 'none'
-      }
-    }
-
-    _loadScript(src) {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve()
-        const s = document.createElement('script')
-        s.src = src
-        s.onload = resolve
-        s.onerror = reject
-        document.head.appendChild(s)
-      })
+    _go(url) {
+      window.location.href = url
     }
 
     _nav(path) {
-      window.location.href = this.baseUrl + path
+      this._go(`${this.baseUrl}${path}`)
     }
 
     _goRules() {
-      // Already on rules - do nothing, or go to root of rules
-      window.location.href = window.location.origin
+      this._go(window.location.origin)
     }
 
-    _initEvents() {
-      const root = this.shadowRoot
-
-      // Logo
-      root.querySelector('.vekke-logo')?.addEventListener('click', () => this._nav('/'))
-
-      // Desktop nav
-      root.querySelector('[data-nav="play"]')?.addEventListener('click', () => this._nav('/'))
-      root.querySelector('[data-nav="mygames"]')?.addEventListener('click', () => this._nav('/challenges'))
-      root.querySelector('[data-nav="leaderboard"]')?.addEventListener('click', () => this._nav('/leaderboard'))
-      root.querySelector('[data-nav="orders"]')?.addEventListener('click', () => this._nav('/orders'))
-      root.querySelector('[data-nav="tutorial"]')?.addEventListener('click', () => this._nav('/tutorial'))
-
-      // Mobile nav
-      root.querySelector('[data-mobile="play"]')?.addEventListener('click', () => this._nav('/'))
-      root.querySelector('[data-mobile="mygames"]')?.addEventListener('click', () => this._nav('/challenges'))
-      root.querySelector('[data-mobile="leaderboard"]')?.addEventListener('click', () => this._nav('/leaderboard'))
-      root.querySelector('[data-mobile="orders"]')?.addEventListener('click', () => this._nav('/orders'))
-      root.querySelector('[data-mobile="tutorial"]')?.addEventListener('click', () => this._nav('/tutorial'))
-
-      // Hamburger
-      root.querySelector('.vekke-hamburger')?.addEventListener('click', () => {
-        this._mobileOpen = !this._mobileOpen
-        root.querySelector('.mobile-drawer')?.classList.toggle('open', this._mobileOpen)
-      })
-
-      // User dropdown toggle
-      root.querySelector('.user-btn')?.addEventListener('click', () => {
-        this._dropdownOpen = !this._dropdownOpen
-        root.querySelector('.dropdown')?.classList.toggle('open', this._dropdownOpen)
-        root.querySelector('.chevron')?.classList.toggle('open', this._dropdownOpen)
-      })
-
-      // Sign out
-      root.querySelector('[data-action="signout"]')?.addEventListener('click', async () => {
-        await this._supabase?.auth.signOut()
-        window.location.href = this.baseUrl + '/auth'
-      })
-
-      // Sign in
-      root.querySelector('.signin-btn')?.addEventListener('click', () => this._nav('/auth'))
-
-      // Click outside to close dropdown
-      if (this._clickOutsideHandler) {
-        document.removeEventListener('mousedown', this._clickOutsideHandler)
-      }
-      this._clickOutsideHandler = (e) => {
-        const userArea = root.querySelector('.user-area')
-        if (userArea && !userArea.contains(e.target)) {
-          this._dropdownOpen = false
-          root.querySelector('.dropdown')?.classList.remove('open')
-          root.querySelector('.chevron')?.classList.remove('open')
-        }
-      }
-      document.addEventListener('mousedown', this._clickOutsideHandler)
-    }
-
-    _initials(name) {
-      return String(name ?? '?').trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
-    }
-
-    _renderAvatar(size = 28, cls = 'avatar') {
-      const u = this._user
-      if (!u) return `<div class="${cls}" style="width:${size}px;height:${size}px;font-size:${Math.max(10, Math.floor(size * 0.36))}px">?</div>`
-      if (u.avatar_url) {
-        return `<div class="${cls}" style="width:${size}px;height:${size}px"><img src="${u.avatar_url}" alt="${u.username}"></div>`
-      }
-      return `<div class="${cls}" style="width:${size}px;height:${size}px;font-size:${Math.max(10, Math.floor(size * 0.36))}px">${this._initials(u.username)}</div>`
-    }
-
-    _renderUserArea() {
-      if (!this._user) {
-        return `<a class="signin-btn" href="${this.baseUrl}/auth">Sign In</a>`
-      }
-      const u = this._user
-      const eloLine = u.elo && u.title_label ? `${u.title_label} · ${u.elo}${u.is_pro ? ' · Pro' : ''}` : 'Account'
-      return `
-        <div class="user-area">
-          <button class="user-btn">
-            ${this._renderAvatar(28, 'avatar')}
-            <div class="user-info">
-              <div class="user-name">${u.username ?? 'Player'}</div>
-              <div class="user-elo">${eloLine}</div>
-            </div>
-            <svg class="chevron" width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <div class="dropdown">
-            <div class="dropdown-header">
-              ${this._renderAvatar(36, 'dropdown-avatar')}
-              <div>
-                <div class="dropdown-name">${u.username ?? 'Player'}</div>
-                ${u.elo && u.title_label ? `<div class="dropdown-elo">${u.title_label} · ${u.elo}</div>` : ''}
-              </div>
-            </div>
-            <a class="dropdown-item" href="${this.baseUrl}/profile">Edit Profile</a>
-            <a class="dropdown-item" href="${this.baseUrl}/skins">Gear</a>
-            <div class="dropdown-divider">
-              <button class="dropdown-item danger" data-action="signout">Sign Out</button>
-            </div>
-          </div>
-        </div>
-      `
-    }
-
-    _navItem(page, label, path, badge = false) {
+    _desktopNavItem(page, label) {
       const active = this.activePage === page ? 'active' : ''
-      const badgeHtml = badge ? `<span class="nav-badge my-games-badge" style="display:${this._turnCount > 0 ? 'inline-flex' : 'none'}">${this._turnCount}</span>` : ''
-      return `<button class="nav-item ${active}" data-nav="${page}">${label}${badgeHtml}</button>`
+      return `<button class="nav-item ${active}" data-nav="${page}">${label}</button>`
     }
 
     _mobileNavItem(page, label) {
       const active = this.activePage === page ? 'active' : ''
-      const turnSuffix = page === 'mygames' && this._turnCount > 0 ? ` (${this._turnCount})` : ''
-      return `<button class="mobile-nav-item ${active}" data-mobile="${page}">${label}${turnSuffix}</button>`
+      return `<button class="vekke-mobile-nav-item ${active}" data-mobile="${page}">${label}</button>`
     }
 
     _render() {
-      const root = this.shadowRoot
-      root.innerHTML = `
+      this.shadowRoot.innerHTML = `
         <style>${STYLES}</style>
+
         <header class="vekke-header">
           <div class="vekke-header-inner">
-            <div class="vekke-logo">
-              <img src="${this.baseUrl}/logo.png" alt="Vekke">
+            <div class="vekke-logo" data-logo>
+              <img src="${this.baseUrl}/logo.png" alt="Vekke" />
               <div class="vekke-logo-text">
                 <div class="vekke-logo-name">VEKKE</div>
                 <div class="vekke-logo-sub">the game of routes</div>
@@ -638,38 +340,103 @@
             </div>
 
             <nav class="vekke-nav">
-              ${this._navItem('play', 'Play', '/')}
-              ${this._navItem('mygames', 'My Games', '/challenges', true)}
-              ${this._navItem('leaderboard', 'Leaderboard', '/leaderboard')}
-              ${this._navItem('orders', 'Orders', '/orders')}
-              <button class="nav-item active" data-nav="rules">Rules</button>
-              ${this._navItem('tutorial', 'Tutorial', '/tutorial')}
+              ${this._desktopNavItem('play', 'Play')}
+              ${this._desktopNavItem('puzzles', 'Puzzles')}
+              ${this._desktopNavItem('leaderboard', 'Leaderboard')}
+              ${this._desktopNavItem('orders', 'Orders')}
+              ${this._desktopNavItem('rules', 'Rules')}
+              ${this._desktopNavItem('tutorial', 'Tutorial')}
             </nav>
 
             <div class="vekke-header-right">
-              <button class="vekke-hamburger" aria-label="Menu">
-                <span></span>
+              <button
+                class="vekke-hamburger"
+                aria-label="Menu"
+                data-hamburger
+              >
+                <span style="width:100%"></span>
                 <span style="width:70%;align-self:flex-end"></span>
                 <span style="width:85%"></span>
               </button>
-              ${this._renderUserArea()}
+
+              <button
+                class="announcements-btn ${this.activePage === 'announcements' ? 'active' : ''}"
+                aria-label="Announcements"
+                data-announcements
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11l19-9-9 19-2-8-8-2z"></path>
+                </svg>
+              </button>
+
+              <button class="account-btn" data-account>Account</button>
             </div>
           </div>
         </header>
 
-        <div class="mobile-drawer ${this._mobileOpen ? 'open' : ''}">
+        <div class="vekke-mobile-drawer ${this._mobileOpen ? 'open' : ''}">
           ${this._mobileNavItem('play', 'Play')}
-          ${this._mobileNavItem('mygames', 'My Games')}
+          ${this._mobileNavItem('puzzles', 'Puzzles')}
           ${this._mobileNavItem('leaderboard', 'Leaderboard')}
           ${this._mobileNavItem('orders', 'Orders')}
-          <div class="mobile-divider"></div>
-          <button class="mobile-nav-item active" data-mobile="rules">Rules</button>
+          <div class="vekke-mobile-divider"></div>
+          ${this._mobileNavItem('rules', 'Rules')}
           ${this._mobileNavItem('tutorial', 'Tutorial')}
+          ${this._mobileNavItem('announcements', 'Announcements')}
         </div>
       `
-      this._initEvents()
+
+      const root = this.shadowRoot
+
+      root.querySelector('[data-logo]')?.addEventListener('click', () => this._nav('/'))
+
+      root.querySelector('[data-nav="play"]')?.addEventListener('click', () => this._nav('/play?openNewGame=1'))
+      root.querySelector('[data-nav="puzzles"]')?.addEventListener('click', () => this._nav('/puzzles'))
+      root.querySelector('[data-nav="leaderboard"]')?.addEventListener('click', () => this._nav('/leaderboard'))
+      root.querySelector('[data-nav="orders"]')?.addEventListener('click', () => this._nav('/orders'))
+      root.querySelector('[data-nav="rules"]')?.addEventListener('click', () => this._goRules())
+      root.querySelector('[data-nav="tutorial"]')?.addEventListener('click', () => this._nav('/tutorial'))
+
+      root.querySelector('[data-mobile="play"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/play?openNewGame=1')
+      })
+      root.querySelector('[data-mobile="puzzles"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/puzzles')
+      })
+      root.querySelector('[data-mobile="leaderboard"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/leaderboard')
+      })
+      root.querySelector('[data-mobile="orders"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/orders')
+      })
+      root.querySelector('[data-mobile="rules"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._goRules()
+      })
+      root.querySelector('[data-mobile="tutorial"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/tutorial')
+      })
+      root.querySelector('[data-mobile="announcements"]')?.addEventListener('click', () => {
+        this._mobileOpen = false
+        this._nav('/announcements')
+      })
+
+      root.querySelector('[data-announcements]')?.addEventListener('click', () => this._nav('/announcements'))
+      root.querySelector('[data-account]')?.addEventListener('click', () => this._nav('/'))
+
+      root.querySelector('[data-hamburger]')?.addEventListener('click', () => {
+        this._mobileOpen = !this._mobileOpen
+        this._render()
+      })
     }
   }
 
-  customElements.define('vekke-header', VekkeHeader)
+  if (!customElements.get('vekke-header')) {
+    customElements.define('vekke-header', VekkeHeader)
+  }
 })()

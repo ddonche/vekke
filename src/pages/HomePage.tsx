@@ -915,22 +915,6 @@ export default function HomePage() {
         elo={typeof stats?.elo === "number" ? stats.elo : undefined}
         activePage="play"
         myGamesTurnCount={0}
-        onSignIn={() => {
-          setShowAuthModal(true)
-        }}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => {
-          await supabase.auth.signOut()
-          navigate("/")
-        }}
-        onPlay={() => navigate("/play?openNewGame=1")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onChallenges={() => navigate("/challenges")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => window.open("https://rules.vekke.net", "_blank")}
-        onTutorial={() => navigate("/tutorial")}
       />
 
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>

@@ -407,7 +407,7 @@ function UserDropdown(
             <DropdownItem
               label="Sign Out"
               onClick={() => {
-                onSignOut?.()
+                handleSignOut()
                 setOpen(false)
               }}
               danger
@@ -510,8 +510,11 @@ export function Header(props: HeaderProps) {
     return () => window.clearInterval(t)
   }, [props.userId])
 
-  const handleSignIn  = () => setAuthModalOpen(true)
-  const goHome        = () => navigate("/")
+  const handleSignIn   = () => setAuthModalOpen(true)
+  const handleSignOut  = props.onSignOut  ?? (async () => { await supabase.auth.signOut(); navigate("/") })
+  const handleOpenSkins = props.onOpenSkins ?? (() => navigate("/skins"))
+  const handleOpenPro   = props.onOpenPro   ?? (() => {})
+  const goHome         = () => navigate("/")
   const goPlay        = props.onPlay        ?? (() => navigate("/play?openNewGame=1"))
   const goMyGames     = props.onMyGames     ?? (() => navigate("/challenges"))
   const goLeaderboard = props.onLeaderboard ?? (() => navigate("/leaderboard"))
@@ -674,6 +677,9 @@ export function Header(props: HeaderProps) {
             <UserDropdown
               {...props}
               onSignIn={handleSignIn}
+              onSignOut={handleSignOut}
+              onOpenSkins={handleOpenSkins}
+              onOpenPro={handleOpenPro}
               goOrders={goOrders}
               goChallenges={goChallenges}
               onOpenProfileModal={() => setProfileModalOpen(true)}

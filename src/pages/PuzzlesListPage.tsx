@@ -307,19 +307,6 @@ export function PuzzlesListPage() {
         username={me?.username ?? undefined}
         avatarUrl={me?.avatar_url ?? null}
         activePage="puzzles"
-        onSignIn={() => window.location.assign("/?openAuth=1&returnTo=/puzzles")}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => { await supabase.auth.signOut(); navigate("/") }}
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onChallenges={() => navigate("/challenges")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => window.open("https://rules.vekke.net", "_blank")}
-        onTutorial={() => navigate("/tutorial")}
-        onAnnouncements={() => navigate("/announcements")}
-        onPuzzles={() => navigate("/puzzles")}
       />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>

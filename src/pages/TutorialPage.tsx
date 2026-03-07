@@ -719,14 +719,6 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
         avatarUrl={userProfile?.avatar_url ?? null}
         elo={userProfile?.elo_standard}
         activePage="tutorial"
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/my-games")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
-        onTutorial={() => {}}
-        onSignIn={() => navigate("/auth")}
-        onSignOut={async () => { await supabase.auth.signOut() }}
       />
 
       {/* Phase badge + controls */}

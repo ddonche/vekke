@@ -593,22 +593,6 @@ export function LeaderboardPage() {
         elo={undefined}
         activePage="leaderboard"
         myGamesTurnCount={0}
-        onSignIn={() => {
-          window.location.assign("/?openAuth=1")
-        }}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => {
-          await supabase.auth.signOut()
-          navigate("/")
-        }}
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onChallenges={() => navigate("/challenges")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => window.open("https://rules.vekke.net", "_blank")}
-        onTutorial={() => navigate("/tutorial")}
       />
 
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>

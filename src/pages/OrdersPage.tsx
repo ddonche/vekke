@@ -343,23 +343,6 @@ export default function OrdersPage() {
         titleLabel="Orders"
         elo={undefined}
         activePage="orders"
-        onSignIn={() => {
-          const rt = encodeURIComponent(`/orders`)
-          window.location.assign(`/?openAuth=1&returnTo=${rt}`)
-        }}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => {
-          await supabase.auth.signOut()
-          navigate("/")
-        }}
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onOrders={() => navigate("/orders")}
-        onChallenges={() => navigate("/challenges")}
-        onRules={() => window.open("https://rules.vekke.net", "_blank")}
-        onTutorial={() => navigate("/tutorial")}
       />
 
       <div style={{ flex: 1, overflowY: "auto" }} className="hide-scrollbar">

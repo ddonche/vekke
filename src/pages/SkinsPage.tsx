@@ -81,18 +81,6 @@ export function SkinsPage() {
         titleLabel="Gear"
         elo={undefined}
         activePage="skins"
-        myGamesTurnCount={0}
-        onSignIn={() => navigate("/")}
-        onOpenProfile={() => navigate("/?openProfile=1")}
-        onOpenSkins={() => navigate("/skins")}
-        onSignOut={async () => { await supabase.auth.signOut(); navigate("/") }}
-        onPlay={() => navigate("/")}
-        onMyGames={() => navigate("/challenges")}
-        onLeaderboard={() => navigate("/leaderboard")}
-        onChallenges={() => navigate("/challenges")}
-        onOrders={() => navigate("/orders")}
-        onRules={() => navigate("/rules")}
-        onTutorial={() => navigate("/tutorial")}
       />
 
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
