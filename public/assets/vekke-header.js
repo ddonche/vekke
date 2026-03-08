@@ -27,6 +27,9 @@
     :host {
       display: block;
       width: 100%;
+      min-height: 56px;
+      position: relative;
+      z-index: 1000;
       font-family: 'Cinzel', serif;
     }
 
@@ -35,7 +38,7 @@
     }
 
     .vekke-header {
-      position: sticky;
+      position: relative;
       top: 0;
       z-index: 1000;
       width: 100%;
