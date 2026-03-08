@@ -27,9 +27,9 @@
     :host {
       display: block;
       width: 100%;
-      min-height: 56px;
-      position: relative;
-      z-index: 1000;
+      position: static;
+      margin: 0;
+      padding: 0;
       font-family: 'Cinzel', serif;
     }
 
@@ -39,9 +39,8 @@
 
     .vekke-header {
       position: relative;
-      top: 0;
-      z-index: 1000;
       width: 100%;
+      margin: 0;
       background: rgba(10, 10, 12, 0.96);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
