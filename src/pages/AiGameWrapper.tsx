@@ -1,5 +1,5 @@
 // src/pages/AiGameWrapper.tsx
-import { useEffect, useState, useRef, useCallback } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { fetchGame, type PvPGameData } from "../services/pvp_sync"
@@ -33,6 +33,27 @@ function makeStateKey(s: GameState) {
     return `opening-${op?.B ?? 0}-${op?.W ?? 0}`
   }
   return `${(s as any).player}-${(s as any).phase}-${(s as any).log?.length ?? 0}`
+}
+
+class AiErrBoundary extends React.Component<
+  { children: React.ReactNode },
+  { err: string | null }
+> {
+  state = { err: null }
+  static getDerivedStateFromError(e: any) {
+    return { err: String(e?.message ?? e) }
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding: 24, color: "crimson", background: "#0a0a0c" }}>
+          <b>AiGameWrapper crash:</b>
+          <pre>{this.state.err}</pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export function AiGameWrapper() {
@@ -258,6 +279,8 @@ export function AiGameWrapper() {
 
   if (loading) return <div style={{ padding: 24 }}>Loading…</div>
 
+  console.log("[AiGameWrapper] render:", { loading, showIntro, hasGameData: !!gameData, mySide, error })
+
   if (showIntro) return (
     <MatchIntroOverlay
       onDone={() => setShowIntro(false)}
@@ -293,22 +316,24 @@ export function AiGameWrapper() {
   if (!gameData || !mySide) return <div style={{ padding: 24 }}>Missing game data</div>
 
   return (
-    <GamePage
-      opponentType="ai"
-      mySide={mySide}
-      initialState={gameData.current_state ?? gameData.initial_state}
-      myName={myName}
-      myElo={myElo}
-      opponentName={opponentName}
-      opponentElo={opponentElo}
-      opponentUserId={mySide === "W" ? gameData.brake_id : gameData.wake_id}
-      externalGameData={gameData}
-      aiDifficulty={(gameData as any).ai_level}
-      initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
-      initialClocks={initialClocks}
-      onMoveComplete={handleMoveComplete}
-      onRequestRematch={requestRematch}
-      newlyUnlockedAchievements={newlyUnlockedAchievements}
-    />
+    <AiErrBoundary>
+      <GamePage
+        opponentType="ai"
+        mySide={mySide}
+        initialState={gameData.current_state ?? gameData.initial_state}
+        myName={myName}
+        myElo={myElo}
+        opponentName={opponentName}
+        opponentElo={opponentElo}
+        opponentUserId={mySide === "W" ? gameData.brake_id : gameData.wake_id}
+        externalGameData={gameData}
+        aiDifficulty={(gameData as any).ai_level}
+        initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
+        initialClocks={initialClocks}
+        onMoveComplete={handleMoveComplete}
+        onRequestRematch={requestRematch}
+        newlyUnlockedAchievements={newlyUnlockedAchievements}
+      />
+    </AiErrBoundary>
   )
 }

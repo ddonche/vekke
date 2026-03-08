@@ -888,9 +888,8 @@ if (wantsNewGame) {
   }
 
   const GearIcon = () => (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    <svg width="16" height="16" viewBox="0 0 640 640" fill="currentColor">
+      <path d="M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z"/>
     </svg>
   )
 
@@ -1197,7 +1196,31 @@ if (wantsNewGame) {
   return (
     <ErrBoundary>
       <style>{`
-        @keyframes confirm-pulse {
+        
+  .vk-tooltip-wrap { position: relative; display: inline-flex; }
+  .vk-tooltip-wrap .vk-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d0d10;
+    border: 1px solid rgba(184,150,106,0.40);
+    color: #e8e4d8;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .vk-tooltip-wrap:hover .vk-tooltip { display: block; }
+
+  @keyframes confirm-pulse {
           0%, 100% {
             box-shadow: 0 0 0 0 rgba(50,150,171,0);
             background: rgba(184,150,106,0.18);
@@ -1316,15 +1339,18 @@ if (wantsNewGame) {
                 onClick={() => setShowChatExpanded(!showChatExpanded)}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e8e4d8" strokeWidth="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 640 640" fill="#b8966a">
+                    <path d="M320 544C461.4 544 576 436.5 576 304C576 171.5 461.4 64 320 64C178.6 64 64 171.5 64 304C64 358.3 83.2 408.3 115.6 448.5L66.8 540.8C62 549.8 63.5 560.8 70.4 568.3C77.3 575.8 88.2 578.1 97.5 574.1L215.9 523.4C247.7 536.6 282.9 544 320 544zM192 272C209.7 272 224 286.3 224 304C224 321.7 209.7 336 192 336C174.3 336 160 321.7 160 304C160 286.3 174.3 272 192 272zM320 272C337.7 272 352 286.3 352 304C352 321.7 337.7 336 320 336C302.3 336 288 321.7 288 304C288 286.3 302.3 272 320 272zM416 304C416 286.3 430.3 272 448 272C465.7 272 480 286.3 480 304C480 321.7 465.7 336 448 336C430.3 336 416 321.7 416 304z"/>
                   </svg>
                   <span>Chat</span>
                   {/* Info icon */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowChatExpanded(true); setShowChatInfo(true) }}
-                    style={{ background: "none", border: "1px solid #6b7280", borderRadius: "50%", color: "#b0aa9e", fontSize: "0.7rem", cursor: "pointer", padding: 0, lineHeight: 1, width: "1.1rem", height: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                  >?</button>
+                    style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#b8966a">
+                      <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                    </svg>
+                  </button>
                 </div>
                 <span style={{ background: "none", border: "none", color: "#b0aa9e", fontSize: "1rem", cursor: "pointer", padding: 0 }}>
                   {showChatExpanded ? "▲" : "▼"}
@@ -1502,75 +1528,67 @@ if (wantsNewGame) {
                   >
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === topPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Ransom - only show when it's this player's turn */}
                     {g.player === topPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-                          <path d="M12 22V2"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === topPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
+                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Defection - only show when it's this player's turn */}
                     {g.player === topPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="9" cy="9" r="7"/>
-                          <circle cx="15" cy="15" r="7"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
+                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== topPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 10h.01" />
-                          <path d="M15 10h.01" />
-                          <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
+                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Help icon */}
@@ -1578,21 +1596,18 @@ if (wantsNewGame) {
                       onClick={() => setShowHelpModal(g.player === topPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
-                        border: "1px solid #6b7280",
-                        borderRadius: "50%",
-                        color: "#b0aa9e",
-                        fontSize: "1rem",
+                        border: "none",
+                        color: "#b8966a",
                         cursor: "pointer",
-                        padding: "2px",
-                        lineHeight: "1",
-                        width: "1.5rem",
-                        height: "1.5rem",
+                        padding: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      ?
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#b8966a">
+                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                        </svg>
                     </button>
                   </div>
                 </div>
@@ -1676,13 +1691,8 @@ if (wantsNewGame) {
                   gap: "0.375rem",
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0aa9e" strokeWidth="2">
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M12 9v4l2 2" />
-                  <path d="M5 3 2 6" />
-                  <path d="m22 6-3-3" />
-                  <path d="M6.38 18.7 4 21" />
-                  <path d="M17.64 18.67 20 21" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 640 640" fill="#b0aa9e">
+                  <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
                 </svg>
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", fontSize: "0.875rem", fontWeight: "bold" }}>
                   <div style={{ opacity: g.player === "W" ? 1 : 0.6 }}>
@@ -1695,10 +1705,63 @@ if (wantsNewGame) {
                 </div>
               </div>
 
-              {/* Phase Banner - between clock and board */}
+              {/* Phase Banner OR Confirmation Buttons - between clock and board */}
               <div style={{ padding: "0 0.375rem" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {/* Messages Area - phase text and warnings */}
+
+                  {/* Confirmation buttons — replaces the bar entirely when active */}
+                  {defectionArmed && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.cancelDefection()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Cancel Defection</button>
+                    </div>
+                  )}
+                  {!defectionArmed && g.phase === "MULLIGAN" && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {(g as any).mulliganReady?.[human] ? (
+                        <div style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b0aa9e" }}>Waiting for opponent...</div>
+                      ) : mulliganArmed ? (
+                        <>
+                          <div style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>Select a token on the board</div>
+                          <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
+                          <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.advanceFromAction()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Proceed →</button>
+                    </div>
+                  )}
+                  {!recoilArmed && g.player === human && g.phase === "SWAP" && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.confirmSwapAndEndTurn()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Make route swap and confirm</button>
+                    </div>
+                  )}
+                  {!recoilArmed && g.player === human && g.phase === "ACTION" && earlySwapArmed && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.confirmEarlySwap()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Confirm Early Swap</button>
+                      <button onClick={() => actions.cancelEarlySwap()} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                    </div>
+                  )}
+                  {recoilArmed && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.confirmRecoil()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Select unit and grid space, confirm recoil</button>
+                      <button onClick={() => actions.cancelRecoil()} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                    </div>
+                  )}
+                  {forcedYieldAvailable && g.player === human && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => actions.yieldForced()} style={{ flex: 1, padding: "4px 10px", borderRadius: 6, border: "2px solid #6b7280", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>No usable routes — Yield {remainingRoutes.length} to Void</button>
+                    </div>
+                  )}
+
+                  {/* Phase bar — only shown when no confirmation is pending */}
+                  {!defectionArmed && g.phase !== "MULLIGAN" && !(allRoutesUsed && g.phase === "ACTION" && g.player === human && !recoilArmed && !defectionArmed) && !(g.phase === "SWAP" && g.player === human && !recoilArmed) && !(g.phase === "ACTION" && earlySwapArmed && g.player === human && !recoilArmed) && !recoilArmed && !(forcedYieldAvailable && g.player === human) && (
                   <div
                     style={{
                       background: g.player === human
@@ -1720,22 +1783,17 @@ if (wantsNewGame) {
                     </span>
                     <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 10 }}>—</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
-                      {recoilArmed
-                        ? `${g.player === "W" ? "B" : "W"} in Recoil`
-                        : g.player !== human
-                          ? "Waiting..."
-                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Proceed when ready" : "Make your moves")
-                          : g.phase === "REINFORCE"
-                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                                Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
-                                {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                  <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 7, height: 7, borderRadius: "50%", position: "relative" }} />
-                                ))}
-                              </span>
-                          : g.phase === "SWAP" ? "Make a route swap"
-                          : g.phase === "MULLIGAN"
-                            ? ((g as any).mulliganReady?.[human] ? "Waiting for opponent..." : mulliganArmed ? "Select a token on the board" : "Mulligan or continue")
-                          : "Place opening tokens"}
+                      {g.player !== human
+                        ? "Waiting..."
+                        : g.phase === "ACTION" ? "Make your moves"
+                        : g.phase === "REINFORCE"
+                          ? <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                              Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
+                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 7, height: 7, borderRadius: "50%", position: "relative" }} />
+                              ))}
+                            </span>
+                        : "Place opening tokens"}
                     </span>
                     {g.warning && (
                       <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, color: "#ef4444", letterSpacing: "0.1em", textTransform: "uppercase", marginLeft: 4 }}>
@@ -1743,7 +1801,8 @@ if (wantsNewGame) {
                       </span>
                     )}
                   </div>
-                  
+                  )}
+
                   {/* Info Row - latest log and resign (won't move) */}
                   <div
                     style={{
@@ -1785,18 +1844,8 @@ if (wantsNewGame) {
                         opacity: (!started || !!g.gameOver) ? 0.5 : 1,
                       }}
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#ee484c"
-                        strokeWidth="2"
-                      >
-                        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                        <path d="M12 8v4" />
-                        <path d="M12 16h.01" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 640 640" fill="#ee484c">
+                        <path d="M480 208C480 128.5 408.4 64 320 64C231.6 64 160 128.5 160 208C160 255.1 185.1 296.9 224 323.2L224 352C224 369.7 238.3 384 256 384L384 384C401.7 384 416 369.7 416 352L416 323.2C454.9 296.9 480 255.1 480 208zM256 192C273.7 192 288 206.3 288 224C288 241.7 273.7 256 256 256C238.3 256 224 241.7 224 224C224 206.3 238.3 192 256 192zM352 224C352 206.3 366.3 192 384 192C401.7 192 416 206.3 416 224C416 241.7 401.7 256 384 256C366.3 256 352 241.7 352 224zM541.5 403.7C534.7 387.4 516 379.7 499.7 386.5L320 461.3L140.3 386.5C124 379.7 105.3 387.4 98.5 403.7C91.7 420 99.4 438.7 115.7 445.5L236.8 496L115.7 546.5C99.4 553.3 91.7 572 98.5 588.3C105.3 604.6 124 612.3 140.3 605.5L320 530.7L499.7 605.5C516 612.3 534.7 604.6 541.5 588.3C548.3 572 540.6 553.3 524.3 546.5L403.2 496L524.3 445.5C540.6 438.7 548.3 420 541.5 403.7z"/>
                       </svg>
                       <span>Resign</span>
                     </button>
@@ -1974,10 +2023,8 @@ if (wantsNewGame) {
                   title="Hide/show selected token highlight (H toggles, Esc hides)"
                   style={{ background: "none", border: "none", color: hideSelection ? "#b8966a" : "#6b6558", fontSize: 10, cursor: started ? "pointer" : "default", padding: 0, fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", display: "flex", alignItems: "center", gap: 4, opacity: started ? 1 : 0.5 }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={hideSelection ? "#b8966a" : "#6b6558"} strokeWidth="2">
-                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                    <circle cx="12" cy="12" r="3" />
-                    {hideSelection && <path d="M4 4l16 16" />}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 640 640" fill={hideSelection ? "#b8966a" : "#6b6558"}>
+                    <path d="M320 96C239.2 96 174.5 132.8 127.4 176.6C80.6 220.1 49.3 272 34.4 307.7C31.1 315.6 31.1 324.4 34.4 332.3C49.3 368 80.6 420 127.4 463.4C174.5 507.1 239.2 544 320 544C400.8 544 465.5 507.2 512.6 463.4C559.4 419.9 590.7 368 605.6 332.3C608.9 324.4 608.9 315.6 605.6 307.7C590.7 272 559.4 220 512.6 176.6C465.5 132.9 400.8 96 320 96zM176 320C176 240.5 240.5 176 320 176C399.5 176 464 240.5 464 320C464 399.5 399.5 464 320 464C240.5 464 176 399.5 176 320zM320 256C320 291.3 291.3 320 256 320C244.5 320 233.7 317 224.3 311.6C223.3 322.5 224.2 333.7 227.2 344.8C240.9 396 293.6 426.4 344.8 412.7C396 399 426.4 346.3 412.7 295.1C400.5 249.4 357.2 220.3 311.6 224.3C316.9 233.6 320 244.4 320 256z"/>
                   </svg>
                   <span>{hideSelection ? "Show Grid Highlight" : "Hide Grid Highlight"}</span>
                 </button>
@@ -2078,96 +2125,85 @@ if (wantsNewGame) {
                   >
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === bottomPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Ransom - only show when it's this player's turn */}
                     {g.player === bottomPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-                          <path d="M12 22V2"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === bottomPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
+                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Defection - only show when it's this player's turn */}
                     {g.player === bottomPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="9" cy="9" r="7"/>
-                          <circle cx="15" cy="15" r="7"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
+                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== bottomPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
-                        style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
+                        style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.5 }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 10h.01" />
-                          <path d="M15 10h.01" />
-                          <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
+                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     <button
                       onClick={() => setShowHelpModal(g.player === bottomPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
-                        border: "1px solid #6b7280",
-                        borderRadius: "50%",
-                        color: "#b0aa9e",
-                        fontSize: "1rem",
+                        border: "none",
+                        color: "#b8966a",
                         cursor: "pointer",
-                        padding: "2px",
-                        lineHeight: "1",
-                        width: "1.5rem",
-                        height: "1.5rem",
+                        padding: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      ?
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#b8966a">
+                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                        </svg>
                     </button>
                   </div>
                 </div>
@@ -2236,211 +2272,6 @@ if (wantsNewGame) {
                   </div>
                 </div>
               </div>
-
-              {/* Defection Cancel */}
-              {defectionArmed && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <button
-                    onClick={() => actions.cancelDefection()}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "1px solid rgba(184,150,106,0.30)",
-                      background: "transparent",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      color: "#e8e4d8",
-                    }}
-                  >
-                    Cancel Defection
-                  </button>
-                </div>
-              )}
-
-              {/* Mulligan Phase */}
-              {g.phase === "MULLIGAN" && (
-                <div style={{ marginBottom: 6 }}>
-                  {(g as any).mulliganReady?.[human] ? (
-                    <div style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b0aa9e" }}>
-                      Waiting for opponent...
-                    </div>
-                  ) : mulliganArmed ? (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>
-                        Select a token on the board
-                      </div>
-                      <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: "#b0aa9e", fontSize: 12, fontWeight: 900 }}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        onClick={() => (actions as any).armMulligan?.(human)}
-                        disabled={(g as any).mulliganCount?.[human] >= 2}
-                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}
-                      >
-                        Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
-                      </button>
-                      <button
-                        onClick={() => (actions as any).passMulligan?.(human)}
-                        style={{ flex: 1, padding: 12, borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}
-                      >
-                        Continue →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Advance from ACTION -> Reinforcements/Swap */}
-              {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <button
-                    onClick={() => actions.advanceFromAction()}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "2px solid #3296ab",
-                      background: "rgba(184,150,106,0.18)",
-                      fontWeight: 700,
-                      fontSize: 11,
-                      letterSpacing: "0.10em",
-                      fontFamily: "'Cinzel', serif",
-                      textTransform: "uppercase",
-                      cursor: "pointer",
-                      color: "#e8e4d8",
-                      animation: "confirm-pulse 1.4s ease-in-out infinite",
-                    }}
-                  >
-                    Proceed →
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              {!recoilArmed && g.player === human && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  {g.phase === "SWAP" ? (
-                    <button
-                      onClick={() => actions.confirmSwapAndEndTurn()}
-                      style={{
-                      flex: 1,
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "2px solid #3296ab",
-                      background: "rgba(184,150,106,0.18)",
-                      fontWeight: 700,
-                      fontSize: 11,
-                      letterSpacing: "0.10em",
-                      fontFamily: "'Cinzel', serif",
-                      textTransform: "uppercase",
-                      cursor: "pointer",
-                      color: "#e8e4d8",
-                      animation: "confirm-pulse 1.4s ease-in-out infinite",
-                      }}
-                    >
-                      Confirm Swap & End Turn
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => actions.confirmEarlySwap()}
-                        style={{
-                          flex: 1,
-                          padding: 12,
-                          borderRadius: 8,
-                          border: "2px solid #3296ab",
-                          background: "rgba(184,150,106,0.18)",
-                          fontWeight: 900,
-                          fontSize: 13,
-                          cursor: "pointer",
-                          color: "#e8e4d8",
-                        }}
-                      >
-                        Confirm Early Swap
-                      </button>
-
-                      <button
-                        onClick={() => actions.cancelEarlySwap()}
-                        style={{
-                          padding: "12px 14px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(184,150,106,0.30)",
-                          background: "transparent",
-                          fontWeight: 900,
-                          fontSize: 13,
-                          cursor: "pointer",
-                          color: "#e8e4d8",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Recoil Confirm/Cancel */}
-              {recoilArmed && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <button
-                    onClick={() => actions.confirmRecoil()}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "2px solid #3296ab",
-                      background: "rgba(184,150,106,0.18)",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      color: "#e8e4d8",
-                    }}
-                  >
-                    Confirm Recoil
-                  </button>
-
-                  <button
-                    onClick={() => actions.cancelRecoil()}
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(184,150,106,0.30)",
-                      background: "transparent",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      color: "#e8e4d8",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-
-              {forcedYieldAvailable && g.player === human && (
-                <button
-                  onClick={() => actions.yieldForced()}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    borderRadius: "0.5rem",
-                    border: "2px solid #6b7280",
-                    backgroundColor: "rgba(184,150,106,0.18)",
-                    fontWeight: "bold",
-                    fontSize: "0.9rem",
-                    color: "#e8e4d8",
-                    cursor: "pointer",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  No usable routes — Yield {remainingRoutes.length} to Void
-                </button>
-              )}
 
               {/* Game Log */}
               <div
@@ -2589,156 +2420,130 @@ if (wantsNewGame) {
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === leftPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Ransom - only show when it's this player's turn */}
                     {g.player === leftPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseRansom ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseRansom ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-                          <path d="M12 22V2"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === leftPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canEarlySwap ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
+                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Defection - only show when it's this player's turn */}
                     {g.player === leftPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseDefection ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseDefection ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="9" cy="9" r="7"/>
-                          <circle cx="15" cy="15" r="7"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
+                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== leftPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseRecoil ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 10h.01" />
-                          <path d="M15 10h.01" />
-                          <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
+                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     <button
                       onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
-                        border: "1px solid #6b7280",
-                        borderRadius: "50%",
-                        color: "#b0aa9e",
-                        fontSize: 20,
+                        border: "none",
+                        color: "#b8966a",
                         cursor: "pointer",
-                        padding: 2,
-                        lineHeight: "1",
-                        width: 32,
-                        height: 32,
+                        padding: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      ?
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
+                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                        </svg>
                     </button>
                   </div>
 
@@ -2821,15 +2626,18 @@ if (wantsNewGame) {
                     onClick={() => setShowChatExpanded(!showChatExpanded)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8e4d8" strokeWidth="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#b8966a">
+                        <path d="M320 544C461.4 544 576 436.5 576 304C576 171.5 461.4 64 320 64C178.6 64 64 171.5 64 304C64 358.3 83.2 408.3 115.6 448.5L66.8 540.8C62 549.8 63.5 560.8 70.4 568.3C77.3 575.8 88.2 578.1 97.5 574.1L215.9 523.4C247.7 536.6 282.9 544 320 544zM192 272C209.7 272 224 286.3 224 304C224 321.7 209.7 336 192 336C174.3 336 160 321.7 160 304C160 286.3 174.3 272 192 272zM320 272C337.7 272 352 286.3 352 304C352 321.7 337.7 336 320 336C302.3 336 288 321.7 288 304C288 286.3 302.3 272 320 272zM416 304C416 286.3 430.3 272 448 272C465.7 272 480 286.3 480 304C480 321.7 465.7 336 448 336C430.3 336 416 321.7 416 304z"/>
                       </svg>
                       <span>Chat</span>
                       {/* Info icon */}
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowChatExpanded(true); setShowChatInfo(true) }}
-                        style={{ background: "none", border: "1px solid #6b7280", borderRadius: "50%", color: "#b0aa9e", fontSize: "0.7rem", cursor: "pointer", padding: 0, lineHeight: 1, width: "1.1rem", height: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                      >?</button>
+                        style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#b8966a">
+                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                        </svg>
+                      </button>
                     </div>
                     <span style={{ fontSize: 14, opacity: 0.7 }}>{showChatExpanded ? "▲" : "▼"}</span>
                   </div>
@@ -2996,13 +2804,8 @@ if (wantsNewGame) {
                     boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b0aa9e" strokeWidth="2">
-                    <circle cx="12" cy="13" r="8" />
-                    <path d="M12 9v4l2 2" />
-                    <path d="M5 3 2 6" />
-                    <path d="m22 6-3-3" />
-                    <path d="M6.38 18.7 4 21" />
-                    <path d="M17.64 18.67 20 21" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b0aa9e">
+                    <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
                   </svg>
                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     <div style={{ fontSize: 24, fontWeight: 900, color: "#e8e4d8", opacity: g.player === "W" ? 1 : 0.6 }}>
@@ -3016,9 +2819,62 @@ if (wantsNewGame) {
                 </div>
                 )}
 
-                {/* Phase Banner - moved between clock and board */}
+                {/* Phase Banner OR Confirmation Buttons - between clock and board */}
                 <div style={{ width: "100%", maxWidth: 597, display: "flex", flexDirection: "column", gap: 6, marginBottom: 2 }}>
-                  {/* Messages Area - phase text and warnings */}
+
+                  {/* Confirmation buttons — replace the bar entirely when active */}
+                  {defectionArmed && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.cancelDefection()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Cancel Defection</button>
+                    </div>
+                  )}
+                  {!defectionArmed && g.phase === "MULLIGAN" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {(g as any).mulliganReady?.[human] ? (
+                        <div style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>Waiting for opponent...</div>
+                      ) : mulliganArmed ? (
+                        <>
+                          <div style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>Select a token on the board</div>
+                          <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
+                          <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.advanceFromAction()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Finish actions and proceed to reinforcements</button>
+                    </div>
+                  )}
+                  {!recoilArmed && g.player === human && g.phase === "SWAP" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.confirmSwapAndEndTurn()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Make route swap and confirm</button>
+                    </div>
+                  )}
+                  {!recoilArmed && g.player === human && g.phase === "ACTION" && earlySwapArmed && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.confirmEarlySwap()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Confirm Early Swap</button>
+                      <button onClick={() => actions.cancelEarlySwap()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                    </div>
+                  )}
+                  {recoilArmed && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.confirmRecoil()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Select unit and grid space, confirm recoil</button>
+                      <button onClick={() => actions.cancelRecoil()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                    </div>
+                  )}
+                  {forcedYieldAvailable && g.player === human && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => actions.yieldForced()} style={{ flex: 1, padding: "6px 16px", borderRadius: 8, border: "2px solid #6b7280", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>No usable routes — Yield {remainingRoutes.length} to Void</button>
+                    </div>
+                  )}
+
+                  {/* Phase bar — only shown when no confirmation is pending */}
+                  {!defectionArmed && g.phase !== "MULLIGAN" && !(allRoutesUsed && g.phase === "ACTION" && g.player === human && !recoilArmed && !defectionArmed) && !(g.phase === "SWAP" && g.player === human && !recoilArmed) && !(g.phase === "ACTION" && earlySwapArmed && g.player === human && !recoilArmed) && !recoilArmed && !(forcedYieldAvailable && g.player === human) && (
                   <div
                     style={{
                       background: g.player === human
@@ -3040,22 +2896,17 @@ if (wantsNewGame) {
                     </span>
                     <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 13 }}>—</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
-                      {recoilArmed
-                        ? `${g.player === "W" ? "B" : "W"} is currently in Recoil`
-                        : g.player !== human
-                          ? "Waiting for opponent..."
-                          : g.phase === "ACTION" ? (defectionArmed ? "Choose a token to sacrifice" : allRoutesUsed ? "Proceed when ready" : "Make your moves")
-                          : g.phase === "REINFORCE"
-                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
-                                {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                  <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 9, height: 9, borderRadius: "50%", position: "relative" }} />
-                                ))}
-                              </span>
-                          : g.phase === "SWAP" ? "Make a route swap"
-                          : g.phase === "MULLIGAN"
-                            ? ((g as any).mulliganReady?.[human] ? "Waiting for opponent..." : mulliganArmed ? "Select a token on the board" : "Mulligan or continue")
-                          : "Place opening tokens"}
+                      {g.player !== human
+                        ? "Waiting for opponent..."
+                        : g.phase === "ACTION" ? "Make your moves"
+                        : g.phase === "REINFORCE"
+                          ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
+                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 9, height: 9, borderRadius: "50%", position: "relative" }} />
+                              ))}
+                            </span>
+                        : "Place opening tokens"}
                     </span>
                     {g.warning && (
                       <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: "#ef4444", letterSpacing: "0.15em", textTransform: "uppercase", marginLeft: 4 }}>
@@ -3063,7 +2914,8 @@ if (wantsNewGame) {
                       </span>
                     )}
                   </div>
-                  
+                  )}
+
                   {/* Info Row - latest log and resign (won't move) */}
                   <div
                     style={{
@@ -3107,18 +2959,8 @@ if (wantsNewGame) {
                           opacity: (!started || !!g.gameOver) ? 0.5 : 1,
                         }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ee484c"
-                          strokeWidth="2"
-                        >
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M12 8v4" />
-                          <path d="M12 16h.01" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#ee484c">
+                          <path d="M480 208C480 128.5 408.4 64 320 64C231.6 64 160 128.5 160 208C160 255.1 185.1 296.9 224 323.2L224 352C224 369.7 238.3 384 256 384L384 384C401.7 384 416 369.7 416 352L416 323.2C454.9 296.9 480 255.1 480 208zM256 192C273.7 192 288 206.3 288 224C288 241.7 273.7 256 256 256C238.3 256 224 241.7 224 224C224 206.3 238.3 192 256 192zM352 224C352 206.3 366.3 192 384 192C401.7 192 416 206.3 416 224C416 241.7 401.7 256 384 256C366.3 256 352 241.7 352 224zM541.5 403.7C534.7 387.4 516 379.7 499.7 386.5L320 461.3L140.3 386.5C124 379.7 105.3 387.4 98.5 403.7C91.7 420 99.4 438.7 115.7 445.5L236.8 496L115.7 546.5C99.4 553.3 91.7 572 98.5 588.3C105.3 604.6 124 612.3 140.3 605.5L320 530.7L499.7 605.5C516 612.3 534.7 604.6 541.5 588.3C548.3 572 540.6 553.3 524.3 546.5L403.2 496L524.3 445.5C540.6 438.7 548.3 420 541.5 403.7z"/>
                         </svg>
                         <span>Resign</span>
                       </button>
@@ -3175,218 +3017,13 @@ if (wantsNewGame) {
                     title="Hide/show selected token highlight (H toggles, Esc hides)"
                     style={{ background: "none", border: "none", color: hideSelection ? "#b8966a" : "#6b6558", fontSize: 11, cursor: started ? "pointer" : "default", padding: 0, fontFamily: "'Cinzel', serif", letterSpacing: "0.15em", display: "flex", alignItems: "center", gap: 5, opacity: started ? 1 : 0.5 }}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={hideSelection ? "#b8966a" : "#6b6558"} strokeWidth="2">
-                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                      {hideSelection && <path d="M4 4l16 16" />}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 640 640" fill={hideSelection ? "#b8966a" : "#6b6558"}>
+                      <path d="M320 96C239.2 96 174.5 132.8 127.4 176.6C80.6 220.1 49.3 272 34.4 307.7C31.1 315.6 31.1 324.4 34.4 332.3C49.3 368 80.6 420 127.4 463.4C174.5 507.1 239.2 544 320 544C400.8 544 465.5 507.2 512.6 463.4C559.4 419.9 590.7 368 605.6 332.3C608.9 324.4 608.9 315.6 605.6 307.7C590.7 272 559.4 220 512.6 176.6C465.5 132.9 400.8 96 320 96zM176 320C176 240.5 240.5 176 320 176C399.5 176 464 240.5 464 320C464 399.5 399.5 464 320 464C240.5 464 176 399.5 176 320zM320 256C320 291.3 291.3 320 256 320C244.5 320 233.7 317 224.3 311.6C223.3 322.5 224.2 333.7 227.2 344.8C240.9 396 293.6 426.4 344.8 412.7C396 399 426.4 346.3 412.7 295.1C400.5 249.4 357.2 220.3 311.6 224.3C316.9 233.6 320 244.4 320 256z"/>
                     </svg>
                     <span>{hideSelection ? "Show Grid Highlight" : "Hide Grid Highlight"}</span>
                   </button>
                 </div>
 
-                {/* Defection Cancel */}
-                {defectionArmed && (
-                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
-                    <button
-                      onClick={() => actions.cancelDefection()}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "1px solid rgba(184,150,106,0.30)",
-                        background: "transparent",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: "#e8e4d8",
-                      }}
-                    >
-                      Cancel Defection
-                    </button>
-                  </div>
-                )}
-
-                {/* Mulligan Phase */}
-                {g.phase === "MULLIGAN" && (
-                  <div style={{ width: "100%", maxWidth: 597, marginBottom: 6 }}>
-                    {(g as any).mulliganReady?.[human] ? (
-                      <div style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>
-                        Waiting for opponent...
-                      </div>
-                    ) : mulliganArmed ? (
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <div style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>
-                          Select a token on the board
-                        </div>
-                        <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: "#b0aa9e", fontSize: 13, fontWeight: 900 }}>
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <button
-                          onClick={() => (actions as any).armMulligan?.(human)}
-                          disabled={(g as any).mulliganCount?.[human] >= 2}
-                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}
-                        >
-                          Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}
-                        </button>
-                        <button
-                          onClick={() => (actions as any).passMulligan?.(human)}
-                          style={{ flex: 1, padding: 12, borderRadius: 10, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}
-                        >
-                          Continue →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Advance from ACTION -> Reinforcements/Swap */}
-                {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
-                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
-                    <button
-                      onClick={() => actions.advanceFromAction()}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "2px solid #3296ab",
-                        background: "rgba(184,150,106,0.18)",
-                        fontWeight: 700,
-                        fontSize: 11,
-                        letterSpacing: "0.10em",
-                        fontFamily: "'Cinzel', serif",
-                        textTransform: "uppercase",
-                        cursor: "pointer",
-                        color: "#e8e4d8",
-                        animation: "confirm-pulse 1.4s ease-in-out infinite",
-                      }}
-                    >
-                      Finished Special Actions? Proceed to Reinforcements →
-                    </button>
-                  </div>
-                )}
-
-                {/* Swap / Early-swap confirm buttons live under the board, like the mockup wants "confirm where confirm normally is" */}
-                {!recoilArmed && g.player === human && (g.phase === "SWAP" || (g.phase === "ACTION" && earlySwapArmed)) && (
-                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
-                    {g.phase === "SWAP" ? (
-                      <button
-                        onClick={() => actions.confirmSwapAndEndTurn()}
-                        style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "2px solid #3296ab",
-                        background: "rgba(184,150,106,0.18)",
-                        fontWeight: 700,
-                        fontSize: 11,
-                        letterSpacing: "0.10em",
-                        fontFamily: "'Cinzel', serif",
-                        textTransform: "uppercase",
-                        cursor: "pointer",
-                        color: "#e8e4d8",
-                        animation: "confirm-pulse 1.4s ease-in-out infinite",
-                        }}
-                      >
-                        Confirm Swap & End Turn
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => actions.confirmEarlySwap()}
-                          style={{
-                            flex: 1,
-                            padding: 12,
-                            borderRadius: 10,
-                            border: "2px solid #3296ab",
-                            background: "rgba(184,150,106,0.18)",
-                            fontWeight: 900,
-                            fontSize: 13,
-                            cursor: "pointer",
-                            color: "#e8e4d8",
-                          }}
-                        >
-                          Confirm Early Swap
-                        </button>
-                        <button
-                          onClick={() => actions.cancelEarlySwap()}
-                          style={{
-                            padding: "12px 14px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(184,150,106,0.30)",
-                            background: "transparent",
-                            fontWeight: 900,
-                            fontSize: 13,
-                            cursor: "pointer",
-                            color: "#e8e4d8",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Recoil Confirm/Cancel */}
-                {recoilArmed && (
-                  <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 597 }}>
-                    <button
-                      onClick={() => actions.confirmRecoil()}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "2px solid #3296ab",
-                        background: "rgba(184,150,106,0.18)",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: "#e8e4d8",
-                      }}
-                    >
-                      Confirm Recoil
-                    </button>
-
-                    <button
-                      onClick={() => actions.cancelRecoil()}
-                      style={{
-                        padding: "12px 14px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(184,150,106,0.30)",
-                        background: "transparent",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: "#e8e4d8",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {forcedYieldAvailable && g.player === human && (
-                  <button
-                    onClick={() => actions.yieldForced()}
-                    style={{
-                      width: "100%",
-                      maxWidth: 597,
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      border: "2px solid #6b7280",
-                      backgroundColor: "rgba(184,150,106,0.18)",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      color: "#e8e4d8",
-                      cursor: "pointer",
-                    }}
-                  >
-                    No usable routes — Yield {remainingRoutes.length} to Void
-                  </button>
-                )}
               </div>
 
               {/* Void */}
@@ -3496,156 +3133,130 @@ if (wantsNewGame) {
                   <div style={{ display: "flex", gap: 10, marginBottom: 12, justifyContent: "flex-end" }}>
                     {/* Early Reinforcement - only show when it's this player's turn */}
                     {g.player === rightPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
                         onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
                         disabled={!canBuyExtraReinforcement}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canBuyExtraReinforcement ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canBuyExtraReinforcement ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                          <path d="M9 12h6" />
-                          <path d="M12 9v6" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Ransom - only show when it's this player's turn */}
                     {g.player === rightPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
                         onClick={() => canUseRansom && actions.useRansom()}
                         disabled={!canUseRansom}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseRansom ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseRansom ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-                          <path d="M12 22V2"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
+                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Route Swap - only show when it's this player's turn */}
                     {g.player === rightPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
                         onClick={() => canEarlySwap && actions.armEarlySwap()}
                         disabled={!canEarlySwap}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canEarlySwap ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canEarlySwap ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="6" cy="19" r="3" />
-                          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-                          <circle cx="18" cy="5" r="3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
+                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Defection - only show when it's this player's turn */}
                     {g.player === rightPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
                         onClick={() => canUseDefection && actions.armDefection()}
                         disabled={!canUseDefection}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseDefection ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseDefection ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="9" cy="9" r="7"/>
-                          <circle cx="15" cy="15" r="7"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
+                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     {/* Recoil - only show when it's opponent's turn */}
                     {g.player !== rightPlayer.avatar && (
-                      <button
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
                         onClick={() => canUseRecoil && actions.armRecoil()}
                         disabled={!canUseRecoil}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: "#0d0d10",
-                          border: "1px solid #6b7280",
+                          background: "none",
+                          border: "none",
                           cursor: canUseRecoil ? "pointer" : "default",
                           padding: 0,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: canUseRecoil ? 1 : 0.5,
+                          
                         }}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 10h.01" />
-                          <path d="M15 10h.01" />
-                          <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
+                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
                         </svg>
-                      </button>
+                      </button></span>
                     )}
 
                     <button
                       onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")}
                       style={{
                         background: "none",
-                        border: "1px solid #6b7280",
-                        borderRadius: "50%",
-                        color: "#b0aa9e",
-                        fontSize: 20,
+                        border: "none",
+                        color: "#b8966a",
                         cursor: "pointer",
-                        padding: 2,
-                        lineHeight: "1",
-                        width: 32,
-                        height: 32,
+                        padding: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      ?
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
+                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
+                        </svg>
                     </button>
                   </div>
 

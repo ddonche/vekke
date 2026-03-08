@@ -14,12 +14,12 @@
  *   active-page  One of: play, leaderboard, orders, rules, tutorial, puzzles, announcements
  */
 (function () {
-  if (!document.getElementById('vekke-header-fonts')) {
-    const link = document.createElement('link')
-    link.id = 'vekke-header-fonts'
-    link.rel = 'stylesheet'
+  if (!document.getElementById("vekke-header-fonts")) {
+    const link = document.createElement("link")
+    link.id = "vekke-header-fonts"
+    link.rel = "stylesheet"
     link.href =
-      'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap'
+      "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
     document.head.appendChild(link)
   }
 
@@ -156,14 +156,14 @@
       align-items: center;
       justify-content: center;
       color: #b8966a;
-      transition: color 0.2s, background 0.15s ease;
+      transition: color 0.2s;
       appearance: none;
       -webkit-appearance: none;
+      outline: none;
     }
 
     .announcements-btn:hover {
       color: #e8e4d8;
-      background: rgba(255,255,255,0.04);
     }
 
     .announcements-btn.active {
@@ -190,6 +190,7 @@
       white-space: nowrap;
       appearance: none;
       -webkit-appearance: none;
+      outline: none;
     }
 
     .account-btn:hover {
@@ -211,6 +212,7 @@
       flex-shrink: 0;
       appearance: none;
       -webkit-appearance: none;
+      outline: none;
     }
 
     .vekke-hamburger span {
@@ -271,30 +273,42 @@
       margin: 6px 0;
     }
 
-    @media (max-width: 768px) {
-      .vekke-nav { display: none; }
-      .vekke-header-inner { padding: 0 16px; }
-      .vekke-hamburger { display: flex; }
+    @media (max-width: 1024px) {
+      .vekke-nav {
+        display: none;
+      }
+
+      .vekke-header-inner {
+        padding: 0 16px;
+      }
+
+      .vekke-hamburger {
+        display: flex;
+      }
+
+      .announcements-btn {
+        display: none !important;
+      }
     }
   `
 
   class VekkeHeader extends HTMLElement {
     constructor() {
       super()
-      this.attachShadow({ mode: 'open' })
+      this.attachShadow({ mode: "open" })
       this._mobileOpen = false
     }
 
     static get observedAttributes() {
-      return ['base-url', 'active-page']
+      return ["base-url", "active-page"]
     }
 
     get baseUrl() {
-      return (this.getAttribute('base-url') || 'https://vekke.net').replace(/\/+$/, '')
+      return (this.getAttribute("base-url") || "https://vekke.net").replace(/\/+$/, "")
     }
 
     get activePage() {
-      return this.getAttribute('active-page') || null
+      return this.getAttribute("active-page") || null
     }
 
     connectedCallback() {
@@ -318,12 +332,12 @@
     }
 
     _desktopNavItem(page, label) {
-      const active = this.activePage === page ? 'active' : ''
+      const active = this.activePage === page ? "active" : ""
       return `<button class="nav-item ${active}" data-nav="${page}">${label}</button>`
     }
 
     _mobileNavItem(page, label) {
-      const active = this.activePage === page ? 'active' : ''
+      const active = this.activePage === page ? "active" : ""
       return `<button class="vekke-mobile-nav-item ${active}" data-mobile="${page}">${label}</button>`
     }
 
@@ -342,32 +356,28 @@
             </div>
 
             <nav class="vekke-nav">
-              ${this._desktopNavItem('play', 'Play')}
-              ${this._desktopNavItem('puzzles', 'Puzzles')}
-              ${this._desktopNavItem('leaderboard', 'Leaderboard')}
-              ${this._desktopNavItem('orders', 'Orders')}
-              ${this._desktopNavItem('rules', 'Rules')}
-              ${this._desktopNavItem('tutorial', 'Tutorial')}
+              ${this._desktopNavItem("play", "Play")}
+              ${this._desktopNavItem("puzzles", "Puzzles")}
+              ${this._desktopNavItem("leaderboard", "Leaderboard")}
+              ${this._desktopNavItem("orders", "Orders")}
+              ${this._desktopNavItem("rules", "Rules")}
+              ${this._desktopNavItem("tutorial", "Tutorial")}
             </nav>
 
             <div class="vekke-header-right">
-              <button
-                class="vekke-hamburger"
-                aria-label="Menu"
-                data-hamburger
-              >
-                <span style="width:100%"></span>
+              <button class="vekke-hamburger" onClick={() => {}} aria-label="Menu" data-hamburger>
+                <span style="width:${this._mobileOpen ? "100%" : "100%"}"></span>
                 <span style="width:70%;align-self:flex-end"></span>
-                <span style="width:85%"></span>
+                <span style="width:${this._mobileOpen ? "100%" : "85%"}"></span>
               </button>
 
               <button
-                class="announcements-btn ${this.activePage === 'announcements' ? 'active' : ''}"
+                class="announcements-btn ${this.activePage === "announcements" ? "active" : ""}"
                 aria-label="Announcements"
                 data-announcements
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 11l19-9-9 19-2-8-8-2z"></path>
+                <svg width="18" height="18" viewBox="0 0 640 640" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M32 176C32 134.5 63.6 100.4 104 96.4L104 96L384 96C437 96 480 139 480 192L480 368L304 368C264.2 368 232 400.2 232 440L232 500C232 524.3 212.3 544 188 544C163.7 544 144 524.3 144 500L144 272L80 272C53.5 272 32 250.5 32 224L32 176zM268.8 544C275.9 530.9 280 515.9 280 500L280 440C280 426.7 290.7 416 304 416L552 416C565.3 416 576 426.7 576 440L576 464C576 508.2 540.2 544 496 544L268.8 544zM112 144C94.3 144 80 158.3 80 176L80 224L144 224L144 176C144 158.3 129.7 144 112 144z"/>
                 </svg>
               </button>
 
@@ -376,69 +386,75 @@
           </div>
         </header>
 
-        <div class="vekke-mobile-drawer ${this._mobileOpen ? 'open' : ''}">
-          ${this._mobileNavItem('play', 'Play')}
-          ${this._mobileNavItem('puzzles', 'Puzzles')}
-          ${this._mobileNavItem('leaderboard', 'Leaderboard')}
-          ${this._mobileNavItem('orders', 'Orders')}
+        <div class="vekke-mobile-drawer ${this._mobileOpen ? "open" : ""}">
+          ${this._mobileNavItem("play", "Play")}
+          ${this._mobileNavItem("puzzles", "Puzzles")}
+          ${this._mobileNavItem("leaderboard", "Leaderboard")}
+          ${this._mobileNavItem("orders", "Orders")}
           <div class="vekke-mobile-divider"></div>
-          ${this._mobileNavItem('rules', 'Rules')}
-          ${this._mobileNavItem('tutorial', 'Tutorial')}
-          ${this._mobileNavItem('announcements', 'Announcements')}
+          ${this._mobileNavItem("rules", "Rules")}
+          ${this._mobileNavItem("tutorial", "Tutorial")}
+          ${this._mobileNavItem("announcements", "Announcements")}
         </div>
       `
 
       const root = this.shadowRoot
 
-      root.querySelector('[data-logo]')?.addEventListener('click', () => this._nav('/'))
+      root.querySelector("[data-logo]")?.addEventListener("click", () => this._nav("/"))
 
-      root.querySelector('[data-nav="play"]')?.addEventListener('click', () => this._nav('/play?openNewGame=1'))
-      root.querySelector('[data-nav="puzzles"]')?.addEventListener('click', () => this._nav('/puzzles'))
-      root.querySelector('[data-nav="leaderboard"]')?.addEventListener('click', () => this._nav('/leaderboard'))
-      root.querySelector('[data-nav="orders"]')?.addEventListener('click', () => this._nav('/orders'))
-      root.querySelector('[data-nav="rules"]')?.addEventListener('click', () => this._goRules())
-      root.querySelector('[data-nav="tutorial"]')?.addEventListener('click', () => this._nav('/tutorial'))
+      root.querySelector('[data-nav="play"]')?.addEventListener("click", () => this._nav("/play?openNewGame=1"))
+      root.querySelector('[data-nav="puzzles"]')?.addEventListener("click", () => this._nav("/puzzles"))
+      root.querySelector('[data-nav="leaderboard"]')?.addEventListener("click", () => this._nav("/leaderboard"))
+      root.querySelector('[data-nav="orders"]')?.addEventListener("click", () => this._nav("/orders"))
+      root.querySelector('[data-nav="rules"]')?.addEventListener("click", () => this._goRules())
+      root.querySelector('[data-nav="tutorial"]')?.addEventListener("click", () => this._nav("/tutorial"))
 
-      root.querySelector('[data-mobile="play"]')?.addEventListener('click', () => {
+      root.querySelector('[data-mobile="play"]')?.addEventListener("click", () => {
         this._mobileOpen = false
-        this._nav('/play?openNewGame=1')
+        this._nav("/play?openNewGame=1")
       })
-      root.querySelector('[data-mobile="puzzles"]')?.addEventListener('click', () => {
+
+      root.querySelector('[data-mobile="puzzles"]')?.addEventListener("click", () => {
         this._mobileOpen = false
-        this._nav('/puzzles')
+        this._nav("/puzzles")
       })
-      root.querySelector('[data-mobile="leaderboard"]')?.addEventListener('click', () => {
+
+      root.querySelector('[data-mobile="leaderboard"]')?.addEventListener("click", () => {
         this._mobileOpen = false
-        this._nav('/leaderboard')
+        this._nav("/leaderboard")
       })
-      root.querySelector('[data-mobile="orders"]')?.addEventListener('click', () => {
+
+      root.querySelector('[data-mobile="orders"]')?.addEventListener("click", () => {
         this._mobileOpen = false
-        this._nav('/orders')
+        this._nav("/orders")
       })
-      root.querySelector('[data-mobile="rules"]')?.addEventListener('click', () => {
+
+      root.querySelector('[data-mobile="rules"]')?.addEventListener("click", () => {
         this._mobileOpen = false
         this._goRules()
       })
-      root.querySelector('[data-mobile="tutorial"]')?.addEventListener('click', () => {
+
+      root.querySelector('[data-mobile="tutorial"]')?.addEventListener("click", () => {
         this._mobileOpen = false
-        this._nav('/tutorial')
-      })
-      root.querySelector('[data-mobile="announcements"]')?.addEventListener('click', () => {
-        this._mobileOpen = false
-        this._nav('/announcements')
+        this._nav("/tutorial")
       })
 
-      root.querySelector('[data-announcements]')?.addEventListener('click', () => this._nav('/announcements'))
-      root.querySelector('[data-account]')?.addEventListener('click', () => this._nav('/'))
+      root.querySelector('[data-mobile="announcements"]')?.addEventListener("click", () => {
+        this._mobileOpen = false
+        this._nav("/announcements")
+      })
 
-      root.querySelector('[data-hamburger]')?.addEventListener('click', () => {
+      root.querySelector("[data-announcements]")?.addEventListener("click", () => this._nav("/announcements"))
+      root.querySelector("[data-account]")?.addEventListener("click", () => this._nav("/"))
+
+      root.querySelector("[data-hamburger]")?.addEventListener("click", () => {
         this._mobileOpen = !this._mobileOpen
         this._render()
       })
     }
   }
 
-  if (!customElements.get('vekke-header')) {
-    customElements.define('vekke-header', VekkeHeader)
+  if (!customElements.get("vekke-header")) {
+    customElements.define("vekke-header", VekkeHeader)
   }
 })()

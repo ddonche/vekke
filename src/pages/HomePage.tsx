@@ -413,6 +413,38 @@ function TinyTab({
   )
 }
 
+function RankBadge({ rank }: { rank: number }) {
+  const gold = rank === 1
+  const silver = rank === 2
+  const bronze = rank === 3
+  const color = gold ? "#D4AF37" : silver ? "#C0C0C0" : bronze ? "#CD7F32" : "#6b6558"
+  const bg = gold
+    ? "rgba(212,175,55,0.12)"
+    : silver
+      ? "rgba(192,192,192,0.08)"
+      : bronze
+        ? "rgba(205,127,50,0.08)"
+        : "transparent"
+  return (
+    <div
+      style={{
+        fontFamily: "'Cinzel', serif",
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        letterSpacing: "0.1em",
+        color,
+        background: bg,
+        borderRadius: 4,
+        padding: "2px 6px",
+        minWidth: 28,
+        textAlign: "center",
+      }}
+    >
+      {rank}
+    </div>
+  )
+}
+
 export default function HomePage() {
   injectFonts()
 
@@ -847,21 +879,39 @@ export default function HomePage() {
           margin-bottom: 12px;
         }
 
-        .ladder-row {
-          display: grid;
-          grid-template-columns: 34px 1fr auto;
-          gap: 12px;
-          align-items: center;
-          padding: 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.07);
-          background: #111118;
-          min-width: 0;
-          cursor: pointer;
+        .hp-lb-th {
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          font-family: 'Cinzel', serif;
+          font-size: 0.55rem;
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: #6b6558;
+          white-space: nowrap;
+          background: transparent;
         }
-
-        .ladder-row:hover {
-          background: rgba(255,255,255,0.03);
+        .hp-lb-td {
+          padding: 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          color: #b0aa9e;
+          white-space: nowrap;
+        }
+        .hp-lb-row { cursor: pointer; }
+        .hp-lb-row:hover td { background: rgba(255,255,255,0.02); }
+        .hp-lb-row-me td { background: rgba(93,232,247,0.03); border-bottom-color: rgba(93,232,247,0.1); }
+        .hp-lb-rank { width: 1%; white-space: nowrap; }
+        .hp-lb-player { width: 100%; }
+        .hp-lb-rating { width: 1%; white-space: nowrap; }
+        .hp-lb-ch-short { display: none; }
+        .hp-lb-mobile-sub { display: none; }
+        @media (max-width: 640px) {
+          .hp-lb-title, .hp-lb-wl { display: none; }
+          .hp-lb-challenge { width: 1%; white-space: nowrap; }
+          .hp-lb-ch-full { display: none; }
+          .hp-lb-ch-short { display: inline; }
+          .hp-lb-mobile-sub { display: inline; }
+          .hp-lb-td, .hp-lb-th { padding: 10px 8px; }
         }
 
         .challenge-btn {
@@ -884,7 +934,9 @@ export default function HomePage() {
         }
         @media (max-width: 600px) {
           .challenge-btn {
-            display: none;
+            padding: 6px 8px;
+            font-size: 0.5rem;
+            letter-spacing: 0.08em;
           }
         }
 
@@ -1083,113 +1135,123 @@ export default function HomePage() {
                       No ranked players yet for {FORMAT_LABELS[ladderFormat]}.
                     </div>
                   ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {topRows.map((r, i) => {
-                        const elo = rowElo(r)
-                        const games = rowGames(r)
-                        const wins = rowWins(r)
-                        const losses = rowLosses(r)
-                        const wr = winRate(wins, losses)
+                    <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead>
+                        <tr>
+                          <th className="hp-lb-th hp-lb-rank">#</th>
+                          <th className="hp-lb-th hp-lb-player">Player</th>
+                          <th className="hp-lb-th hp-lb-rating">Rating</th>
+                          <th className="hp-lb-th hp-lb-title">Title</th>
+                          <th className="hp-lb-th hp-lb-wl">W / L</th>
+                          <th className="hp-lb-th hp-lb-challenge"><span className="hp-lb-ch-full">Challenge</span><span className="hp-lb-ch-short">vs</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {topRows.map((r, i) => {
+                          const elo = rowElo(r)
+                          const wins = rowWins(r)
+                          const losses = rowLosses(r)
+                          const wr = winRate(wins, losses)
+                          const isMe = r.user_id === userId
+                          const isChallenged = !!challenged[r.user_id]
+                          const isChallenging = !!challenging[r.user_id]
 
-                        return (
-                          <div
-                            key={r.user_id}
-                            className="ladder-row"
-                            onClick={() => navigate(`/u/${encodeURIComponent(r.username)}`)}
-                          >
-                            <div
-                              style={{
-                                fontFamily: "'Cinzel', serif",
-                                color: i < 3 ? "#d4af7a" : "#6b6558",
-                                fontWeight: 700,
-                              }}
+                          return (
+                            <tr
+                              key={r.user_id}
+                              className={`hp-lb-row${isMe ? " hp-lb-row-me" : ""}`}
+                              onClick={() => navigate(`/u/${encodeURIComponent(r.username)}`)}
                             >
-                              #{i + 1}
-                            </div>
+                              <td className="hp-lb-td hp-lb-rank">
+                                <RankBadge rank={i + 1} />
+                              </td>
 
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                              <Avatar username={r.username} avatarUrl={r.avatar_url} size={32} />
-                              <div style={{ minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <FlagImg cc={r.country_code} size={14} />
-                                  <span
-                                    style={{
-                                      fontFamily: "'Cinzel', serif",
-                                      fontSize: "0.88rem",
-                                      fontWeight: 600,
-                                      letterSpacing: "0.04em",
-                                      color: r.user_id === userId ? "#5de8f7" : "#e8e4d8",
-                                    }}
-                                  >
-                                    {r.username}
-                                  </span>
-                                  {r.user_id === userId && (
-                                    <span style={{
-                                      fontFamily: "'Cinzel', serif",
-                                      fontSize: "0.55rem",
-                                      fontWeight: 700,
-                                      letterSpacing: "0.2em",
-                                      color: "#5de8f7",
-                                      border: "1px solid rgba(93,232,247,0.4)",
-                                      borderRadius: 3,
-                                      padding: "1px 5px",
-                                      textTransform: "uppercase",
-                                    }}>YOU</span>
-                                  )}
-                                  {r.account_tier === "pro" ? <ProFlair /> : null}
+                              <td className="hp-lb-td hp-lb-player">
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  <Avatar username={r.username} avatarUrl={r.avatar_url} size={32} />
+                                  <div>
+                                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
+                                      <span style={{
+                                        fontFamily: "'Cinzel', serif",
+                                        fontSize: "0.88rem",
+                                        fontWeight: 600,
+                                        letterSpacing: "0.04em",
+                                        color: isMe ? "#5de8f7" : "#e8e4d8",
+                                      }}>
+                                        {r.username}
+                                      </span>
+                                      {r.account_tier === "pro" ? <ProFlair /> : null}
+                                      {isMe && (
+                                        <span style={{
+                                          fontFamily: "'Cinzel', serif",
+                                          fontSize: "0.5rem",
+                                          letterSpacing: "0.2em",
+                                          color: "#5de8f7",
+                                          marginLeft: 8,
+                                          opacity: 0.7,
+                                        }}>YOU</span>
+                                      )}
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                                      {r.country_code && <FlagImg cc={r.country_code} size={13} />}
+                                      <span className="hp-lb-mobile-sub" style={{
+                                        fontFamily: "'Cinzel', serif",
+                                        fontSize: "0.55rem",
+                                        letterSpacing: "0.12em",
+                                        textTransform: "uppercase",
+                                        color: eloColor(elo),
+                                      }}>{eloTitle(elo)}</span>
+                                      {wr !== null && <span className="hp-lb-mobile-sub" style={{
+                                        fontFamily: "monospace",
+                                        fontSize: "0.7rem",
+                                        color: wr >= 0.5 ? "#6ee7b7" : "#f87171",
+                                      }}>{pct(wr)}</span>}
+                                    </div>
+                                  </div>
                                 </div>
+                              </td>
 
-                                <div
-                                  style={{
-                                    marginTop: 3,
-                                    fontSize: "0.95rem",
-                                    color: "#b0aa9e",
-                                    fontStyle: "italic",
-                                    display: "flex",
-                                    gap: 10,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <span>{eloTitle(elo)}</span>
-                                  <span style={{ opacity: 0.45 }}>•</span>
-                                  <span>{games} games</span>
-                                  <span style={{ opacity: 0.45 }}>•</span>
-                                  <span>{wr == null ? "—" : pct(wr)} win rate</span>
-                                </div>
-                              </div>
-                            </div>
+                              <td className="hp-lb-td hp-lb-rating">
+                                <span style={{ fontFamily: "monospace", fontSize: "1rem", fontWeight: 700, color: eloColor(elo) }}>
+                                  {elo}
+                                </span>
+                              </td>
 
-                            <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 10 }}>
-                              <div
-                                style={{
-                                  fontFamily: "monospace",
-                                  fontWeight: 900,
+                              <td className="hp-lb-td hp-lb-title">
+                                <span style={{
+                                  fontFamily: "'Cinzel', serif",
+                                  fontSize: "0.6rem",
+                                  letterSpacing: "0.15em",
+                                  textTransform: "uppercase",
                                   color: eloColor(elo),
-                                }}
-                              >
-                                {elo}
-                              </div>
-                              {!r.is_ai && r.user_id !== userId && (
+                                }}>
+                                  {eloTitle(elo)}
+                                </span>
+                              </td>
+
+                              <td className="hp-lb-td hp-lb-wl">
+                                <span style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>
+                                  <span style={{ color: "#6ee7b7" }}>{wins}</span>
+                                  <span style={{ color: "#3a3830", margin: "0 4px" }}>/</span>
+                                  <span style={{ color: "#f87171" }}>{losses}</span>
+                                </span>
+                              </td>
+
+                              <td className="hp-lb-td hp-lb-challenge">
                                 <button
                                   className="challenge-btn"
-                                  disabled={!!challenged[r.user_id] || !!challenging[r.user_id]}
+                                  disabled={r.is_ai || r.user_id === userId || isChallenged || isChallenging}
                                   onClick={(e) => { e.stopPropagation(); onChallengeClick(r) }}
                                 >
-                                  {challenged[r.user_id] ? "Challenged" : challenging[r.user_id] ? "Sending..." : "Challenge"}
+                                  <span className="hp-lb-ch-full">{isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}</span>
+                                  <span className="hp-lb-ch-short">{isChallenged ? "✓" : isChallenging ? "..." : "vs"}</span>
                                 </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   )}
                 </SurfaceCard>
               </div>

@@ -24,16 +24,19 @@ export function VekkeLogoLoader({
   const h = size
   const inward = gap / 2 + overlap
 
-  // SMIL timing: converge, hold, separate
   const dur = `${durationMs}ms`
   const keyTimes = "0;0.4;0.6;1"
   const leftValues = `0 0; ${inward} 0; ${inward} 0; 0 0`
   const rightValues = `0 0; ${-inward} 0; ${-inward} 0; 0 0`
 
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      style={{ display: "block", maxWidth: "100%", height: "auto" }}
+    >
       <defs>
-        {/* Moving mask: the "right circle" shape moves with the teal circle */}
         <mask id="vekkeRightMask">
           <rect x="0" y="0" width={w} height={h} fill="black" />
           <g>
@@ -52,7 +55,6 @@ export function VekkeLogoLoader({
         </mask>
       </defs>
 
-      {/* Left circle (white) */}
       <g>
         <animateTransform
           attributeName="transform"
@@ -67,7 +69,6 @@ export function VekkeLogoLoader({
         <circle cx={r} cy={r} r={r} fill={white} />
       </g>
 
-      {/* Right circle (teal) */}
       <g>
         <animateTransform
           attributeName="transform"
@@ -82,7 +83,6 @@ export function VekkeLogoLoader({
         <circle cx={w - r} cy={r} r={r} fill={teal} />
       </g>
 
-      {/* Overlap region (red): left circle painted red, clipped by the moving right circle mask */}
       <g mask="url(#vekkeRightMask)">
         <g>
           <animateTransform
@@ -119,23 +119,26 @@ export function MatchIntroOverlay({
   const [pct, setPct] = useState(0)
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 640)
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
-  const safeLabels = useMemo(() => (labels && labels.length ? labels : ["Preparing match..."]), [labels])
+  const safeLabels = useMemo(
+    () => (labels && labels.length ? labels : ["Preparing match..."]),
+    [labels]
+  )
+
   const activeLabel = safeLabels[idx % safeLabels.length]
 
-  // Rotate label
   useEffect(() => {
     if (safeLabels.length <= 1) return
     const t = setInterval(() => setIdx((i) => (i + 1) % safeLabels.length), 650)
     return () => clearInterval(t)
   }, [safeLabels])
 
-  // Progress + auto-finish
   useEffect(() => {
     let raf = 0
     const start = performance.now()
@@ -155,6 +158,215 @@ export function MatchIntroOverlay({
     return () => cancelAnimationFrame(raf)
   }, [onDone])
 
+  if (isMobile) {
+    return (
+      <div
+        onClick={onDone}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background:
+            "radial-gradient(circle at top, rgba(27,39,46,0.35) 0%, rgba(10,10,12,1) 45%, rgba(10,10,12,1) 100%)",
+          color: "#e8e4d8",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "18px 12px",
+          zIndex: 9999,
+          overflowX: "hidden",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 22,
+            padding: "26px 10px 22px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                color: "rgba(184,150,106,0.72)",
+                userSelect: "none",
+              }}
+            >
+              You
+            </div>
+
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <PlayerChip p={left} align="center" />
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 10,
+              margin: "2px 0",
+            }}
+          >
+            <VekkeLogoLoader
+              size={38}
+              gap={22}
+              overlap={8}
+              durationMs={2400}
+            />
+
+            <div
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.34em",
+                textTransform: "uppercase",
+                color: "rgba(232,228,216,0.52)",
+                userSelect: "none",
+              }}
+            >
+              VS
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                color: "rgba(184,150,106,0.72)",
+                userSelect: "none",
+              }}
+            >
+              Opponent
+            </div>
+
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <PlayerChip p={right} align="center" />
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 330,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 4,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'EB Garamond', Georgia, serif",
+                fontSize: "1.08rem",
+                lineHeight: 1.28,
+                color: "#e8e4d8",
+                wordBreak: "break-word",
+              }}
+            >
+              {subtitleLine}
+            </div>
+
+            <div
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.14em",
+                color: "rgba(93,232,247,0.82)",
+                minHeight: 16,
+                wordBreak: "break-word",
+              }}
+            >
+              {activeLabel}
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 280,
+              height: 6,
+              borderRadius: 999,
+              background: "rgba(184,150,106,0.15)",
+              border: "1px solid rgba(184,150,106,0.18)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${Math.round(pct * 100)}%`,
+                background:
+                  "linear-gradient(90deg, rgba(93,232,247,0.25), rgba(93,232,247,0.9))",
+                transition: "width 0.06s linear",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "rgba(184,150,106,0.45)",
+              userSelect: "none",
+            }}
+          >
+            tap anywhere to skip
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       onClick={onDone}
@@ -166,24 +378,22 @@ export function MatchIntroOverlay({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: isMobile ? 10 : 18,
+        padding: 18,
         zIndex: 9999,
       }}
     >
-      {/* INNER WRAPPER — borderless */}
       <div
         style={{
           width: "min(860px, 100%)",
-          padding: isMobile ? "10px 10px 10px" : "20px 18px 16px",
+          padding: "20px 18px 16px",
         }}
       >
-        {/* top row: chips + loader */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr auto 1fr",
             alignItems: "center",
-            gap: isMobile ? 8 : 14,
+            gap: 14,
           }}
         >
           <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -195,14 +405,14 @@ export function MatchIntroOverlay({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: isMobile ? 6 : 10,
+              gap: 10,
             }}
           >
-            <VekkeLogoLoader size={isMobile ? 60 : 72} gap={isMobile ? 40 : 48} overlap={isMobile ? 14 : 16} durationMs={2400} />
+            <VekkeLogoLoader size={72} gap={48} overlap={16} durationMs={2400} />
             <div
               style={{
                 fontFamily: "'Cinzel', serif",
-                fontSize: isMobile ? 10 : 11,
+                fontSize: 11,
                 letterSpacing: "0.28em",
                 textTransform: "uppercase",
                 color: "rgba(184,150,106,0.75)",
@@ -218,14 +428,13 @@ export function MatchIntroOverlay({
           </div>
         </div>
 
-        {/* center text */}
-        <div style={{ marginTop: isMobile ? 8 : 14, textAlign: "center" }}>
+        <div style={{ marginTop: 14, textAlign: "center" }}>
           <div
             style={{
               fontFamily: "'EB Garamond', Georgia, serif",
-              fontSize: isMobile ? "1.02rem" : "1.12rem",
+              fontSize: "1.12rem",
               color: "#e8e4d8",
-              marginBottom: isMobile ? 4 : 8,
+              marginBottom: 8,
             }}
           >
             {subtitleLine}
@@ -234,25 +443,24 @@ export function MatchIntroOverlay({
           <div
             style={{
               fontFamily: "'Cinzel', serif",
-              fontSize: isMobile ? 10 : 11,
+              fontSize: 11,
               letterSpacing: "0.12em",
               color: "rgba(93,232,247,0.75)",
-              minHeight: isMobile ? 14 : 16,
-              marginBottom: isMobile ? 8 : 12,
+              minHeight: 16,
+              marginBottom: 12,
             }}
           >
             {activeLabel}
           </div>
 
-          {/* progress */}
           <div
             style={{
-              height: isMobile ? 7 : 8,
+              height: 8,
               borderRadius: 999,
               background: "rgba(184,150,106,0.14)",
               border: "1px solid rgba(184,150,106,0.18)",
               overflow: "hidden",
-              width: isMobile ? "min(420px, 92vw)" : "min(520px, 100%)",
+              width: "min(520px, 100%)",
               margin: "0 auto",
             }}
           >
@@ -268,8 +476,8 @@ export function MatchIntroOverlay({
 
           <div
             style={{
-              marginTop: isMobile ? 6 : 10,
-              fontSize: isMobile ? 10 : 11,
+              marginTop: 10,
+              fontSize: 11,
               color: "rgba(184,150,106,0.55)",
               fontFamily: "'Cinzel', serif",
               letterSpacing: "0.10em",

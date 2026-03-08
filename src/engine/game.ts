@@ -1,7 +1,7 @@
 import type { GameState, Player, Token } from "./state"
-import type { Coord } from "./coords"
-import type { Route } from "./move"
-import type { Direction } from "./directions"
+import { toSq, type Coord } from "./coords"
+import { traceByRoute, stepFlank, type Route } from "./move"
+import { type Direction } from "./directions"
 
 // ------------------------------------------------------------
 // Helpers

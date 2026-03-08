@@ -560,10 +560,11 @@ export function Header(props: HeaderProps) {
           gap: 12px;
           flex-shrink: 0;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .vekke-nav { display: none; }
           .vekke-header-inner { padding: 0 16px; }
           .vekke-hamburger { display: flex !important; }
+          .vekke-announcements-btn { display: none !important; }
         }
         .vekke-hamburger {
           display: none;
@@ -652,10 +653,11 @@ export function Header(props: HeaderProps) {
               <span style={{ width: mobileOpen ? "100%" : "85%" }} />
             </button>
 
-            {/* Announcements icon */}
+            {/* Announcements icon — hidden on mobile (drawer has text link) */}
             <button
               onClick={goAnnouncements}
               aria-label="Announcements"
+              className="vekke-announcements-btn"
               style={{
                 background: "transparent",
                 border: "none",
@@ -669,8 +671,9 @@ export function Header(props: HeaderProps) {
                 transition: "color 0.2s",
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+              {/* Font Awesome scroll (solid) */}
+              <svg width="18" height="18" viewBox="0 0 640 640" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M32 176C32 134.5 63.6 100.4 104 96.4L104 96L384 96C437 96 480 139 480 192L480 368L304 368C264.2 368 232 400.2 232 440L232 500C232 524.3 212.3 544 188 544C163.7 544 144 524.3 144 500L144 272L80 272C53.5 272 32 250.5 32 224L32 176zM268.8 544C275.9 530.9 280 515.9 280 500L280 440C280 426.7 290.7 416 304 416L552 416C565.3 416 576 426.7 576 440L576 464C576 508.2 540.2 544 496 544L268.8 544zM112 144C94.3 144 80 158.3 80 176L80 224L144 224L144 176C144 158.3 129.7 144 112 144z"/>
               </svg>
             </button>
 

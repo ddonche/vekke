@@ -193,6 +193,7 @@ export default function OrdersPage() {
         style={{
           textAlign: "left",
           width: "100%",
+          minWidth: 0,
           padding: 0,
           borderRadius: 12,
           border: selected ? `2px solid ${accentColor}` : "1px solid rgba(255,255,255,0.09)",
@@ -203,6 +204,7 @@ export default function OrdersPage() {
           transition: "border-color 0.15s",
           position: "relative",
           overflow: "hidden",
+          boxSizing: "border-box",
         }}
       >
         <div
@@ -268,7 +270,7 @@ export default function OrdersPage() {
           )}
         </div>
 
-        <div style={{ padding: "14px 16px 16px", position: "relative" }}>
+        <div style={{ padding: "14px 16px 16px", position: "relative", minWidth: 0, boxSizing: "border-box" }}>
           <div
             style={{
               position: "absolute",
@@ -277,7 +279,7 @@ export default function OrdersPage() {
               pointerEvents: "none",
             }}
           />
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", minWidth: 0 }}>
             <div
               style={{
                 fontFamily: "'Cinzel', serif",
@@ -322,19 +324,110 @@ export default function OrdersPage() {
   }
 
   return (
-    <div
-      style={{
-        inset: 0,
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#0a0a0c",
-        fontFamily: "'EB Garamond', Georgia, serif",
-        color: "#e8e4d8",
-        overflow: "hidden",
-      }}
-    >
+    <div className="orders-page-live">
+      <style>{`
+        * { box-sizing: border-box; }
+
+        .orders-page-live {
+          width: 100%;
+          height: 100dvh;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          background-color: #0a0a0c;
+          font-family: 'EB Garamond', Georgia, serif;
+          color: #e8e4d8;
+          overflow: hidden;
+        }
+
+        .orders-scroll-live {
+          flex: 1 1 auto;
+          min-height: 0;
+          min-width: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .orders-shell-live {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          min-width: 0;
+        }
+
+        .orders-hero-inner-live {
+          max-width: 640px;
+          margin: 0 auto;
+        }
+
+        .orders-grid-live {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 32px;
+          min-width: 0;
+        }
+
+        .orders-bottom-bar-live {
+          flex-shrink: 0;
+          width: 100%;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          background: #0a0a0c;
+          padding: 12px 16px;
+        }
+
+        .orders-bottom-bar-inner-live {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+          align-items: center;
+          min-width: 0;
+        }
+
+        .orders-bottom-btn-live {
+          min-width: 0;
+        }
+
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+
+        @media (min-width: 900px) {
+          .orders-hero-inner-live {
+            text-align: center;
+          }
+
+          .orders-hero-divider-live {
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+
+          .orders-grid-live {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 640px) {
+          .orders-bottom-bar-inner-live {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .orders-bottom-btn-live button {
+            width: 100%;
+          }
+        }
+      `}</style>
+
       <Header
         isLoggedIn={!!userId}
         userId={userId ?? undefined}
@@ -345,7 +438,7 @@ export default function OrdersPage() {
         activePage="orders"
       />
 
-      <div style={{ flex: 1, overflowY: "auto" }} className="hide-scrollbar">
+      <div className="orders-scroll-live hide-scrollbar">
         <div
           style={{
             padding: "32px 16px 28px",
@@ -353,7 +446,7 @@ export default function OrdersPage() {
             background: "#0d0d10",
           }}
         >
-          <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <div className="orders-hero-inner-live">
             <div
               style={{
                 fontFamily: "'Cinzel', serif",
@@ -381,6 +474,7 @@ export default function OrdersPage() {
               Choose Your Doctrine
             </div>
             <div
+              className="orders-hero-divider-live"
               style={{
                 width: 80,
                 height: 1,
@@ -417,7 +511,10 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div style={{ padding: "28px 16px 60px", maxWidth: 900, margin: "0 auto", width: "100%" }}>
+        <div
+          className="orders-shell-live"
+          style={{ padding: "28px 16px 28px", width: "100%" }}
+        >
           {err && (
             <div
               style={{
@@ -445,6 +542,7 @@ export default function OrdersPage() {
                 border: `1px solid ${currentOrder.secondary_color}40`,
                 background: "rgba(255,255,255,0.03)",
                 marginBottom: 24,
+                minWidth: 0,
               }}
             >
               {currentOrder.sigil_url && (
@@ -462,7 +560,7 @@ export default function OrdersPage() {
                   }}
                 />
               )}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     fontFamily: "'Cinzel', serif",
@@ -505,9 +603,10 @@ export default function OrdersPage() {
                 border: "1px solid rgba(255,255,255,0.08)",
                 background: "rgba(255,255,255,0.03)",
                 marginBottom: 24,
+                minWidth: 0,
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     fontFamily: "'Cinzel', serif",
@@ -569,34 +668,18 @@ export default function OrdersPage() {
               Loading...
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 10,
-                marginBottom: 32,
-              }}
-            >
+            <div className="orders-grid-live">
               {orders.map((o) => (
                 <OrderCard key={o.id} o={o} />
               ))}
             </div>
           )}
+        </div>
+      </div>
 
-          <div
-            style={{
-              position: "sticky",
-              bottom: 0,
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-              alignItems: "center",
-              padding: "14px 0",
-              borderTop: "1px solid rgba(255,255,255,0.07)",
-              background: "linear-gradient(to bottom, transparent, #0a0a0c 30%)",
-              zIndex: 10,
-            }}
-          >
+      <div className="orders-bottom-bar-live">
+        <div className="orders-bottom-bar-inner-live">
+          <div className="orders-bottom-btn-live">
             <button
               disabled={!userId || busy || loading || selectedOrderId === null}
               onClick={() => setSelectedOrderId(null)}
@@ -616,7 +699,9 @@ export default function OrdersPage() {
             >
               Renounce
             </button>
+          </div>
 
+          <div className="orders-bottom-btn-live">
             <button
               disabled={!userId || !dirty || busy || loading}
               onClick={() => save().catch((e) => setErr((e as any)?.message ?? "Failed to save."))}

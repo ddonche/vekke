@@ -1,5 +1,5 @@
-import type { Coord } from "./coords"
-import type { Direction } from "./directions"
+import { SIZE, type Coord } from "./coords"
+import { DIR, type Direction } from "./directions"
 
 export type Route = {
   dir: Direction

@@ -10,6 +10,7 @@ import { RouteDomino } from "../RouteDomino"
 
 type ProfileRow = {
   id: string
+  name?: string
   username: string
   avatar_url: string | null
   country_code: string | null
@@ -461,6 +462,7 @@ export default function ProfilePage() {
       return { ...a, progress: pa?.progress ?? 0, unlocked_at: pa?.unlocked_at ?? null }
     })
     setAchievements(merged)
+
     // Fetch reward skins for any achievement that has a reward_id
     const rewardSetIds = [...new Set(
       (allAchs ?? []).map((a: any) => a.reward_id).filter(Boolean)
@@ -478,6 +480,7 @@ export default function ProfilePage() {
       setRewardSkins(grouped)
     }
     setAchLoading(false)
+
     if (sErr) {
       setErr(sErr.message)
       setLoading(false)
@@ -740,14 +743,16 @@ export default function ProfilePage() {
       style={{
         position: "fixed",
         inset: 0,
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        height: "100dvh",
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#0a0a0c",
         fontFamily: "'EB Garamond', Georgia, serif",
         color: "#e8e4d8",
         overflow: "hidden",
+        boxSizing: "border-box",
       }}
     >
       <style>{`
@@ -756,12 +761,33 @@ export default function ProfilePage() {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
-        .vk-container { padding: 18px 12px 48px; max-width: 1100px; margin: 0 auto; width: 100%; }
+        .profile-scroll {
+          flex: 1 1 auto;
+          min-height: 0;
+          min-width: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .vk-container {
+          padding: 18px 12px 48px;
+          max-width: 1100px;
+          margin: 0 auto;
+          width: 100%;
+          min-width: 0;
+        }
         @media (min-width: 700px) {
           .vk-container { padding: 28px 24px 60px; }
         }
 
-        .profile-grid { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+        .profile-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 14px;
+          align-items: start;
+          min-width: 0;
+        }
         @media (min-width: 920px) {
           .profile-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
         }
@@ -777,8 +803,9 @@ export default function ProfilePage() {
           align-items: center;
           gap: 12px;
           margin-bottom: 12px;
+          min-width: 0;
         }
-        .rule { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+        .rule { flex: 1; height: 1px; background: rgba(255,255,255,0.07); min-width: 0; }
 
         .card {
           border: 1px solid rgba(255,255,255,0.07);
@@ -787,13 +814,18 @@ export default function ProfilePage() {
           overflow: hidden;
           min-width: 0;
         }
-        .card-pad { padding: 14px; }
+        .card-pad { padding: 14px; min-width: 0; }
         @media (min-width: 700px) { .card-pad { padding: 16px; } }
 
-        .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }
         @media (min-width: 720px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
-        .table-wrap { overflow-x: auto; }
+        .table-wrap {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          min-width: 0;
+        }
         .table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 640px; }
         .th {
           text-align: left;
@@ -842,6 +874,7 @@ export default function ProfilePage() {
           flex-wrap: wrap;
           align-items: center;
           margin-bottom: 12px;
+          min-width: 0;
         }
 
         /* DO NOT TOUCH THESE SIZES */
@@ -888,6 +921,7 @@ export default function ProfilePage() {
           grid-template-columns: 1fr 1fr;
           gap: 10px;
           margin-top: 4px;
+          min-width: 0;
         }
 
         .last-game-inline {
@@ -904,7 +938,6 @@ export default function ProfilePage() {
           color: #e8e4d8;
           font-size: 1.05rem;
           line-height: 1.45;
-          /* font-style: italic; */
           text-align: justify;
           text-justify: inter-word;
           opacity: 0.95;
@@ -943,6 +976,7 @@ export default function ProfilePage() {
           display: flex;
           align-items: center;
           gap: 12px;
+          min-width: 0;
         }
 
         .identity-order-row {
@@ -950,6 +984,7 @@ export default function ProfilePage() {
           align-items: center;
           gap: 16px;
           margin-top: 8px;
+          min-width: 0;
         }
 
         .identity-name {
@@ -962,6 +997,59 @@ export default function ProfilePage() {
           overflow: hidden;
           text-overflow: ellipsis;
           min-width: 0;
+        }
+
+        .achievements-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .ach-reward-col {
+          width: 92px;
+          min-width: 92px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .ach-reward-label {
+          font-family: 'Cinzel', serif;
+          font-size: 0.56rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #b8966a;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .ach-reward-preview {
+          min-height: 78px;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .ach-reward-stack {
+          min-height: 78px;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .ach-token-preview {
+          width: 34px;
+          height: 34px;
+          object-fit: cover;
+          border-radius: 999px;
+          display: block;
         }
 
         @media (max-width: 640px) {
@@ -994,6 +1082,20 @@ export default function ProfilePage() {
           .section-label {
             letter-spacing: 0.32em;
           }
+
+          .achievements-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .ach-reward-col {
+            width: 82px;
+            min-width: 82px;
+          }
+
+          .ach-reward-preview,
+          .ach-reward-stack {
+            min-height: 72px;
+          }
         }
       `}</style>
 
@@ -1012,7 +1114,7 @@ export default function ProfilePage() {
         }}
       />
 
-      <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+      <div className="hide-scrollbar profile-scroll">
         <div className="vk-container">
           {err && (
             <div
@@ -1032,7 +1134,7 @@ export default function ProfilePage() {
 
           <div className="profile-grid">
             {/* LEFT: Identity */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div className="section-label">
                 Identity <div className="rule" />
               </div>
@@ -1258,7 +1360,7 @@ export default function ProfilePage() {
             </div>
 
             {/* RIGHT: Stats */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div className="section-label">
                 Stats <div className="rule" />
               </div>
@@ -1589,9 +1691,8 @@ export default function ProfilePage() {
             </div>
           </div>
 
-
           {/* ── Achievements ───────────────────────────────────────────────── */}
-          <div style={{ marginTop: 24 }}>
+          <div style={{ marginTop: 24, minWidth: 0 }}>
             <div className="section-label">
               Achievements <div className="rule" />
             </div>
@@ -1602,136 +1703,216 @@ export default function ProfilePage() {
               <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>No achievements yet.</div>
             ) : (() => {
               const unlocked = achievements.filter(a => a.unlocked_at)
-              const locked   = achievements.filter(a => !a.unlocked_at)
+              const locked = achievements.filter(a => !a.unlocked_at)
+
               const tierColor = (tier: string | null) => {
-                if (tier === "gold")   return "#f5c842"
+                if (tier === "gold") return "#f5c842"
                 if (tier === "silver") return "#b0b8c8"
                 if (tier === "bronze") return "#cd7f32"
                 return "#b8966a"
               }
-              const AchCard = ({ a, dim }: { a: any; dim: boolean }) => {
-                const color  = tierColor(a.tier)
-                const pct    = a.threshold ? Math.min(100, Math.round((a.progress / a.threshold) * 100)) : 100
-                const skins  = a.reward_id ? (rewardSkins[a.reward_id] ?? []) : []
+
+              const RewardPreview = ({ skins, dim }: { skins: any[]; dim: boolean }) => {
+                if (!skins || skins.length === 0) {
+                  return (
+                    <div className="ach-reward-preview">
+                      <span
+                        style={{
+                          fontFamily: "'Cinzel', serif",
+                          fontSize: "0.56rem",
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          color: dim ? "#4a4640" : "#6b6558",
+                        }}
+                      >
+                        —
+                      </span>
+                    </div>
+                  )
+                }
+
+                const routeSkins = skins.filter((s) => s.type === "route")
+                if (routeSkins.length > 0) {
+                  const skin = routeSkins[0]
+                  return (
+                    <div className="ach-reward-preview" title={skin.name}>
+                      <div style={{ filter: dim ? "grayscale(20%) brightness(0.8)" : "none" }}>
+                        <RouteDomino
+                          dir="N"
+                          dist={2}
+                          size={34}
+                          skinStyle={skin.style ?? undefined}
+                        />
+                      </div>
+                    </div>
+                  )
+                }
+
+                const visualSkins = skins.filter((s) => s.image_url)
+                const shown = visualSkins.slice(0, 2)
+
                 return (
-                  <div style={{
-                    padding: "12px 14px",
-                    borderRadius: 8,
-                    border: `1px solid ${dim ? "rgba(255,255,255,0.07)" : "rgba(184,150,106,0.2)"}`,
-                    background: dim ? "rgba(255,255,255,0.03)" : "rgba(184,150,106,0.05)",
-                    opacity: dim ? 0.88 : 1,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <div style={{
-                        width: 8, height: 8, borderRadius: "50%", flexShrink: 0, marginTop: 4,
-                        background: dim ? "#3a3830" : color,
-                        boxShadow: dim ? "none" : `0 0 5px ${color}88`,
-                      }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-                          <span style={{
-                            fontFamily: "'Cinzel', serif", fontSize: "0.78rem",
-                            fontWeight: 600, color: dim ? "#6b6558" : "#e8e4d8",
-                            letterSpacing: "0.04em",
-                          }}>
-                            {a.name}
-                          </span>
-                          {a.tier && (
-                            <span style={{
-                              fontSize: "0.58rem", letterSpacing: "0.12em",
-                              color: dim ? "#4a4640" : color,
-                              textTransform: "uppercase" as const,
-                              fontFamily: "'Cinzel', serif",
-                            }}>
-                              {a.tier}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{
-                          fontFamily: "'EB Garamond', serif", fontSize: "0.78rem",
-                          color: dim ? "#4a4640" : "rgba(232,228,216,0.5)",
-                          marginTop: 2, lineHeight: 1.4,
-                        }}>
-                          {a.description}
-                        </div>
-                        {/* Progress bar for locked achievements with a threshold */}
-                        {dim && a.threshold && (
-                          <div style={{ marginTop: 7 }}>
-                            <div style={{
-                              height: 3, borderRadius: 2,
-                              background: "rgba(255,255,255,0.06)",
-                              overflow: "hidden",
-                            }}>
-                              <div style={{
-                                height: "100%", borderRadius: 2,
-                                width: `${pct}%`,
-                                background: "rgba(184,150,106,0.4)",
-                                transition: "width 0.3s ease",
-                              }} />
+                  <div className="ach-reward-stack">
+                    {shown.map((skin: any) => (
+                      <img
+                        key={skin.id}
+                        src={skin.image_url}
+                        alt={skin.name}
+                        title={skin.name}
+                        className="ach-token-preview"
+                        style={{
+                          filter: dim ? "grayscale(20%) brightness(0.8)" : "none",
+                        }}
+                      />
+                    ))}
+                    {visualSkins.length === 0 ? (
+                      <span
+                        style={{
+                          fontFamily: "'Cinzel', serif",
+                          fontSize: "0.56rem",
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          color: dim ? "#4a4640" : "#6b6558",
+                        }}
+                      >
+                        —
+                      </span>
+                    ) : null}
+                  </div>
+                )
+              }
+
+              const AchCard = ({ a, dim }: { a: any; dim: boolean }) => {
+                const color = tierColor(a.tier)
+                const progPct = a.threshold ? Math.min(100, Math.round((a.progress / a.threshold) * 100)) : 100
+                const skins = a.reward_id ? (rewardSkins[a.reward_id] ?? []) : []
+
+                return (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${dim ? "rgba(255,255,255,0.07)" : "rgba(184,150,106,0.2)"}`,
+                      background: dim ? "rgba(255,255,255,0.03)" : "rgba(184,150,106,0.05)",
+                      opacity: dim ? 0.88 : 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr) 92px",
+                        gap: 14,
+                        alignItems: "start",
+                        minWidth: 0,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                              marginTop: 4,
+                              background: dim ? "#3a3830" : color,
+                              boxShadow: dim ? "none" : `0 0 5px ${color}88`,
+                            }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                                minWidth: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontFamily: "'Cinzel', serif",
+                                  fontSize: "0.78rem",
+                                  fontWeight: 600,
+                                  color: dim ? "#6b6558" : "#e8e4d8",
+                                  letterSpacing: "0.04em",
+                                }}
+                              >
+                                {a.name}
+                              </span>
+
+                              {a.tier && (
+                                <span
+                                  style={{
+                                    fontSize: "0.58rem",
+                                    letterSpacing: "0.12em",
+                                    color: dim ? "#4a4640" : color,
+                                    textTransform: "uppercase",
+                                    fontFamily: "'Cinzel', serif",
+                                  }}
+                                >
+                                  {a.tier}
+                                </span>
+                              )}
                             </div>
-                            <div style={{
-                              fontFamily: "monospace", fontSize: "0.68rem",
-                              color: "#4a4640", marginTop: 3,
-                            }}>
-                              {a.progress} / {a.threshold}
+
+                            <div
+                              style={{
+                                fontFamily: "'EB Garamond', serif",
+                                fontSize: "0.78rem",
+                                color: dim ? "#4a4640" : "rgba(232,228,216,0.5)",
+                                marginTop: 2,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {a.description}
                             </div>
+
+                            {dim && a.threshold && (
+                              <div style={{ marginTop: 9 }}>
+                                <div
+                                  style={{
+                                    height: 3,
+                                    borderRadius: 2,
+                                    background: "rgba(255,255,255,0.06)",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      height: "100%",
+                                      borderRadius: 2,
+                                      width: `${progPct}%`,
+                                      background: "rgba(184,150,106,0.4)",
+                                      transition: "width 0.3s ease",
+                                    }}
+                                  />
+                                </div>
+                                <div
+                                  style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "0.68rem",
+                                    color: "#4a4640",
+                                    marginTop: 3,
+                                  }}
+                                >
+                                  {a.progress} / {a.threshold}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {/* Reward skin previews */}
-                        {skins.length > 0 && (
-                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{
-                              fontFamily: "'Cinzel', serif", fontSize: "0.58rem",
-                              letterSpacing: "0.12em", textTransform: "uppercase" as const,
-                              color: dim ? "#4a4640" : "#b8966a",
-                            }}>
-                              Reward
-                            </span>
-                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                              {skins.map((skin: any) => {
-                                // Route skin — render a RouteDomino using style JSON from DB
-                                if (skin.type === "route") {
-                                  return (
-                                    <div
-                                      key={skin.id}
-                                      title={skin.name}
-                                      style={{
-                                        filter: dim ? "grayscale(20%) brightness(0.8)" : "none",
-                                        flexShrink: 0,
-                                      }}
-                                    >
-                                      <RouteDomino
-                                        dir="N"
-                                        dist={2}
-                                        size={28}
-                                        skinStyle={skin.style ?? undefined}
-                                      />
-                                    </div>
-                                  )
-                                }
-                                // Token / board skin — render image
-                                if (skin.image_url) {
-                                  return (
-                                    <img
-                                      key={skin.id}
-                                      src={skin.image_url}
-                                      alt={skin.name}
-                                      title={skin.name}
-                                      style={{
-                                        width: 28, height: 28,
-                                        borderRadius: 4,
-                                        border: `1px solid ${dim ? "rgba(255,255,255,0.08)" : "rgba(184,150,106,0.3)"}`,
-                                        objectFit: "cover" as const,
-                                        filter: dim ? "grayscale(20%) brightness(0.8)" : "none",
-                                      }}
-                                    />
-                                  )
-                                }
-                                return null
-                              })}
-                            </div>
-                          </div>
-                        )}
+                        </div>
+                      </div>
+
+                      <div className="ach-reward-col">
+                        <div
+                          className="ach-reward-label"
+                          style={{ color: dim ? "#4a4640" : "#b8966a" }}
+                        >
+                          Reward
+                        </div>
+                        <RewardPreview skins={skins} dim={dim} />
                       </div>
                     </div>
                   </div>
@@ -1739,31 +1920,42 @@ export default function ProfilePage() {
               }
 
               return (
-                <div>
+                <div style={{ minWidth: 0 }}>
                   {unlocked.length > 0 && (
                     <div style={{ marginBottom: 20 }}>
-                      <div style={{
-                        fontFamily: "'Cinzel', serif", fontSize: "0.62rem",
-                        letterSpacing: "0.3em", textTransform: "uppercase" as const,
-                        color: "#b8966a", marginBottom: 10,
-                      }}>
+                      <div
+                        style={{
+                          fontFamily: "'Cinzel', serif",
+                          fontSize: "0.62rem",
+                          letterSpacing: "0.3em",
+                          textTransform: "uppercase",
+                          color: "#b8966a",
+                          marginBottom: 10,
+                        }}
+                      >
                         Unlocked — {unlocked.length}
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
+                      <div className="achievements-grid">
                         {unlocked.map(a => <AchCard key={a.id} a={a} dim={false} />)}
                       </div>
                     </div>
                   )}
+
                   {locked.length > 0 && (
                     <div>
-                      <div style={{
-                        fontFamily: "'Cinzel', serif", fontSize: "0.62rem",
-                        letterSpacing: "0.3em", textTransform: "uppercase" as const,
-                        color: "#4a4640", marginBottom: 10,
-                      }}>
+                      <div
+                        style={{
+                          fontFamily: "'Cinzel', serif",
+                          fontSize: "0.62rem",
+                          letterSpacing: "0.3em",
+                          textTransform: "uppercase",
+                          color: "#4a4640",
+                          marginBottom: 10,
+                        }}
+                      >
                         Locked — {locked.length}
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
+                      <div className="achievements-grid">
                         {locked.map(a => <AchCard key={a.id} a={a} dim={true} />)}
                       </div>
                     </div>

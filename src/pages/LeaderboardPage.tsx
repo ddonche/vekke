@@ -543,6 +543,27 @@ export function LeaderboardPage() {
         .lb-row-me { background: rgba(93,232,247,0.03) !important; }
         .lb-row-me td { border-bottom-color: rgba(93,232,247,0.1) !important; }
 
+        .lb-mobile-sub { display: none; }
+        .lb-challenge-short { display: none; }
+        @media (max-width: 640px) {
+          .lb-mobile-sub { display: inline; }
+        }
+        @media (max-width: 640px) {
+          .lb-challenge-full { display: none; }
+          .lb-challenge-short { display: inline; }
+          .lb-col-rank { width: 1%; white-space: nowrap; }
+          .lb-col-player { width: 100%; }
+          .lb-col-rating { width: 1%; white-space: nowrap; }
+          .lb-col-challenge { width: 1%; white-space: nowrap; }
+          .lb-col-title,
+          .lb-col-games,
+          .lb-col-wl,
+          .lb-col-winpct { display: none; }
+          .lb-td, .lb-th { padding: 10px 8px; }
+          .lb-td:first-child, .lb-th:first-child { padding-left: 10px; }
+        }
+
+
         .format-tab {
           font-family: 'Cinzel', serif;
           font-size: 0.65rem;
@@ -582,6 +603,13 @@ export function LeaderboardPage() {
           opacity: 0.35;
           cursor: default;
         }
+        @media (max-width: 640px) {
+          .challenge-btn {
+            padding: 6px 8px;
+            font-size: 0.5rem;
+            letter-spacing: 0.08em;
+          }
+        }
       `}</style>
 
       <Header
@@ -596,7 +624,7 @@ export function LeaderboardPage() {
       />
 
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ padding: "28px 24px 60px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+        <div style={{ padding: "28px 16px 60px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
           <div style={{ marginBottom: 24 }}>
             <div
               style={{
@@ -693,20 +721,20 @@ export function LeaderboardPage() {
             }}
           >
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: 720 }}>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: 0, tableLayout: "auto" }}>
                 <thead>
                   <tr>
-                    <th className="lb-th" style={{ width: 48 }}>
+                    <th className="lb-th lb-col-rank" style={{ width: 48 }}>
                       #
                     </th>
-                    <th className="lb-th">Player</th>
-                    <th className="lb-th">Rating</th>
-                    <th className="lb-th">Title</th>
-                    <th className="lb-th">Games</th>
-                    <th className="lb-th">W / L</th>
-                    <th className="lb-th">Win %</th>
-                    <th className="lb-th" style={{ width: 130 }}>
-                      Challenge
+                    <th className="lb-th lb-col-player">Player</th>
+                    <th className="lb-th lb-col-rating">Rating</th>
+                    <th className="lb-th lb-col-title">Title</th>
+                    <th className="lb-th lb-col-games">Games</th>
+                    <th className="lb-th lb-col-wl">W / L</th>
+                    <th className="lb-th lb-col-winpct">Win %</th>
+                    <th className="lb-th lb-col-challenge" style={{ width: 130 }}>
+                      <span className="lb-challenge-full">Challenge</span><span className="lb-challenge-short">vs</span>
                     </th>
                   </tr>
                 </thead>
@@ -761,7 +789,7 @@ export function LeaderboardPage() {
                           style={{ cursor: "pointer" }}
                           onClick={() => navigate(`/u/${encodeURIComponent(r.username)}`)}
                         >
-                          <td className="lb-td" style={{ paddingLeft: 16 }}>
+                          <td className="lb-td lb-col-rank" style={{ paddingLeft: 16 }}>
                             <RankBadge rank={i + 1} />
                           </td>
 
@@ -841,11 +869,21 @@ export function LeaderboardPage() {
                                     </span>
                                   )}
                                 </div>
-                                {r.country_code && (
-                                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-                                    <FlagImg cc={r.country_code} size={13} />
-                                  </div>
-                                )}
+                                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                                  {r.country_code && <FlagImg cc={r.country_code} size={13} />}
+                                  <span className="lb-mobile-sub" style={{
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: "0.55rem",
+                                    letterSpacing: "0.12em",
+                                    textTransform: "uppercase",
+                                    color: eloColor(elo),
+                                  }}>{eloTitle(elo)}</span>
+                                  {wr !== null && <span className="lb-mobile-sub" style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "0.7rem",
+                                    color: wr >= 50 ? "#6ee7b7" : "#f87171",
+                                  }}>{wr}%</span>}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -856,7 +894,7 @@ export function LeaderboardPage() {
                             </span>
                           </td>
 
-                          <td className="lb-td">
+                          <td className="lb-td lb-col-title">
                             <span
                               style={{
                                 fontFamily: "'Cinzel', serif",
@@ -870,11 +908,11 @@ export function LeaderboardPage() {
                             </span>
                           </td>
 
-                          <td className="lb-td">
+                          <td className="lb-td lb-col-games">
                             <span style={{ fontFamily: "monospace", fontSize: "0.95rem" }}>{games}</span>
                           </td>
 
-                          <td className="lb-td">
+                          <td className="lb-td lb-col-wl">
                             <span style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>
                               <span style={{ color: "#6ee7b7" }}>{wins}</span>
                               <span style={{ color: "#3a3830", margin: "0 4px" }}>/</span>
@@ -882,7 +920,7 @@ export function LeaderboardPage() {
                             </span>
                           </td>
 
-                          <td className="lb-td">
+                          <td className="lb-td lb-col-winpct">
                             {wr !== null ? (
                               <span
                                 style={{
@@ -917,7 +955,7 @@ export function LeaderboardPage() {
                                           : `Challenge (${FORMAT_LABELS[format]})`
                               }
                             >
-                              {isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}
+                              {isChallenged ? <><span className="lb-challenge-full">Challenged</span><span className="lb-challenge-short">✓</span></> : isChallenging ? <><span className="lb-challenge-full">Sending...</span><span className="lb-challenge-short">...</span></> : <><span className="lb-challenge-full">Challenge</span><span className="lb-challenge-short">vs</span></>}
                             </button>
                           </td>
                         </tr>
