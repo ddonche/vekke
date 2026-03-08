@@ -1204,7 +1204,7 @@ export default function HomePage() {
                       lineHeight: 1.55,
                     }}
                   >
-                    Live activity is not wired yet in this version. Once you show me the actual game/result source you want to use, I can plug in:
+                    Live activity is coming soon:
                   </div>
 
                   <div
@@ -1215,7 +1215,7 @@ export default function HomePage() {
                       lineHeight: 1.55,
                     }}
                   >
-                    recent results, promotions, active matches, challenge activity, or a real tournament feed.
+                    recent results, promotions, active matches, challenge activity, real tournament feeds, etc.
                   </div>
                 </SurfaceCard>
               </div>
