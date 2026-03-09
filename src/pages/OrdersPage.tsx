@@ -170,6 +170,25 @@ export default function OrdersPage() {
         })
 
         if (insertErr) throw insertErr
+
+        // Grant order skins to inventory (upsert so re-joining is safe)
+        const wakeSkinId  = `token-order-${selectedOrderId}-wake`
+        const brakeSkinId = `token-order-${selectedOrderId}-brake`
+        const routeSkinId = `route-order-${selectedOrderId}`
+
+        await supabase.from("player_inventory").upsert([
+          { user_id: userId, skin_id: wakeSkinId,  acquired_at: now },
+          { user_id: userId, skin_id: brakeSkinId, acquired_at: now },
+          { user_id: userId, skin_id: routeSkinId, acquired_at: now },
+        ], { onConflict: "user_id,skin_id" })
+
+        // Equip the order skins in the loadout
+        await supabase.from("player_loadout").upsert({
+          user_id: userId,
+          wake_token_skin_id:  wakeSkinId,
+          brake_token_skin_id: brakeSkinId,
+          route_skin_id:       routeSkinId,
+        }, { onConflict: "user_id" })
       }
 
       setCurrentOrderId(selectedOrderId)

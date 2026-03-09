@@ -16,6 +16,7 @@ import { Header } from "./Header"
 import { OnboardingModal } from "../OnboardingModal"
 import { ProfileModal } from "../ProfileModal"
 import { HelpModal } from "../HelpModal"
+import { MulliganHelpModal } from "../MulliganHelpModal"
 import { getCurrentUserId } from "../services/auth" //
 import { supabase } from "../services/supabase"
 import {
@@ -173,6 +174,7 @@ export function GamePage(props: GamePageProps = {}) {
   const [showGameOverModal, setShowGameOverModal] = useState(true)
   const [showAchievementsModal, setShowAchievementsModal] = useState(false)
   const mulliganTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mulliganHelpOpen, setMulliganHelpOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const authReturnToRef = useRef<string | null>(null)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
@@ -1649,20 +1651,26 @@ if (wantsNewGame) {
                       </div>
                     )}
                     {!defectionArmed && g.phase === "MULLIGAN" && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {(g as any).mulliganReady?.[human] ? (
-                          <div style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b0aa9e", display: "flex", alignItems: "center", justifyContent: "center" }}>Waiting for opponent...</div>
-                        ) : mulliganArmed ? (
-                          <>
-                            <div style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b8966a", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>Select a token on the board</div>
-                            <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.08em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
-                            <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.08em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
-                          </>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {mulliganHelpOpen && (
+                          <MulliganHelpModal onClose={() => setMulliganHelpOpen(false)} />
                         )}
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {(g as any).mulliganReady?.[human] ? (
+                            <div style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b0aa9e", display: "flex", alignItems: "center", justifyContent: "center" }}>Waiting for opponent...</div>
+                          ) : mulliganArmed ? (
+                            <>
+                              <div style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.08em", color: "#b8966a", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>Select a token on the board</div>
+                              <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.08em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
+                              <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, minHeight: 56, padding: "6px 10px", borderRadius: 6, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.08em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
+                              <button onClick={() => setMulliganHelpOpen(v => !v)} title="What is a Mulligan?" style={{ width: 36, minHeight: 56, borderRadius: 6, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: mulliganHelpOpen ? "#e8e4d8" : "#6b6558", fontFamily: "'Cinzel',serif", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>?</button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                     {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
@@ -2986,20 +2994,26 @@ if (wantsNewGame) {
                     </div>
                   )}
                   {!defectionArmed && g.phase === "MULLIGAN" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {(g as any).mulliganReady?.[human] ? (
-                        <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>Waiting for opponent...</div>
-                      ) : mulliganArmed ? (
-                        <>
-                          <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>Select a token on the board</div>
-                          <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
-                          <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
-                        </>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {mulliganHelpOpen && (
+                        <MulliganHelpModal onClose={() => setMulliganHelpOpen(false)} />
                       )}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {(g as any).mulliganReady?.[human] ? (
+                          <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>Waiting for opponent...</div>
+                        ) : mulliganArmed ? (
+                          <>
+                            <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>Select a token on the board</div>
+                            <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
+                            <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
+                            <button onClick={() => setMulliganHelpOpen(v => !v)} title="What is a Mulligan?" style={{ width: 38, borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: mulliganHelpOpen ? "#e8e4d8" : "#6b6558", fontFamily: "'Cinzel',serif", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>?</button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                   {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (

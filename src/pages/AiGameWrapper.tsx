@@ -105,7 +105,10 @@ export function AiGameWrapper() {
       try {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) throw new Error(`Auth error: ${sessionError.message}`)
-        if (!sessionData.session) throw new Error("Not logged in")
+        if (!sessionData.session) {
+          if (mounted) nav(`/auth?returnTo=/ai/${gameId}`)
+          return
+        }
 
         const userId = sessionData.session.user.id
 

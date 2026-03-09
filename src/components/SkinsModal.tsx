@@ -28,12 +28,15 @@ export function SkinsModal({ isOpen, onClose, onLoadoutChange }: SkinsModalProps
     let mounted = true
     ;(async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("order_memberships")
         .select("order_id")
-        .eq("id", userId)
+        .eq("user_id", userId)
+        .is("left_at", null)
+        .order("joined_at", { ascending: false })
+        .limit(1)
         .maybeSingle()
       if (!mounted) return
-      if (error) { console.error("Failed to load profile order_id:", error); setOrderId(null); return }
+      if (error) { console.error("Failed to load order membership:", error); setOrderId(null); return }
       setOrderId((data as any)?.order_id ?? null)
     })()
     return () => { mounted = false }

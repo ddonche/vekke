@@ -6,13 +6,13 @@ import { useNavigate } from "react-router-dom"
 import { Header } from "../components/Header"
 import { sounds } from "../sounds"
 import { supabase } from "../services/supabase"
-import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 import { RouteIcon } from "../RouteIcon"
+import { newGame } from "../engine/state"
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TutorialPageProps {
-  onComplete: () => void
+  onComplete: (gameId: string) => void
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,22 +44,69 @@ const ACTION_ROUTES: TutRoute[] = [
 ]
 
 // Compute dest from a position applying a route (wraps like the real game)
+// ─── Flanking movement (ported directly from engine/move.ts) ─────────────────
+
+const FLANK_DIR: Record<number, { dx: number; dy: number }> = {
+  1: { dx:  0, dy:  1 }, // N
+  2: { dx:  1, dy:  1 }, // NE
+  3: { dx:  1, dy:  0 }, // E
+  4: { dx:  1, dy: -1 }, // SE
+  5: { dx:  0, dy: -1 }, // S
+  6: { dx: -1, dy: -1 }, // SW
+  7: { dx: -1, dy:  0 }, // W
+  8: { dx: -1, dy:  1 }, // NW
+}
+
+function stepFlank(pos: Cell, dir: number): Cell {
+  const { dx, dy } = FLANK_DIR[dir]
+  const nx = pos.x + dx
+  const ny = pos.y + dy
+
+  if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) return { x: nx, y: ny }
+
+  const { x, y } = pos
+
+  if (dy === 0) {
+    if (nx < 0)      return { x: SIZE - 1, y }
+    if (nx >= SIZE)  return { x: 0, y }
+  }
+  if (dx === 0) {
+    if (ny < 0)      return { x, y: SIZE - 1 }
+    if (ny >= SIZE)  return { x, y: 0 }
+  }
+
+  if (dx === dy) {
+    const d    = x - y
+    const minX = Math.max(0, d)
+    const maxX = Math.min(SIZE - 1, (SIZE - 1) + d)
+    const endA = { x: minX, y: minX - d }
+    const endB = { x: maxX, y: maxX - d }
+    return dx === 1 ? endA : endB
+  }
+
+  const s    = x + y
+  const minX = Math.max(0, s - (SIZE - 1))
+  const maxX = Math.min(SIZE - 1, s)
+  const endA = { x: minX, y: s - minX }
+  const endB = { x: maxX, y: s - maxX }
+  return dx === 1 ? endA : endB
+}
+
+function traceRoute(pos: Cell, route: TutRoute): Cell[] {
+  const out: Cell[] = []
+  let cur = pos
+  for (let i = 0; i < route.dist; i++) {
+    cur = stepFlank(cur, route.dir)
+    out.push(cur)
+  }
+  return out
+}
+
 function applyRoute(pos: Cell, route: TutRoute): Cell {
-  const DIRS: Record<number, [number, number]> = {
-    1: [0, 1],
-    2: [1, 1],
-    3: [1, 0],
-    4: [1, -1],
-    5: [0, -1],
-    6: [-1, -1],
-    7: [-1, 0],
-    8: [-1, 1],
-  }
-  const [dx, dy] = DIRS[route.dir]
-  return {
-    x: ((pos.x + dx * route.dist) % SIZE + SIZE) % SIZE,
-    y: ((pos.y + dy * route.dist) % SIZE + SIZE) % SIZE,
-  }
+  // Use proper Vekke flanking movement (not simple torus)
+  let cur = pos
+  for (let i = 0; i < route.dist; i++) cur = stepFlank(cur, route.dir)
+  return cur
 }
 
 // Invasion phase: W at (1,2), B at (3,2) — route E2 invades
@@ -90,7 +137,28 @@ const SIEGE2_POST_TOKENS: TokOnBoard[] = [
   { id: "b4", x: 3, y: 2, owner: "B" as Player },
 ]
 
-// ─── Sound helper ─────────────────────────────────────────────────────────────
+const SIEGE3_W_START = { x: 1, y: 3 }
+const SIEGE3_ROUTES: TutRoute[] = [
+  { dir: 1, dist: 2 }, // wrong — north 2
+  { dir: 3, dist: 3 }, // correct — east 3 lands on (4,3)
+  { dir: 5, dist: 1 }, // wrong — south 1
+]
+const SIEGE3_PRE_TOKENS: TokOnBoard[] = [
+  { id: "wm", x: 1, y: 3, owner: "W" },
+  { id: "w1", x: 3, y: 2, owner: "W" },
+  { id: "w2", x: 2, y: 3, owner: "W" },
+  { id: "w3", x: 3, y: 4, owner: "W" },
+  { id: "b1", x: 3, y: 3, owner: "B" },
+]
+const SIEGE3_POST_TOKENS: TokOnBoard[] = [
+  { id: "wm", x: 4, y: 3, owner: "W" },
+  { id: "w1", x: 3, y: 2, owner: "W" },
+  { id: "w2", x: 2, y: 3, owner: "W" },
+  { id: "w3", x: 3, y: 4, owner: "W" },
+  { id: "b1", x: 3, y: 3, owner: "B", sieged: true },
+]
+
+
 
 function playPlace() { try { sounds.place.play() } catch {} }
 function playCapture() { try { sounds.capture.play() } catch {} }
@@ -305,120 +373,202 @@ function RouteDomino({
   )
 }
 
-// ─── Loading screen ───────────────────────────────────────────────────────────
-
-type IntroProfileRow = {
-  id: string
-  username: string | null
-  avatar_url: string | null
-  country_code: string | null
-  account_tier: string | null
-  is_ai: boolean | null
+const nextBtnStyle: React.CSSProperties = {
+  padding: "13px 34px",
+  borderRadius: 10,
+  border: "2px solid #3296ab",
+  background: "rgba(50,150,171,0.10)",
+  color: "#e8e4d8",
+  fontFamily: "'Cinzel', serif",
+  fontSize: "0.82rem",
+  fontWeight: 700,
+  letterSpacing: "0.14em",
+  cursor: "pointer",
+  textTransform: "uppercase",
 }
 
-type IntroStatsRow = {
-  user_id: string
-  elo_standard: number | null
-}
 
-function LoadingScreen({ onDone, leftUserId }: { onDone: () => void; leftUserId: string | null }) {
-  const [rightUserId, setRightUserId] = useState<string | null>(null)
-  const [leftProfile, setLeftProfile] = useState<IntroProfileRow | null>(null)
-  const [rightProfile, setRightProfile] = useState<IntroProfileRow | null>(null)
-  const [leftStats, setLeftStats] = useState<IntroStatsRow | null>(null)
-  const [rightStats, setRightStats] = useState<IntroStatsRow | null>(null)
+// ─── All 28 route dominos ─────────────────────────────────────────────────────
+// All 8 dirs × dist 1–3 = 24; orthogonals (1,3,5,7) × dist 4 = 4 → total 28
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const { data: rookie, error: rookieErr } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, country_code, account_tier, is_ai")
-        .eq("is_ai", true)
-        .ilike("username", "rookie")
-        .limit(1)
-      if (cancelled) return
-      if (!rookieErr && rookie && rookie.length > 0) { setRightUserId(rookie[0].id); return }
-      const { data: anyAi, error: anyAiErr } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, country_code, account_tier, is_ai")
-        .eq("is_ai", true)
-        .limit(1)
-      if (cancelled) return
-      if (!anyAiErr && anyAi && anyAi.length > 0) setRightUserId(anyAi[0].id)
-      else setRightUserId(null)
-    })()
-    return () => { cancelled = true }
-  }, [])
+const ALL_28_ROUTES: TutRoute[] = (() => {
+  const out: TutRoute[] = []
+  for (let dir = 1; dir <= 8; dir++) {
+    for (let dist = 1; dist <= 3; dist++) out.push({ dir, dist })
+  }
+  for (const dir of [1, 3, 5, 7]) out.push({ dir, dist: 4 })
+  return out
+})()
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const ids: string[] = []
-      if (leftUserId) ids.push(leftUserId)
-      if (rightUserId) ids.push(rightUserId)
-      if (ids.length === 0) return
+const DIR_LABEL: Record<number, string>  = { 1:"N", 2:"NE", 3:"E", 4:"SE", 5:"S", 6:"SW", 7:"W", 8:"NW" }
+const DIR_ARROW: Record<number, string>  = { 1:"↑", 2:"↗", 3:"→", 4:"↘", 5:"↓", 6:"↙", 7:"←", 8:"↖" }
+const FILES_ARR = ["A","B","C","D","E","F"]
 
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, country_code, account_tier, is_ai")
-        .in("id", ids)
-      if (cancelled) return
-      if (profs?.length) {
-        const map = new Map<string, IntroProfileRow>()
-        for (const p of profs as any) map.set(p.id, p)
-        setLeftProfile(leftUserId ? map.get(leftUserId) ?? null : null)
-        setRightProfile(rightUserId ? map.get(rightUserId) ?? null : null)
-      }
+const READER_TOKEN: Cell = { x: 2, y: 2 }
 
-      const { data: stats } = await supabase
-        .from("player_stats")
-        .select("user_id, elo_standard")
-        .in("user_id", ids)
-      if (cancelled) return
-      if (stats?.length) {
-        const map = new Map<string, IntroStatsRow>()
-        for (const s of stats as any) map.set(s.user_id, s)
-        setLeftStats(leftUserId ? map.get(leftUserId) ?? null : null)
-        setRightStats(rightUserId ? map.get(rightUserId) ?? null : null)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [leftUserId, rightUserId])
+function RouteReaderStep({ cellSizePx, onNext }: { cellSizePx: number; onNext: () => void }) {
+  const [dir, setDir]   = useState<number | null>(null)
+  const [dist, setDist] = useState<number | null>(null)
 
-  const isAI = !!rightProfile?.is_ai
-  const rightName = rightProfile?.username ?? (isAI ? "Rookie" : "Opponent")
+  const isDiagonal    = dir !== null && [2, 4, 6, 8].includes(dir)
+  const effectiveDist = isDiagonal && dist === 4 ? null : dist
+
+  const selected: TutRoute | null =
+    dir !== null && effectiveDist !== null ? { dir, dist: effectiveDist } : null
+
+  const trace   = selected ? traceRoute(READER_TOKEN, selected) : []
+  const dest    = trace.length ? trace[trace.length - 1] : null
+  const flanked = selected !== null && trace.some((step, i) => {
+    const prev = i === 0 ? READER_TOKEN : trace[i - 1]
+    const { dx, dy } = FLANK_DIR[selected.dir]
+    return step.x !== prev.x + dx || step.y !== prev.y + dy
+  })
+
+  const tokens: TokOnBoard[]  = [{ id: "w1", x: READER_TOKEN.x, y: READER_TOKEN.y, owner: "W" }]
+  const highlightCells: Cell[] = dest ? [dest] : []
+
+  function selectDir(d: number) {
+    setDir(d)
+    if ([2, 4, 6, 8].includes(d) && dist === 4) setDist(null)
+  }
+
+  // All 8 directions shown as dist-1 dominos (arrow is visible, pips = 1)
+  const DIR_ORDER = [8, 1, 2, 7, 3, 6, 5, 4] // NW N NE / W E / SW S SE — compass layout
+
+  // Distance dominos use current dir (or dir 1 as placeholder when none selected)
+  const previewDir = dir ?? 1
 
   return (
-    <MatchIntroOverlay
-      onDone={onDone}
-      left={{
-        username: leftProfile?.username ?? "You",
-        avatar_url: leftProfile?.avatar_url ?? null,
-        country_code: leftProfile?.country_code ?? null,
-        elo: leftStats?.elo_standard ?? null,
-        tag: "YOU",
-        account_tier: leftProfile?.account_tier ?? null,
-        accent: "#5de8f7",
-      }}
-      right={{
-        username: rightName,
-        avatar_url: rightProfile?.avatar_url ?? null,
-        country_code: rightProfile?.country_code ?? null,
-        elo: rightStats?.elo_standard ?? null,
-        tag: isAI ? "AI" : null,
-        account_tier: rightProfile?.account_tier ?? null,
-        accent: "#b8966a",
-      }}
-      subtitleLine={`Now playing vs ${rightName}`}
-      labels={[
-        "Preparing your match...",
-        `Loading ${rightName}...`,
-        "Shuffling route cards...",
-        "Placing opening tokens...",
-        "Starting game...",
-      ]}
-    />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, width: "100%" }}>
+
+      {/* Title */}
+      <div style={{ textAlign: "center", maxWidth: 500 }}>
+        <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: "1.05rem", fontWeight: 700, color: "#e8e4d8", margin: "0 0 4px", letterSpacing: "0.05em" }}>How to Read a Route</h2>
+        <p style={{ fontSize: "0.88rem", color: "#b0aa9e", lineHeight: 1.55, margin: 0 }}>
+          Pick a <span style={{ color: "#e8e4d8" }}>direction</span> and a <span style={{ color: "#e8e4d8" }}>distance</span> to see where the token lands. If it goes off the edge, it continues from the opposite end — this is called <span style={{ color: "#b8966a" }}>flanking</span>.
+        </p>
+      </div>
+
+      {/* Mobile: stack directions / board / distances. Desktop: side by side */}
+      {cellSizePx <= CELL_SM ? (
+        // ── MOBILE LAYOUT ──
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, width: "100%" }}>
+
+          {/* Direction row — 8 dominos in a single row */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#6b6558" }}>Direction</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[8, 1, 2, 7, 3, 6, 5, 4].map((d) => {
+                const active = dir === d
+                return (
+                  <div key={d} onClick={() => selectDir(d)} style={{ cursor: "pointer", borderRadius: 6, outline: active ? "2px solid #5de8f7" : "2px solid transparent", outlineOffset: 2, opacity: active ? 1 : 0.55 }}>
+                    <RouteIcon route={{ dir: d, dist: effectiveDist ?? 1 }} selected={false} style={{ width: 36 }} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Board */}
+          <TutBoard tokens={tokens} highlightCells={highlightCells} pulse={false} onCell={() => {}} cellSizePx={cellSizePx} />
+
+          {/* Distance row */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#6b6558" }}>Distance</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1, 2, 3, 4].map((d) => {
+                const disabled = isDiagonal && d === 4
+                const active   = dist === d && !disabled
+                return (
+                  <div key={d} onClick={() => !disabled && setDist(d)} style={{ cursor: disabled ? "default" : "pointer", borderRadius: 6, outline: active ? "2px solid #5de8f7" : "2px solid transparent", outlineOffset: 2, opacity: disabled ? 0.15 : active ? 1 : 0.55 }}>
+                    <RouteIcon route={{ dir: previewDir, dist: d }} selected={false} style={{ width: 36 }} />
+                  </div>
+                )
+              })}
+            </div>
+            {isDiagonal && <div style={{ fontSize: "0.7rem", color: "#6b6558", fontFamily: "'EB Garamond',serif", fontStyle: "italic" }}>Diagonals max at 3</div>}
+          </div>
+
+          {/* Readout */}
+          <div style={{ minHeight: 18 }}>
+            {selected && dest ? (
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: "0.75rem", letterSpacing: "0.1em", color: flanked ? "#b8966a" : "#5de8f7", textTransform: "uppercase" }}>
+                {selected.dir}/{selected.dist} → {FILES_ARR[dest.x]}{dest.y + 1}{flanked ? "  ·  flanked" : ""}
+              </span>
+            ) : (
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: "0.7rem", letterSpacing: "0.08em", color: "rgba(93,232,247,0.30)", textTransform: "uppercase" }}>
+                {dir === null ? "pick a direction" : "pick a distance"}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        // ── DESKTOP LAYOUT ── selectors left, board right
+        <div style={{ display: "flex", flexDirection: "row", gap: 20, alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, flexShrink: 0 }}>
+
+            {/* Direction — 3×3 compass grid */}
+            <div>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#6b6558", marginBottom: 6 }}>Direction</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 48px)", gap: 4 }}>
+                {[8, 1, 2, 7, null, 3, 6, 5, 4].map((d, i) => {
+                  if (d === null) return <div key={i} style={{ width: 48, height: 48 }} />
+                  const active = dir === d
+                  return (
+                    <div key={i} onClick={() => selectDir(d)} style={{ cursor: "pointer", borderRadius: 8, outline: active ? "2px solid #5de8f7" : "2px solid transparent", outlineOffset: 2, transition: "outline 0.12s", opacity: active ? 1 : 0.55 }}>
+                      <RouteIcon route={{ dir: d, dist: effectiveDist ?? 1 }} selected={false} style={{ width: 48 }} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Distance — 4 dominos */}
+            <div>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#6b6558", marginBottom: 6 }}>Distance</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[1, 2, 3, 4].map((d) => {
+                  const disabled = isDiagonal && d === 4
+                  const active   = dist === d && !disabled
+                  return (
+                    <div key={d} onClick={() => !disabled && setDist(d)} style={{ cursor: disabled ? "default" : "pointer", borderRadius: 8, outline: active ? "2px solid #5de8f7" : "2px solid transparent", outlineOffset: 2, transition: "outline 0.12s", opacity: disabled ? 0.15 : active ? 1 : 0.55 }}>
+                      <RouteIcon route={{ dir: previewDir, dist: d }} selected={false} style={{ width: 48 }} />
+                    </div>
+                  )
+                })}
+              </div>
+              {isDiagonal && <div style={{ fontSize: "0.7rem", color: "#6b6558", fontFamily: "'EB Garamond',serif", fontStyle: "italic", marginTop: 4 }}>Diagonals max at 3</div>}
+            </div>
+
+            {/* Readout */}
+            <div style={{ minHeight: 18 }}>
+              {selected && dest ? (
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: "0.75rem", letterSpacing: "0.1em", color: flanked ? "#b8966a" : "#5de8f7", textTransform: "uppercase" }}>
+                  {selected.dir}/{selected.dist} → {FILES_ARR[dest.x]}{dest.y + 1}{flanked ? "  ·  flanked" : ""}
+                </span>
+              ) : (
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: "0.7rem", letterSpacing: "0.08em", color: "rgba(93,232,247,0.30)", textTransform: "uppercase" }}>
+                  {dir === null ? "pick a direction" : "pick a distance"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <TutBoard tokens={tokens} highlightCells={highlightCells} pulse={false} onCell={() => {}} cellSizePx={cellSizePx} />
+        </div>
+      )}
+
+      {/* Flanking callout */}
+      <div style={{ minHeight: 28 }}>
+        {flanked && (
+          <div style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.35)", background: "rgba(184,150,106,0.07)", fontSize: "0.82rem", fontFamily: "'EB Garamond',serif", color: "#b8966a", textAlign: "center", fontStyle: "italic" }}>
+            This route flanked — it continued from the opposite end of the same line.
+          </div>
+        )}
+      </div>
+
+      <button onClick={onNext} style={nextBtnStyle}>Got it →</button>
+    </div>
   )
 }
 
@@ -426,48 +576,74 @@ function LoadingScreen({ onDone, leftUserId }: { onDone: () => void; leftUserId:
 
 type StepId =
   | "welcome"
-  | "opening_intro"
   | "opening"
   | "action_intro"
+  | "route_reader"
   | "action"
-  | "invasion_intro"
+  | "mulligan"
   | "invasion"
   | "friendly_fire"
-  | "reinforce_intro"
   | "reinforce"
-  | "swap_intro"
   | "swap"
-  | "siege1"
   | "siege2"
+  | "siege3"
   | "special_actions"
   | "invite"
   | "orders"
 
 const STEP_ORDER: StepId[] = [
-  "welcome", "opening_intro", "opening", "action_intro", "action",
-  "invasion_intro", "invasion", "friendly_fire", "reinforce_intro", "reinforce",
-  "swap_intro", "swap", "siege1", "siege2", "special_actions", "invite", "orders",
+  "welcome", "opening", "action_intro", "route_reader", "action", "mulligan",
+  "invasion", "friendly_fire", "reinforce",
+  "swap", "siege2", "siege3", "special_actions", "invite", "orders",
 ]
 
 const PHASE_FOR_STEP: Record<StepId, string> = {
   welcome: "Intro",
-  opening_intro: "Opening",
   opening: "Opening",
   action_intro: "Action",
+  route_reader: "Action",
   action: "Action",
-  invasion_intro: "Action",
+  mulligan: "Opening",
   invasion: "Action",
   friendly_fire: "Action",
-  reinforce_intro: "Reinforce",
   reinforce: "Reinforce",
-  swap_intro: "Swap",
   swap: "Swap",
-  siege1: "Siege",
   siege2: "Siege",
+  siege3: "Siege",
   special_actions: "Special Actions",
   invite: "Invite",
   orders: "Orders",
 }
+
+const LABEL_FOR_STEP: Record<StepId, string> = {
+  welcome:         "Welcome",
+  opening:         "Place Your Tokens",
+  action_intro:    "Action Phase",
+  route_reader:    "How to Read a Route",
+  action:          "Move Your Tokens",
+  mulligan:        "Mulligan",
+  invasion:        "Capture Enemy Tokens",
+  friendly_fire:   "Friendly Fire",
+  reinforce:       "Reinforcements",
+  swap:            "Route Swap",
+  siege2:          "Siege",
+  siege3:          "Siege by Movement",
+  special_actions: "Special Actions",
+  invite:          "Challenge a Friend",
+  orders:          "Join an Order",
+}
+
+// Groups for TOC display
+const TOC_GROUPS: { label: string; steps: StepId[] }[] = [
+  { label: "Intro",           steps: ["welcome"] },
+  { label: "Opening",         steps: ["opening", "mulligan"] },
+  { label: "Action",          steps: ["action_intro", "route_reader", "action", "invasion", "friendly_fire"] },
+  { label: "Reinforce",       steps: ["reinforce"] },
+  { label: "Swap",            steps: ["swap"] },
+  { label: "Siege",           steps: ["siege2", "siege3"] },
+  { label: "Special Actions", steps: ["special_actions"] },
+  { label: "Community",       steps: ["invite", "orders"] },
+]
 
 // ─── Main Tutorial component ──────────────────────────────────────────────────
 
@@ -497,7 +673,8 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
   }, [])
 
   const [stepIdx, setStepIdx] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [launching, setLaunching] = useState(false)
+  const [tocOpen, setTocOpen] = useState(false)
   const [pulse, setPulse] = useState(true)
   const [warning, setWarning] = useState<string | null>(null)
   const warningTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -540,6 +717,9 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
   const [swapDone, setSwapDone] = useState(false)
 
   const [siege2Done, setSiege2Done] = useState(false)
+  const [siege3Selected, setSiege3Selected] = useState(false)
+  const [siege3WPos, setSiege3WPos] = useState(SIEGE3_W_START)
+  const [siege3Done, setSiege3Done] = useState(false)
 
   useEffect(() => {
     const t = setInterval(() => setPulse((p) => !p), 700)
@@ -559,7 +739,51 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
     if (stepId === "reinforce") setReinforcedPos(null)
     if (stepId === "swap") { setSwapDiscardIdx(null); setSwapPickupIdx(null); setSwapDone(false) }
     if (stepId === "siege2") setSiege2Done(false)
+    if (stepId === "siege3") { setSiege3Selected(false); setSiege3WPos(SIEGE3_W_START); setSiege3Done(false) }
   }, [stepId])
+
+  async function launchGame() {
+    if (launching) return
+    if (!currentUserId) { navigate("/auth?returnTo=/tutorial"); return }
+    setLaunching(true)
+    try {
+      const initialState = newGame()
+
+      // Refresh token same way GamePage does
+      const decodeExpMs = (jwt: string) => {
+        const payloadB64 = jwt.split(".")[1]
+        const payloadJson = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")))
+        return (payloadJson.exp ?? 0) * 1000
+      }
+      const { data: sess0 } = await supabase.auth.getSession()
+      if (!sess0.session?.access_token) { navigate("/auth?returnTo=/tutorial"); return }
+      let token = sess0.session.access_token
+      try {
+        const expMs = decodeExpMs(token)
+        if (!expMs || expMs <= Date.now() + 120_000) {
+          const { data: refreshed } = await supabase.auth.refreshSession()
+          if (refreshed.session?.access_token) token = refreshed.session.access_token
+        }
+      } catch { /* use token as-is */ }
+
+      const { data, error } = await supabase.functions.invoke("create_ai_game", {
+        body: {
+          aiLevel: "novice",
+          timeControl: "daily",
+          initialState,
+          vgnVersion: "1",
+          humanSide: Math.random() < 0.5 ? "W" : "B",
+        },
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (error) throw error
+      if (!data?.gameId) throw new Error("create_ai_game did not return gameId")
+      onComplete(data.gameId)
+    } catch (e) {
+      console.error("Tutorial launchGame failed:", e)
+      setLaunching(false)
+    }
+  }
 
   function showWarning(msg: string) {
     setWarning(msg)
@@ -567,12 +791,12 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
     warningTimer.current = setTimeout(() => setWarning(null), 2500)
   }
   function advance() {
-    if (stepIdx >= STEP_ORDER.length - 1) setLoading(true)
+    if (stepIdx >= STEP_ORDER.length - 1) launchGame()
     else setStepIdx((i) => i + 1)
   }
   function goBack() { if (stepIdx > 0) setStepIdx((i) => i - 1) }
-  function restartTutorial() { clearAllTimeouts(); setLoading(false); setStepIdx(0) }
-  function skipTutorial() { clearAllTimeouts(); setLoading(true) }
+  function restartTutorial() { clearAllTimeouts(); setLaunching(false); setStepIdx(0) }
+  function skipTutorial() { clearAllTimeouts(); launchGame() }
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600)
   useEffect(() => {
@@ -582,7 +806,7 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
   }, [])
   const cellSize = isMobile ? CELL_SM : CELL
 
-  if (loading) return <LoadingScreen onDone={onComplete} leftUserId={currentUserId} />
+  if (launching) return <div style={{ minHeight: "100vh", background: "#0a0a0c" }} />
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -679,6 +903,30 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
     scheduleTimeout(() => advance(), 700)
   }
 
+  function handleSiege3Cell(x: number, y: number) {
+    if (siege3Done) return
+    if (x === siege3WPos.x && y === siege3WPos.y) { setSiege3Selected(true); playClick() }
+    else showWarning("Click your Wake token (W) to select it.")
+  }
+
+  function handleSiege3Route(idx: number) {
+    if (!siege3Selected || siege3Done) return
+    const dest = applyRoute(siege3WPos, SIEGE3_ROUTES[idx])
+    const correct = dest.x === 4 && dest.y === 3
+    setSiege3Selected(false)
+    if (correct) {
+      setSiege3WPos(dest)
+      setSiege3Done(true)
+      playPlace()
+      scheduleTimeout(() => advance(), 1200)
+    } else {
+      setSiege3WPos(dest)
+      showWarning("That route doesn't complete the siege — try again.")
+      scheduleTimeout(() => { setSiege3WPos(SIEGE3_W_START); setSiege3Selected(false) }, 800)
+    }
+  }
+
+
   const SWAP_HAND: TutRoute[] = [{ dir: 1, dist: 2 }, { dir: 3, dist: 1 }, { dir: 7, dist: 3 }]
   const SWAP_QUEUE: TutRoute[] = [{ dir: 5, dist: 2 }, { dir: 2, dist: 3 }, { dir: 4, dist: 1 }]
 
@@ -754,6 +1002,11 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           <button onClick={restartTutorial} style={{ background: "none", border: "none", color: "#6b6558", fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.12em", cursor: "pointer", padding: "4px 0", textTransform: "uppercase" }} title="Restart tutorial">
             Restart
           </button>
+          {isMobile && (
+            <button onClick={() => setTocOpen(true)} style={{ background: "none", border: "none", color: "#6b6558", fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.12em", cursor: "pointer", padding: "4px 0", textTransform: "uppercase" }} title="Table of contents">
+              Contents
+            </button>
+          )}
           <button onClick={skipTutorial} style={{ background: "none", border: "none", color: "#b8966a", fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.12em", cursor: "pointer", padding: "4px 0", textTransform: "uppercase" }} title="Skip tutorial">
             Skip →
           </button>
@@ -780,37 +1033,78 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
         {warning}
       </div>
 
-      {/* Main scroll area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 20px 32px", gap: 20 }}>
+      {/* Body: sidebar + content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden" }}>
 
-        {stepId === "welcome" && (
-          <StaticStep
-            title="Welcome to Vekke"
-            body="Vekke is a fast strategic board game for two players — Wake (W) versus Brake (B). Each game lasts around 5–10 minutes. This walkthrough teaches you everything you need to start playing."
-            onNext={advance} nextLabel="Let's go →"
-            board={<TutBoard tokens={[]} pulse={pulse} onCell={() => {}} cellSizePx={cellSize} />}
-          />
+        {/* ── Desktop sidebar TOC ── */}
+        {!isMobile && (
+          <div style={{
+            width: 260, flexShrink: 0, borderRight: "1px solid rgba(184,150,106,0.15)",
+            overflowY: "auto", padding: "20px 0",
+          }}>
+            {TOC_GROUPS.map((group) => (
+              <div key={group.label} style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "#6b6558", padding: "0 20px", marginBottom: 6 }}>{group.label}</div>
+                {group.steps.map((id) => {
+                  const idx = STEP_ORDER.indexOf(id)
+                  const isCurrent = stepIdx === idx
+                  const isVisited = idx < stepIdx
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setStepIdx(idx)}
+                      style={{
+                        width: "100%", background: isCurrent ? "rgba(93,232,247,0.07)" : "transparent",
+                        border: "none", borderLeft: isCurrent ? "2px solid #5de8f7" : "2px solid transparent",
+                        padding: "9px 20px", textAlign: "left", cursor: "pointer",
+                        fontFamily: "'EB Garamond',serif", fontSize: "1.05rem",
+                        color: isCurrent ? "#e8e4d8" : isVisited ? "#b0aa9e" : "#4a4a52",
+                        display: "flex", alignItems: "center", gap: 10, lineHeight: 1.3,
+                      }}
+                    >
+                      <span style={{ fontSize: 9, color: isVisited || isCurrent ? "#5de8f7" : "transparent", flexShrink: 0 }}>✓</span>
+                      {LABEL_FOR_STEP[id]}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         )}
 
-        {stepId === "opening_intro" && (
-          <StaticStep
-            title="Opening Phase"
-            body="The game begins with an opening phase. Players alternate placing tokens on the board — you place one, your opponent places one, until both sides have 3 tokens. Click any empty square to place yours."
-            onNext={advance} nextLabel="Got it →"
-            board={<TutBoard tokens={[]} pulse={pulse} onCell={() => {}} cellSizePx={cellSize} />}
-          />
+      {/* Main scroll area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 20px 32px", gap: 20, overflowY: "auto" }}>
+
+        {stepId === "welcome" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
+            <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
+              <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: "1.15rem", fontWeight: 700, color: "#e8e4d8", marginBottom: 10, letterSpacing: "0.05em" }}>Welcome to Vekke</h2>
+              <p style={{ fontSize: "1.05rem", color: "#b0aa9e", lineHeight: 1.75, margin: "0 0 16px 0" }}>
+                Vekke is a fast strategic board game for two players — Wake (W) versus Brake (B). Each game lasts around 5–10 minutes. This walkthrough teaches you everything you need to start playing.
+              </p>
+              <p style={{ fontSize: "1.05rem", color: "#b0aa9e", lineHeight: 1.75, margin: 0 }}>
+                The object of the game is to eliminate all your opponent's tokens, or lock them all by siege until they can no longer take action. You move your tokens using <span style={{ color: "#e8e4d8" }}>routes</span> — each route specifies a direction and a distance.
+              </p>
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "#6b6558", fontFamily: "'Cinzel',serif", letterSpacing: "0.08em", textAlign: "center", margin: 0 }}>
+              Use <span style={{ color: "#b8966a", cursor: "pointer", textDecoration: "underline" }} onClick={() => setTocOpen(true)}>Contents</span> in the header to skip around or revisit any section later.
+            </p>
+            <button onClick={advance} style={nextBtnStyle}>Let's go →</button>
+          </div>
         )}
 
         {stepId === "opening" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
             <InstructionCard
-              title="Place Your Tokens"
+              title="Opening Phase"
               body={
                 openingBPending
                   ? "Brake is placing their token..."
                   : openingWCount >= 3
                     ? "Opening complete!"
-                    : `Click any empty square to place your Wake token. (${3 - openingWCount} remaining)`
+                    : openingWCount === 0
+                      ? "Players alternate placing tokens until each side has 3. Click any empty square to place your first Wake token."
+                      : `Click any empty square to place your Wake token. (${3 - openingWCount} remaining)`
               }
             />
             <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
@@ -844,6 +1138,8 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           />
         )}
 
+        {stepId === "route_reader" && <RouteReaderStep cellSizePx={cellSize} onNext={advance} />}
+
         {stepId === "action" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
             <InstructionCard
@@ -872,29 +1168,65 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           </div>
         )}
 
-        {stepId === "invasion_intro" && (
-          <StaticStep
-            title="Invading — Capturing Enemy Tokens"
-            body="To capture an enemy token, move your token onto the same square. You don't click the enemy — you select your token and play a route that lands on them. Think about which route reaches the enemy."
-            onNext={advance} nextLabel="Try it →"
-            board={
-              <TutBoard
-                tokens={[{ id: "w1", x: INV_W.x, y: INV_W.y, owner: "W" }, { id: "b1", x: INV_B.x, y: INV_B.y, owner: "B" }]}
-                pulse={pulse} onCell={() => {}} cellSizePx={cellSize}
-              />
-            }
-          />
+        {stepId === "mulligan" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
+            <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
+              <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: "1.15rem", fontWeight: 700, color: "#e8e4d8", marginBottom: 10, letterSpacing: "0.05em" }}>Mulligan</h2>
+              <p style={{ fontSize: "1.05rem", color: "#b0aa9e", lineHeight: 1.75, margin: 0 }}>Before the first turn, both players decide whether to Mulligan. You'll see two pulsing buttons — here's what they do.</p>
+            </div>
+
+            <div style={{ maxWidth: 520, width: "100%", background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 12, padding: "20px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Mulligan section */}
+              <div style={{ borderBottom: "1px solid rgba(184,150,106,0.20)", paddingBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em", textTransform: "uppercase", color: "#ee484c", margin: 0 }}>Mulligan</h3>
+                </div>
+                <div style={{ fontSize: "0.9rem", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", color: "#b8966a", fontWeight: 600, marginBottom: 8 }}>Cost: 1 Token Off the Board</div>
+                <p style={{ fontSize: "1.05rem", fontFamily: "'EB Garamond', serif", color: "#e8e4d8", lineHeight: 1.5, margin: "0 0 12px 0" }}>
+                  If you don't like your route hand, you can discard any or all of your routes and redraw — but you have to take one of your tokens off the board and return it to your reserves. You can Mulligan up to twice.
+                </p>
+                <div style={{ fontSize: "0.95rem", fontFamily: "'EB Garamond', serif", color: "#b0aa9e", fontStyle: "italic", lineHeight: 1.4, paddingLeft: 12, borderLeft: "2px solid rgba(184,150,106,0.30)" }}>
+                  Use when: Your starting routes are weak or don't work together. A token in reserve is still useful — the trade is worth it for a better hand.
+                </div>
+              </div>
+
+              {/* Continue section */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                  </svg>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, fontFamily: "'Cinzel', serif", letterSpacing: "0.08em", textTransform: "uppercase", color: "#ee484c", margin: 0 }}>Continue</h3>
+                </div>
+                <div style={{ fontSize: "0.9rem", fontFamily: "'Cinzel', serif", letterSpacing: "0.06em", color: "#b8966a", fontWeight: 600, marginBottom: 8 }}>No Cost — Keep Your Current Hand</div>
+                <p style={{ fontSize: "1.05rem", fontFamily: "'EB Garamond', serif", color: "#e8e4d8", lineHeight: 1.5, margin: "0 0 12px 0" }}>
+                  Skip the Mulligan and start the game with your tokens and routes as dealt. Both players must confirm before the first turn begins.
+                </p>
+                <div style={{ fontSize: "0.95rem", fontFamily: "'EB Garamond', serif", color: "#b0aa9e", fontStyle: "italic", lineHeight: 1.4, paddingLeft: 12, borderLeft: "2px solid rgba(184,150,106,0.30)" }}>
+                  Use when: Your routes look solid and keeping all three tokens on the board is the stronger opening.
+                </div>
+              </div>
+
+            </div>
+
+            <button onClick={advance} style={nextBtnStyle}>Got it →</button>
+          </div>
         )}
 
         {stepId === "invasion" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
             <InstructionCard
-              title="Invade the Enemy"
+              title="Capture Enemy Tokens"
               body={
                 invBCaptured
                   ? "Captured! The Brake token goes to your Captives."
                   : !invSelected
-                    ? "Select your Wake token, then figure out which route will land on the Brake token."
+                    ? "Moving your token onto an occupied enemy square is called invading. Select your Wake token, then figure out which route lands on the Brake token."
                     : "Which route reaches the enemy? Think about direction and distance."
               }
             />
@@ -935,23 +1267,12 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           />
         )}
 
-        {stepId === "reinforce_intro" && (
-          <StaticStep
-            title="Reinforcement Phase"
-            body="After completing your 3 moves, you get 1 free reinforcement each turn. Place a new token from your reserve anywhere on the board — any unoccupied square."
-            onNext={advance} nextLabel="Try it →"
-            board={
-              <TutBoard
-                tokens={[{ id: "w1", x: 4, y: 2, owner: "W" }, { id: "w2", x: 2, y: 4, owner: "W" }, { id: "b1", x: 3, y: 3, owner: "B" }, { id: "b2", x: 1, y: 1, owner: "B" }]}
-                pulse={pulse} onCell={() => {}} cellSizePx={cellSize}
-              />
-            }
-          />
-        )}
-
         {stepId === "reinforce" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
-            <InstructionCard title="Place Your Reinforcement" body={reinforcedPos ? "Reinforcement placed!" : "Click any empty square to place your reinforcement token."} />
+            <InstructionCard
+              title="Reinforcement Phase"
+              body={reinforcedPos ? "Reinforcement placed!" : "After your 3 moves, you place 1 free token from your reserves onto any empty square — you cannot place on top of an existing token. Click an empty square to place yours."}
+            />
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <TokenDisc owner="W" size={28} />
               <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: "0.15em", color: "#b8966a", textTransform: "uppercase" }}>Reserve — 1 to place</span>
@@ -961,19 +1282,11 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           </div>
         )}
 
-        {stepId === "swap_intro" && (
-          <StaticStep
-            title="Route Swap Phase"
-            body="At the end of every turn, you swap one route card. Discard one from your hand into the queue, and pick one up from the queue. This keeps your options fresh each turn."
-            onNext={advance} nextLabel="Try it →"
-          />
-        )}
-
         {stepId === "swap" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
             <InstructionCard
-              title="Route Swap"
-              body={swapDone ? "Swap complete! Your new route is in your hand." : swapDiscardIdx === null ? "Select a route from your hand (right) to discard." : "Now select a route from the queue (left) to pick up."}
+              title="Route Swap Phase"
+              body={swapDone ? "Swap complete! Your new route is in your hand." : swapDiscardIdx === null ? "At the end of every turn, you swap one route. Discard one from your hand into the queue, then pick one up from the queue. Select a route from your hand to discard." : "Now select a route from the queue to pick up."}
             />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: isMobile ? 16 : 40, width: "100%", flexWrap: "wrap" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
@@ -999,21 +1312,11 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           </div>
         )}
 
-        {stepId === "siege1" && (
-          <StaticStep
-            title="Siege — Surrounded Tokens"
-            body="When a token is surrounded on 4 or more sides by enemy tokens, it is under siege. Sieged tokens cannot move until the siege is broken. Siege can happen through movement."
-            onNext={advance} nextLabel="Got it →"
-            board={<TutBoard tokens={SIEGE1_TOKENS} pulse={pulse} onCell={() => {}} cellSizePx={cellSize} />}
-            belowText="This Wake token is surrounded on all 4 orthogonal sides. It cannot move."
-          />
-        )}
-
         {stepId === "siege2" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
             <InstructionCard
-              title="Siege via Reinforcement"
-              body={siege2Done ? "Siege! The Wake token is now locked and cannot move." : "Reinforcements can also complete a siege. Place the Brake reinforcement to lock the Wake token."}
+              title="Siege"
+              body={siege2Done ? "Siege! The Wake token is now locked and cannot move." : "When a token is surrounded on 4 or more sides by enemy tokens, it is sieged and cannot move. Sieges can be completed by movement or by placing a reinforcement. Click the highlighted square to complete this one."}
             />
             <TutBoard
               tokens={siege2Done ? SIEGE2_POST_TOKENS : SIEGE2_PRE_TOKENS}
@@ -1024,6 +1327,43 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
             />
             {!siege2Done && <HintLabel>↑ Click the highlighted square to place the B reinforcement</HintLabel>}
             {siege2Done && <button onClick={advance} style={nextBtnStyle}>Got it →</button>}
+          </div>
+        )}
+
+        {stepId === "siege3" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
+            <InstructionCard
+              title="Siege by Movement"
+              body={
+                siege3Done
+                  ? "Siege! The Brake token is locked and cannot move."
+                  : !siege3Selected
+                    ? "Three of your tokens already surround the Brake token. Move the fourth Wake token to complete the siege. Select it to begin."
+                    : "Pick the route that lands your token on the open side."
+              }
+            />
+            <TutBoard
+              tokens={siege3Done ? SIEGE3_POST_TOKENS : [
+                ...SIEGE3_PRE_TOKENS.filter(t => t.id !== "wm"),
+                { id: "wm", x: siege3WPos.x, y: siege3WPos.y, owner: "W" as Player },
+              ]}
+              selectedCell={siege3Selected ? siege3WPos : null}
+              pulse={pulse}
+              onCell={handleSiege3Cell}
+              cellSizePx={cellSize}
+            />
+            {!siege3Done && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "#b8966a" }}>Route Hand</span>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {SIEGE3_ROUTES.map((r, i) => (
+                    <RouteDomino key={i} route={r} active={siege3Selected} pulse={pulse} onClick={() => handleSiege3Route(i)} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {!siege3Selected && !siege3Done && <HintLabel>↑ Click your Wake token to select it</HintLabel>}
+            {siege3Selected && <HintLabel>↑ Pick the route that completes the siege</HintLabel>}
           </div>
         )}
 
@@ -1058,11 +1398,76 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
                 Browse and join an Order from the <span style={{ color: "#e8e4d8", fontWeight: 500 }}>Orders</span> link in the top navigation. Each Order has its own doctrine, token style, and community.
               </span>
             </div>
-            <button onClick={advance} style={nextBtnStyle}>Play vs Rookie →</button>
+            <button onClick={launchGame} style={nextBtnStyle}>Play vs Glen →</button>
           </div>
         )}
 
-      </div>
+      </div>{/* end main scroll area */}
+      </div>{/* end body row */}
+      {tocOpen && (
+        <div
+          onClick={() => setTocOpen(false)}
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", color: "#e8e4d8" }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: "1rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#b8966a" }}>Contents</span>
+              <button onClick={() => setTocOpen(false)} style={{ background: "none", border: "none", color: "#6b6558", fontSize: "1.4rem", cursor: "pointer", lineHeight: 1, padding: 4 }}>×</button>
+            </div>
+
+            {/* Groups */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {TOC_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "#6b6558", marginBottom: 6 }}>{group.label}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {group.steps.map((id) => {
+                      const idx = STEP_ORDER.indexOf(id)
+                      const isCurrent = stepIdx === idx
+                      const isVisited = idx < stepIdx
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => { setStepIdx(idx); setTocOpen(false) }}
+                          style={{
+                            background: isCurrent ? "rgba(93,232,247,0.08)" : "transparent",
+                            border: "none",
+                            borderLeft: isCurrent ? "2px solid #5de8f7" : "2px solid transparent",
+                            borderRadius: "0 6px 6px 0",
+                            padding: "8px 12px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            fontFamily: "'EB Garamond',serif",
+                            fontSize: "1rem",
+                            color: isCurrent ? "#e8e4d8" : isVisited ? "#b0aa9e" : "#6b6558",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, color: isVisited ? "#5de8f7" : isCurrent ? "#5de8f7" : "#2e2e36", minWidth: 14 }}>
+                            {isVisited || isCurrent ? "✓" : ""}
+                          </span>
+                          {LABEL_FOR_STEP[id]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setTocOpen(false)} style={{ marginTop: 20, width: "100%", padding: "10px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", color: "#b8966a", fontWeight: 700, fontFamily: "'Cinzel',serif", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontSize: "0.9rem" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -1088,20 +1493,6 @@ function HintLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-const nextBtnStyle: React.CSSProperties = {
-  padding: "13px 34px",
-  borderRadius: 10,
-  border: "2px solid #3296ab",
-  background: "rgba(50,150,171,0.10)",
-  color: "#e8e4d8",
-  fontFamily: "'Cinzel', serif",
-  fontSize: "0.82rem",
-  fontWeight: 700,
-  letterSpacing: "0.14em",
-  cursor: "pointer",
-  textTransform: "uppercase",
-}
-
 function StaticStep({ title, body, onNext, nextLabel, board, below, belowText }: {
   title: string; body: string; onNext: () => void; nextLabel: string
   board?: React.ReactNode; below?: React.ReactNode; belowText?: string
@@ -1120,19 +1511,39 @@ function StaticStep({ title, body, onNext, nextLabel, board, below, belowText }:
 // ─── Special Actions display ──────────────────────────────────────────────────
 
 function SpecialActionsDisplay({ isMobile }: { isMobile: boolean }) {
-  const iconStroke = "#ee484c"
+  const iconFill = "#ee484c"
   const actions = [
-    { label: "Early Swap", hint: "Swap a route card before making your moves.", icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></svg> },
-    { label: "Extra Reinf.", hint: "Spend void tokens to place an extra reinforcement.", icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="M9 12h6" /><path d="M12 9v6" /></svg> },
-    { label: "Ransom", hint: "Spend captives to retrieve your token from void.", icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="M12 22V2" /></svg> },
-    { label: "Defection", hint: "Sacrifice a token to claim one from the enemy void.", icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="9" r="7" /><circle cx="15" cy="15" r="7" /></svg> },
-    { label: "Recoil", hint: "Move one of your tokens 1 space during your opponent's turn.", icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="2"><path d="M9 10h.01" /><path d="M15 10h.01" /><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" /></svg> },
+    {
+      label: "Early Swap",
+      hint: "Swap a route card before making your moves.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill={iconFill}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>,
+    },
+    {
+      label: "Extra Reinf.",
+      hint: "Spend void tokens to place an extra reinforcement.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill={iconFill}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>,
+    },
+    {
+      label: "Ransom",
+      hint: "Spend captives to retrieve your token from void.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill={iconFill}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>,
+    },
+    {
+      label: "Defection",
+      hint: "Sacrifice a token to claim one from the enemy void.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill={iconFill}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>,
+    },
+    {
+      label: "Recoil",
+      hint: "Move one of your tokens 1 space during your opponent's turn.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 640 640" fill={iconFill}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>,
+    },
   ]
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", maxWidth: 520, width: "100%" }}>
       {actions.map((a, i) => (
         <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "rgba(184,150,106,0.09)", border: "1px solid rgba(184,150,106,0.25)", borderRadius: 10, padding: "14px 12px", width: isMobile ? "42%" : 90, textAlign: "center" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#0d0d10", border: "1px solid #6b7280", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {a.icon}
           </div>
           <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#b8966a" }}>{a.label}</span>

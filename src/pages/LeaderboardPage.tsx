@@ -40,17 +40,25 @@ type LeaderboardRow = {
   losses_blitz: number
   losses_daily: number
 
-  // Victory / game-end method stats
   wins_siegemate: number
   wins_elimination: number
   wins_collapse: number
 
-  // Added (from your player_stats schema used elsewhere)
   losses_timeout: number
   resignations: number
+  wins_by_opponent_resign: number
 
   is_ai: boolean
 }
+
+type VictoryBucket =
+  | "Siegemate"
+  | "Elimination"
+  | "Collapse"
+  | "Timeout"
+  | "Resignation"
+
+type VictoryCounts = Record<VictoryBucket, number>
 
 function injectFonts() {
   if (typeof document === "undefined") return
@@ -83,6 +91,45 @@ function eloTitle(elo: number) {
 
 function safeInt(v: number | null | undefined) {
   return typeof v === "number" && Number.isFinite(v) ? v : 0
+}
+
+function emptyVictoryCounts(): VictoryCounts {
+  return {
+    Siegemate: 0,
+    Elimination: 0,
+    Collapse: 0,
+    Timeout: 0,
+    Resignation: 0,
+  }
+}
+
+function normalizeEndReason(raw: string | null | undefined): VictoryBucket | null {
+  const v = (raw ?? "").trim().toLowerCase()
+  if (!v) return null
+
+  if (v === "siegemate") return "Siegemate"
+  if (v === "elimination") return "Elimination"
+  if (v === "collapse") return "Collapse"
+
+  if (
+    v === "timeout" ||
+    v === "time_out" ||
+    v === "time-out" ||
+    v === "flag" ||
+    v === "on_time"
+  ) {
+    return "Timeout"
+  }
+
+  if (
+    v === "resign" ||
+    v === "resignation" ||
+    v === "resigned"
+  ) {
+    return "Resignation"
+  }
+
+  return null
 }
 
 function FlagImg({ cc, size = 16 }: { cc: string | null | undefined; size?: number }) {
@@ -182,15 +229,13 @@ export function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
+  const [victoryCounts, setVictoryCounts] = useState<VictoryCounts>(emptyVictoryCounts())
 
-  // Auth modal
   const [showAuthModal, setShowAuthModal] = useState(false)
 
-  // per-row challenge state
   const [challenging, setChallenging] = useState<Record<string, boolean>>({})
   const [challenged, setChallenged] = useState<Record<string, boolean>>({})
 
-  // Auth
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return
@@ -201,7 +246,6 @@ export function LeaderboardPage() {
     })
   }, [])
 
-  // Load leaderboard
   useEffect(() => {
     setLoading(true)
     setErr(null)
@@ -225,7 +269,8 @@ export function LeaderboardPage() {
           wins_standard, wins_rapid, wins_blitz, wins_daily,
           losses_standard, losses_rapid, losses_blitz, losses_daily,
           wins_siegemate, wins_elimination, wins_collapse,
-          losses_timeout, resignations
+          losses_timeout, resignations, wins_by_opponent_resign,
+          wins_total, losses_total
         `)
         .gt(eloCol, 0)
         .order(eloCol, { ascending: false })
@@ -236,6 +281,7 @@ export function LeaderboardPage() {
         setLoading(false)
         return
       }
+
       if (!statsData?.length) {
         setRows([])
         setLoading(false)
@@ -247,6 +293,7 @@ export function LeaderboardPage() {
         .from("profiles")
         .select("id, username, avatar_url, country_code, is_ai, account_tier")
         .in("id", ids)
+
       if (!showAI) profileQuery = profileQuery.eq("is_ai", false)
 
       const { data: profileData, error: profileErr } = await profileQuery
@@ -292,13 +339,13 @@ export function LeaderboardPage() {
             games_blitz: safeInt(s.games_blitz),
             games_daily: safeInt(s.games_daily),
 
-            wins_total: winsStandard + winsRapid + winsBlitz + winsDaily,
+            wins_total: safeInt(s.wins_total) || (winsStandard + winsRapid + winsBlitz + winsDaily),
             wins_standard: winsStandard,
             wins_rapid: winsRapid,
             wins_blitz: winsBlitz,
             wins_daily: winsDaily,
 
-            losses_total: lossesStandard + lossesRapid + lossesBlitz + lossesDaily,
+            losses_total: safeInt(s.losses_total) || (lossesStandard + lossesRapid + lossesBlitz + lossesDaily),
             losses_standard: lossesStandard,
             losses_rapid: lossesRapid,
             losses_blitz: lossesBlitz,
@@ -310,6 +357,7 @@ export function LeaderboardPage() {
 
             losses_timeout: safeInt(s.losses_timeout),
             resignations: safeInt(s.resignations),
+            wins_by_opponent_resign: safeInt(s.wins_by_opponent_resign),
 
             is_ai: !!p.is_ai,
             account_tier: (p.account_tier ?? null) as any,
@@ -320,6 +368,40 @@ export function LeaderboardPage() {
       setLoading(false)
     })()
   }, [format, showAI])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      const counts = emptyVictoryCounts()
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("end_reason")
+        .eq("format", format)
+        .not("winner_id", "is", null)
+        .not("end_reason", "is", null)
+
+      if (cancelled) return
+
+      if (error) {
+        setErr((prev) => prev ?? error.message)
+        setVictoryCounts(counts)
+        return
+      }
+
+      for (const g of data ?? []) {
+        const bucket = normalizeEndReason((g as any).end_reason)
+        if (bucket) counts[bucket] += 1
+      }
+
+      setVictoryCounts(counts)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [format])
 
   function rowElo(r: LeaderboardRow): number {
     if (format === "blitz") return r.elo_blitz
@@ -367,9 +449,11 @@ export function LeaderboardPage() {
   async function onChallengeClick(e: React.MouseEvent, r: LeaderboardRow) {
     e.preventDefault()
     e.stopPropagation()
-    if (!userId) { setShowAuthModal(true); return }
+    if (!userId) {
+      setShowAuthModal(true)
+      return
+    }
 
-    if (!userId) return
     if (r.user_id === userId) return
     if (r.is_ai) return
     if (challenged[r.user_id]) return
@@ -397,84 +481,52 @@ export function LeaderboardPage() {
     }
   }
 
-  // ✅ FIX: Victory model is now *format-coupled* by capping per-row method counts
-  // to the currently selected format’s wins/losses.
   const victoryModel = useMemo(() => {
     const COLORS = {
-      note: "#b8966a",
       tip: "#c77a2c",
       warning: "#ee484c",
       important: "#355e3b",
       strategy: "#2f4f6b",
       lore: "#1f5c5b",
-      example: "#9a9487",
-    }
-
-    let siegTotal = 0
-    let elimTotal = 0
-    let collapseTotal = 0
-    let timeoutTotal = 0
-    let resignTotal = 0
-
-    for (const r of rows) {
-      const w = rowWins(r)
-      const l = rowLosses(r)
-
-      // Cap wins-by-method to *this format's wins* (and keep them from exceeding w collectively).
-      const sieg = Math.min(safeInt(r.wins_siegemate), w)
-      const elim = Math.min(safeInt(r.wins_elimination), Math.max(0, w - sieg))
-      const coll = Math.min(safeInt(r.wins_collapse), Math.max(0, w - sieg - elim))
-
-      // Cap losses-by-method to *this format's losses* (and keep them from exceeding l collectively).
-      const to = Math.min(safeInt(r.losses_timeout), l)
-      const res = Math.min(safeInt(r.resignations), Math.max(0, l - to))
-
-      siegTotal += sieg
-      elimTotal += elim
-      collapseTotal += coll
-      timeoutTotal += to
-      resignTotal += res
     }
 
     const items = [
       {
-        key: "Siegemate",
+        key: "Siegemate" as const,
         color: COLORS.lore,
         bg: "rgba(31,92,91,0.10)",
         border: "rgba(31,92,91,0.30)",
-        total: siegTotal,
+        total: victoryCounts.Siegemate,
       },
       {
-        key: "Elimination",
+        key: "Elimination" as const,
         color: COLORS.warning,
         bg: "rgba(238,72,76,0.08)",
         border: "rgba(238,72,76,0.30)",
-        total: elimTotal,
+        total: victoryCounts.Elimination,
       },
       {
-        key: "Collapse",
+        key: "Collapse" as const,
         color: COLORS.tip,
         bg: "rgba(199,122,44,0.08)",
         border: "rgba(199,122,44,0.28)",
-        total: collapseTotal,
+        total: victoryCounts.Collapse,
       },
       {
-        key: "Timeout",
+        key: "Timeout" as const,
         color: COLORS.strategy,
         bg: "rgba(47,79,107,0.10)",
         border: "rgba(47,79,107,0.28)",
-        total: timeoutTotal,
-        subtitle: "losses (timeouts)",
+        total: victoryCounts.Timeout,
       },
       {
-        key: "Resignation",
+        key: "Resignation" as const,
         color: COLORS.important,
         bg: "rgba(53,94,59,0.10)",
         border: "rgba(53,94,59,0.28)",
-        total: resignTotal,
-        subtitle: "losses (resigns)",
+        total: victoryCounts.Resignation,
       },
-    ] as const
+    ]
 
     const grand = items.reduce((s, it) => s + it.total, 0)
 
@@ -495,7 +547,7 @@ export function LeaderboardPage() {
         : "conic-gradient(rgba(255,255,255,0.06) 0% 100%)"
 
     return { items: stops, grand, gradient }
-  }, [rows, format])
+  }, [victoryCounts])
 
   return (
     <div
@@ -562,7 +614,6 @@ export function LeaderboardPage() {
           .lb-td, .lb-th { padding: 10px 8px; }
           .lb-td:first-child, .lb-th:first-child { padding-left: 10px; }
         }
-
 
         .format-tab {
           font-family: 'Cinzel', serif;
@@ -1073,7 +1124,7 @@ export function LeaderboardPage() {
                             opacity: victoryModel.grand > 0 ? 0.95 : 0.55,
                             whiteSpace: "nowrap",
                           }}
-                          title={victoryModel.grand > 0 ? `${pct}% of tracked endings` : "No data"}
+                          title={victoryModel.grand > 0 ? `${pct}% of tracked wins` : "No data"}
                         >
                           {victoryModel.grand > 0 ? `${pct}%` : "—"}
                         </div>
@@ -1123,7 +1174,7 @@ export function LeaderboardPage() {
                         display: "flex",
                       }}
                       aria-label="Victory methods stacked bar"
-                      title={`Tracked endings: ${victoryModel.grand.toLocaleString()}`}
+                      title={`Tracked wins: ${victoryModel.grand.toLocaleString()}`}
                     >
                       {victoryModel.items.map((it) => (
                         <div

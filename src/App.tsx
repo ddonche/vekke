@@ -31,8 +31,7 @@ function TutorialWrapper() {
   const navigate = useNavigate()
   return (
     <TutorialPage
-      onComplete={() => navigate("/ai/new")}
-      onSkip={() => navigate("/")}
+      onComplete={(gameId) => navigate(`/ai/${gameId}`)}
     />
   )
 }
