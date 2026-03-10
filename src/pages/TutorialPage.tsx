@@ -587,6 +587,7 @@ type StepId =
   | "swap"
   | "siege2"
   | "siege3"
+  | "battlefield_areas"
   | "special_actions"
   | "invite"
   | "orders"
@@ -594,7 +595,7 @@ type StepId =
 const STEP_ORDER: StepId[] = [
   "welcome", "opening", "action_intro", "route_reader", "action", "mulligan",
   "invasion", "friendly_fire", "reinforce",
-  "swap", "siege2", "siege3", "special_actions", "invite", "orders",
+  "swap", "siege2", "siege3", "battlefield_areas", "special_actions", "invite", "orders",
 ]
 
 const PHASE_FOR_STEP: Record<StepId, string> = {
@@ -610,27 +611,29 @@ const PHASE_FOR_STEP: Record<StepId, string> = {
   swap: "Swap",
   siege2: "Siege",
   siege3: "Siege",
+  battlefield_areas: "Battlefield",
   special_actions: "Special Actions",
   invite: "Invite",
   orders: "Orders",
 }
 
 const LABEL_FOR_STEP: Record<StepId, string> = {
-  welcome:         "Welcome",
-  opening:         "Place Your Tokens",
-  action_intro:    "Action Phase",
-  route_reader:    "How to Read a Route",
-  action:          "Move Your Tokens",
-  mulligan:        "Mulligan",
-  invasion:        "Capture Enemy Tokens",
-  friendly_fire:   "Friendly Fire",
-  reinforce:       "Reinforcements",
-  swap:            "Route Swap",
-  siege2:          "Siege",
-  siege3:          "Siege by Movement",
-  special_actions: "Special Actions",
-  invite:          "Challenge a Friend",
-  orders:          "Join an Order",
+  welcome:           "Welcome",
+  opening:           "Place Your Tokens",
+  action_intro:      "Action Phase",
+  route_reader:      "How to Read a Route",
+  action:            "Move Your Tokens",
+  mulligan:          "Mulligan",
+  invasion:          "Capture Enemy Tokens",
+  friendly_fire:     "Friendly Fire",
+  reinforce:         "Reinforcements",
+  swap:              "Route Swap",
+  siege2:            "Siege",
+  siege3:            "Siege by Movement",
+  battlefield_areas: "Areas of the Battlefield",
+  special_actions:   "Special Actions",
+  invite:            "Challenge a Friend",
+  orders:            "Join an Order",
 }
 
 // Groups for TOC display
@@ -641,6 +644,7 @@ const TOC_GROUPS: { label: string; steps: StepId[] }[] = [
   { label: "Reinforce",       steps: ["reinforce"] },
   { label: "Swap",            steps: ["swap"] },
   { label: "Siege",           steps: ["siege2", "siege3"] },
+  { label: "Battlefield",     steps: ["battlefield_areas"] },
   { label: "Special Actions", steps: ["special_actions"] },
   { label: "Community",       steps: ["invite", "orders"] },
 ]
@@ -1367,6 +1371,19 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
           </div>
         )}
 
+        {stepId === "battlefield_areas" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
+            <div style={{ maxWidth: 700, width: "100%", textAlign: "center" }}>
+              <h2 style={{ fontFamily: "'Cinzel', serif", fontSize: "1.15rem", fontWeight: 700, color: "#e8e4d8", marginBottom: 10, letterSpacing: "0.05em" }}>Areas of the Battlefield</h2>
+              <p style={{ fontSize: "1.05rem", color: "#b0aa9e", lineHeight: 1.75, margin: 0 }}>
+                There are <span style={{ color: "#e8e4d8" }}>4 key areas</span> of the battlefield you should know about. These are the places where tokens can go, and understanding them will help you manipulate the play area to your advantage — especially when using <span style={{ color: "#e8e4d8" }}>Special Actions</span>.
+              </p>
+            </div>
+            <BattlefieldAreasDisplay isMobile={isMobile} />
+            <button onClick={advance} style={nextBtnStyle}>Got it →</button>
+          </div>
+        )}
+
         {stepId === "special_actions" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
             <InstructionCard title="Special Actions" body="During your turn you can spend resources on special actions. Here are the icons you'll see in the game — tap the ? button in-game for full details, or watch the video guide." />
@@ -1504,6 +1521,106 @@ function StaticStep({ title, body, onNext, nextLabel, board, below, belowText }:
       {below}
       {belowText && <p style={{ fontSize: "0.9rem", color: "#6b6558", fontFamily: "'EB Garamond', serif", textAlign: "center", maxWidth: 480, fontStyle: "italic", margin: 0 }}>{belowText}</p>}
       <button onClick={onNext} style={nextBtnStyle}>{nextLabel}</button>
+    </div>
+  )
+}
+
+// ─── Battlefield areas display ────────────────────────────────────────────────
+
+function BattlefieldAreasDisplay({ isMobile }: { isMobile: boolean }) {
+  const areas = [
+    {
+      title: "Board",
+      badge: "6×6 Grid",
+      body: "This is the main area. It is a 6×6 grid. All tokens in play appear here. This is where you move your tokens using routes, and where you place your reinforcements.",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+        </svg>
+      ),
+    },
+    {
+      title: "Reserves",
+      badge: "Your Extra Tokens",
+      body: "This is where your extra tokens live. Any reinforcements you place onto the board will come from here. You can also spend reserves during Special Actions, which moves them to other areas of the battlefield. Each player has their own Reserves area, and you can always see how many reserves each player has.",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="8" cy="8" r="3" />
+          <circle cx="16" cy="16" r="3" />
+          <circle cx="16" cy="8" r="3" />
+        </svg>
+      ),
+    },
+    {
+      title: "Captives",
+      badge: "Captured Tokens",
+      body: "This is where any tokens you capture will go. You can spend captives during Special Actions, which moves them to other areas of the battlefield. Each player has their own Captives area, and you can always see how many captives each player has.",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 4v16" />
+          <path d="M10 4v16" />
+          <path d="M15 4v16" />
+          <path d="M20 4v16" />
+          <path d="M3 7h18" />
+          <path d="M3 17h18" />
+        </svg>
+      ),
+    },
+    {
+      title: "Void",
+      badge: "Shared Space",
+      body: "This is a shared space where some spent tokens go. Tokens from both players can end up here. Some Special Actions send tokens from Reserves or Captives, or both, into the Void. You can always see how many tokens of each side are in the Void.",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ee484c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      ),
+    },
+  ]
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 14,
+        maxWidth: 820,
+        width: "100%",
+      }}
+    >
+      {areas.map((area) => (
+        <div
+          key={area.title}
+          style={{
+            background: "rgba(184,150,106,0.07)",
+            border: "1px solid rgba(184,150,106,0.24)",
+            borderRadius: 14,
+            padding: isMobile ? "16px 14px" : "18px 18px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            minHeight: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#0d0d10", border: "1px solid rgba(184,150,106,0.30)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {area.icon}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: "0.98rem", letterSpacing: "0.05em", color: "#e8e4d8" }}>{area.title}</span>
+                <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "#b8966a" }}>{area.badge}</span>
+              </div>
+            </div>
+          </div>
+
+          <p style={{ fontSize: "0.98rem", color: "#b0aa9e", lineHeight: 1.7, margin: 0 }}>
+            {area.body}
+          </p>
+        </div>
+      ))}
     </div>
   )
 }

@@ -262,6 +262,7 @@ export function PuzzlesListPage() {
         .from("puzzles")
         .select("id, title, description, difficulty, point_value, move_budget, win_conditions, board_state, attempt_count, solve_count")
         .eq("is_published", true)
+        .eq("is_tutorial", false)
         .order("difficulty", { ascending: true })
 
       setPuzzles((pzls ?? []) as PuzzleRow[])

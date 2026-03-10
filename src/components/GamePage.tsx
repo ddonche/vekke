@@ -2726,7 +2726,7 @@ if (wantsNewGame) {
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
-                        {Array.from({ length: g.captives[leftPlayer.avatar === "W" ? "B" : "W"] }).map((_, i) => (
+                        {Array.from({ length: g.captives[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(leftPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
@@ -3458,7 +3458,7 @@ if (wantsNewGame) {
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
-                        {Array.from({ length: g.captives[rightPlayer.avatar === "W" ? "B" : "W"] }).map((_, i) => (
+                        {Array.from({ length: g.captives[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(rightPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>

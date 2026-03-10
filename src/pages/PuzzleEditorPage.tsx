@@ -23,6 +23,8 @@ const ALL_ROUTES: Route[] = DIR_NAMES.flatMap((name, i) => {
   }))
 })
 
+const PUZZLE_PREVIEW_STORAGE_KEY = "puzzle_preview_payload"
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Brush = "W" | "B" | "erase"
 type WinCondition = "elimination" | "siegemate" | "collapse" | "double_siege" | "draft" | "siege_break"
@@ -224,7 +226,6 @@ function RoutePickerModal({ onSelect, onClose }: {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-// Ensure route arrays are always length 3 (pad with nulls)
 function padToThree(arr: any[]): (any | null)[] {
   const result = [...arr]
   while (result.length < 3) result.push(null)
@@ -247,10 +248,12 @@ export function PuzzleEditorPage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("easy")
   const [moveBudget, setMoveBudget] = useState(3)
   const [winConditions, setWinConditions] = useState<WinCondition[]>(["elimination"])
+  const [isTutorial, setIsTutorial] = useState(false)
 
   // UI state
   const [pickerTarget, setPickerTarget] = useState<{ zone: "W" | "B" | "Q"; slot: number } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadingEdit, setLoadingEdit] = useState(!!editId)
@@ -261,13 +264,12 @@ export function PuzzleEditorPage() {
     ;(async () => {
       const { data, error } = await supabase
         .from("puzzles")
-        .select("title, description, difficulty, move_budget, win_conditions, board_state")
+        .select("title, description, difficulty, move_budget, win_conditions, board_state, is_tutorial")
         .eq("id", editId)
         .single()
       if (error || !data) { setSaveError("Failed to load puzzle."); setLoadingEdit(false); return }
 
       const bs = data.board_state
-      // Reconstruct PuzzleEditorState from saved board_state
       const board = new Map<string, any>((bs.board ?? []) as [string, any][])
       setPs({
         board,
@@ -276,7 +278,7 @@ export function PuzzleEditorPage() {
         voidCount:  bs.void       ?? { W: 0, B: 0 },
         routesW:    padToThree(bs.routesW ?? []),
         routesB:    padToThree(bs.routesB ?? []),
-        queue:      bs.queue      ?? [],
+        queue:      padToThree(bs.queue ?? []),
         startingPlayer: bs.startingPlayer ?? "B",
       })
       setTitle(data.title)
@@ -284,12 +286,12 @@ export function PuzzleEditorPage() {
       setDifficulty(data.difficulty as Difficulty)
       setMoveBudget(data.move_budget)
       setWinConditions(data.win_conditions ?? ["elimination"])
+      setIsTutorial(!!data.is_tutorial)
       setLoadingEdit(false)
     })()
   }, [editId])
 
   // ── Board interaction ──────────────────────────────────────────────────────
-
   const handleSquareClick = useCallback((x: number, y: number) => {
     const key = `${x},${y}`
     setPs(prev => {
@@ -309,7 +311,6 @@ export function PuzzleEditorPage() {
   }, [brush])
 
   // ── Zone helpers ───────────────────────────────────────────────────────────
-
   function setZone(
     zone: "reserves" | "captives" | "voidCount",
     side: "W" | "B",
@@ -348,34 +349,63 @@ export function PuzzleEditorPage() {
     )
   }
 
-  // ── Save (insert or update) ────────────────────────────────────────────────
+  function buildPayload(isPublished: boolean) {
+    return {
+      title: title.trim(),
+      description: description.trim() || null,
+      difficulty,
+      point_value: isTutorial ? 0 : DIFFICULTY_POINTS[difficulty],
+      board_state: serializeBoardState(ps),
+      win_conditions: winConditions,
+      move_budget: moveBudget,
+      is_published: isPublished,
+      is_tutorial: isTutorial,
+    }
+  }
 
+  function handlePreview() {
+    setSaveError(null)
+    if (!title.trim()) { setSaveError("Title is required to preview."); return }
+    if (winConditions.length === 0) { setSaveError("Select at least one win condition."); return }
+
+    const previewPayload = {
+      id: editId ?? "preview",
+      title: title.trim() || "Preview Puzzle",
+      description: description.trim() || null,
+      difficulty,
+      point_value: 0,
+      move_budget: moveBudget,
+      win_conditions: winConditions,
+      board_state: serializeBoardState(ps),
+      is_tutorial: isTutorial,
+      is_preview: true,
+    }
+
+    try {
+      setPreviewing(true)
+      sessionStorage.setItem(PUZZLE_PREVIEW_STORAGE_KEY, JSON.stringify(previewPayload))
+      navigate("/puzzle/preview?preview=1")
+    } catch (err: any) {
+      setPreviewing(false)
+      setSaveError(err?.message ?? "Failed to open preview.")
+    }
+  }
+
+  // ── Save (insert or update) ────────────────────────────────────────────────
   async function handlePublish() {
     setSaveError(null)
     if (!title.trim()) { setSaveError("Title is required."); return }
     if (winConditions.length === 0) { setSaveError("Select at least one win condition."); return }
 
     setSaving(true)
-
-    const payload = {
-      title: title.trim(),
-      description: description.trim() || null,
-      difficulty,
-      point_value: DIFFICULTY_POINTS[difficulty],
-      board_state: serializeBoardState(ps),
-      win_conditions: winConditions,
-      move_budget: moveBudget,
-      is_published: true,
-    }
+    const payload = buildPayload(true)
 
     let error: any = null
 
     if (editId) {
-      // Update existing puzzle
       const { error: err } = await supabase.from("puzzles").update(payload).eq("id", editId)
       error = err
     } else {
-      // Insert new puzzle
       const { data: { user } } = await supabase.auth.getUser()
       const { error: err } = await supabase.from("puzzles").insert({ ...payload, created_by: user?.id ?? null })
       error = err
@@ -390,10 +420,13 @@ export function PuzzleEditorPage() {
       setTimeout(() => {
         setSaveMsg(null)
         if (!editId) {
-          // Reset for next puzzle
           setPs(freshState())
           setTitle("")
           setDescription("")
+          setDifficulty("easy")
+          setMoveBudget(3)
+          setWinConditions(["elimination"])
+          setIsTutorial(false)
         }
       }, 1500)
       if (editId) navigate("/admin?section=puzzles")
@@ -401,7 +434,6 @@ export function PuzzleEditorPage() {
   }
 
   // ── Style helpers ──────────────────────────────────────────────────────────
-
   const panelStyle: React.CSSProperties = {
     background: "rgba(184,150,106,0.03)",
     border: "1px solid rgba(184,150,106,0.10)",
@@ -438,7 +470,6 @@ export function PuzzleEditorPage() {
   })
 
   // ── Render ─────────────────────────────────────────────────────────────────
-
   if (loadingEdit) return (
     <div style={{ minHeight: "100vh", background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em", color: "#6b6558" }}>Loading puzzle…</span>
@@ -466,9 +497,16 @@ export function PuzzleEditorPage() {
           {editId ? "Edit Puzzle" : "Puzzle Editor"}
         </div>
         <button
+          onClick={handlePreview}
+          disabled={saving || previewing}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", padding: "8px 18px", borderRadius: 6, border: "1px solid rgba(93,232,247,0.35)", background: (saving || previewing) ? "transparent" : "rgba(93,232,247,0.08)", color: (saving || previewing) ? "#5a5550" : "#5de8f7", cursor: (saving || previewing) ? "default" : "pointer" }}
+        >
+          {previewing ? "Opening Preview…" : "Preview Puzzle"}
+        </button>
+        <button
           onClick={handlePublish}
-          disabled={saving}
-          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", padding: "8px 20px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.45)", background: saving ? "transparent" : "rgba(184,150,106,0.10)", color: saving ? "#5a5550" : "#d4af7a", cursor: saving ? "default" : "pointer" }}
+          disabled={saving || previewing}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", padding: "8px 20px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.45)", background: (saving || previewing) ? "transparent" : "rgba(184,150,106,0.10)", color: (saving || previewing) ? "#5a5550" : "#d4af7a", cursor: (saving || previewing) ? "default" : "pointer" }}
         >
           {saving ? "Saving…" : editId ? "Save Changes" : "Publish Puzzle"}
         </button>
@@ -656,6 +694,22 @@ export function PuzzleEditorPage() {
                   style={{ ...inputStyle, resize: "vertical" }}
                 />
               </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={isTutorial}
+                  onChange={() => setIsTutorial(v => !v)}
+                  style={{ accentColor: "#b8966a", width: 13, height: 13 }}
+                />
+                <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#b0aa9e" }}>
+                  Tutorial puzzle
+                </span>
+              </label>
+
+              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 12, color: "#5a5550", lineHeight: 1.45 }}>
+                Tutorial puzzles are hidden from the normal puzzle list and should be handled differently from standard puzzles.
+              </div>
             </div>
           </div>
 
@@ -697,27 +751,50 @@ export function PuzzleEditorPage() {
             </div>
           </div>
 
-          {/* Publish */}
-          <button
-            onClick={handlePublish}
-            disabled={saving}
-            style={{
-              padding: "13px",
-              borderRadius: 8,
-              border: "1px solid rgba(184,150,106,0.38)",
-              background: "rgba(184,150,106,0.08)",
-              fontFamily: "'Cinzel', serif",
-              fontSize: 10,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: saving ? "#5a5550" : "#d4af7a",
-              cursor: saving ? "default" : "pointer",
-              opacity: saving ? 0.5 : 1,
-              transition: "all 0.12s",
-            }}
-          >
-            {saving ? "Saving…" : editId ? "Save Changes" : "Publish Puzzle"}
-          </button>
+          {/* Actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={handlePreview}
+              disabled={saving || previewing}
+              style={{
+                padding: "13px",
+                borderRadius: 8,
+                border: "1px solid rgba(93,232,247,0.38)",
+                background: "rgba(93,232,247,0.06)",
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: (saving || previewing) ? "#5a5550" : "#5de8f7",
+                cursor: (saving || previewing) ? "default" : "pointer",
+                opacity: (saving || previewing) ? 0.5 : 1,
+                transition: "all 0.12s",
+              }}
+            >
+              {previewing ? "Opening Preview…" : "Preview Puzzle"}
+            </button>
+
+            <button
+              onClick={handlePublish}
+              disabled={saving || previewing}
+              style={{
+                padding: "13px",
+                borderRadius: 8,
+                border: "1px solid rgba(184,150,106,0.38)",
+                background: "rgba(184,150,106,0.08)",
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: (saving || previewing) ? "#5a5550" : "#d4af7a",
+                cursor: (saving || previewing) ? "default" : "pointer",
+                opacity: (saving || previewing) ? 0.5 : 1,
+                transition: "all 0.12s",
+              }}
+            >
+              {saving ? "Saving…" : editId ? "Save Changes" : "Publish Puzzle"}
+            </button>
+          </div>
         </div>
       </div>
 
