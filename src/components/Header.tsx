@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { ProfileModal } from "../ProfileModal"
+import { SkinsModal } from "./SkinsModal"
 import { AuthModal } from "../AuthModal"
 
 const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
@@ -480,6 +481,7 @@ export function Header(props: HeaderProps) {
   injectFonts()
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [profileModalOpen, setProfileModalOpen] = React.useState(false)
+  const [skinsModalOpen, setSkinsModalOpen] = React.useState(false)
   const [authModalOpen, setAuthModalOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -512,7 +514,7 @@ export function Header(props: HeaderProps) {
 
   const handleSignIn   = () => setAuthModalOpen(true)
   const handleSignOut  = props.onSignOut  ?? (() => { supabase.auth.signOut().then(() => navigate("/")) })
-  const handleOpenSkins = props.onOpenSkins ?? (() => navigate("/skins"))
+  const handleOpenSkins = props.onOpenSkins ?? (() => setSkinsModalOpen(true))
   const handleOpenPro   = props.onOpenPro   ?? (() => {})
   const goHome         = () => navigate("/")
   const goPlay        = props.onPlay        ?? (() => navigate("/play?openNewGame=1"))
@@ -745,6 +747,12 @@ export function Header(props: HeaderProps) {
         </button>
       </div>
 
+      {skinsModalOpen && (
+        <SkinsModal
+          isOpen={skinsModalOpen}
+          onClose={() => setSkinsModalOpen(false)}
+        />
+      )}
       {profileModalOpen && props.userId && (
         <ProfileModal
           userId={props.userId}

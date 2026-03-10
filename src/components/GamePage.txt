@@ -689,8 +689,8 @@ export function GamePage(props: GamePageProps = {}) {
   const [mobileBoardHeight, setMobileBoardHeight] = useState<number | null>(null)
 
   // Mobile needs to fit everything on one screen, so cap domino + token sizing.
-  const MOBILE_ROUTE_DOMINO_MAX = 56 // keep player route strips readable on mobile
-  const MOBILE_ROUTE_SCALE = 0.72 // player routes should stay close to full size on mobile
+  const MOBILE_ROUTE_DOMINO_MAX = 56
+  const MOBILE_ROUTE_SCALE = 1.0
   const MOBILE_TOKEN_SIZE = "0.75rem"
   const MOBILE_TOKEN_GAP = "0.1875rem"
   const MOBILE_TOKEN_WRAP_MAX = "5.5rem"
@@ -718,9 +718,9 @@ const queuePanelHeight = isMobile && mobileBoardHeight
 
 const queueRouteDominoW = isMobile
   ? Math.max(
-      22,
+      36,
       Math.min(
-        30,
+        64,
         Math.floor((((((queuePanelHeight ?? 168) - 24) / 3) * 7) / 13))
       )
     )
@@ -1403,10 +1403,50 @@ if (wantsNewGame) {
             )}
           </div>
           {!infoExpanded && (
-            <div style={{ minWidth: 0, display: "grid", gridTemplateRows: "repeat(3, minmax(0, 1fr))", alignItems: "center", gap: "0.18rem", paddingLeft: "0.375rem", paddingRight: "0.375rem", borderRight: mobilePlayerSeparator, borderImage: "linear-gradient(180deg, transparent, #b8966a, transparent) 1" }}>
-              {renderCompactTokenRow(g.reserves[side], side, "Res")}
-              {renderCompactTokenRow(captiveCount, captiveTokenSide, "Cap")}
-              {renderMobileActionIcons(side)}
+            <div style={{ minWidth: 0, display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "stretch", gap: "0.25rem", paddingLeft: "0.375rem", paddingRight: "0.375rem", borderRight: mobilePlayerSeparator, borderImage: "linear-gradient(180deg, transparent, #b8966a, transparent) 1" }}>
+              {/* R/C Panel */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", justifyContent: "center", gap: "0.45rem", paddingRight: "0.375rem", borderRight: mobilePlayerSeparator, borderImage: "linear-gradient(180deg, transparent, #b8966a, transparent) 1" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", textAlign: "center" }}>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 11, color: "#b8966a", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    R <div className={tokenClass(side)} style={{ width: "0.6rem", height: "0.6rem", borderRadius: "50%", position: "relative", flexShrink: 0 }} />
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: 11, color: "#b8966a", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    C <div className={tokenClass(captiveTokenSide)} style={{ width: "0.6rem", height: "0.6rem", borderRadius: "50%", position: "relative", flexShrink: 0 }} />
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", textAlign: "center" }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "2rem", color: "#e8e4d8", lineHeight: 1 }}>{g.reserves[side]}</span>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "2rem", color: "#e8e4d8", lineHeight: 1 }}>{captiveCount}</span>
+                </div>
+              </div>
+              {/* SA Icons Panel */}
+              <button
+                type="button"
+                onClick={() => setMobileActionPickerSide(side)}
+                title="Open action picker"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", padding: "0.2rem", cursor: "pointer", width: "100%", minHeight: 0 }}
+              >
+                {g.player === side ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 0, width: "100%", height: "100%", flex: 1, fontSize: "1.5rem" }}>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: canBuyExtraReinforcement ? 1 : 0.38, padding: "0.25rem" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: canEarlySwap ? 1 : 0.38, padding: "0.25rem" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRansom ? 1 : 0.38, padding: "0.25rem" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseDefection ? 1 : 0.38, padding: "0.25rem" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>
+                    </span>
+                  </div>
+                ) : (
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseRecoil ? 1 : 0.38, width: "100%", height: "100%", flex: 1, fontSize: "2rem" }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>
+                  </span>
+                )}
+              </button>
             </div>
           )}
           <div ref={setRouteMeasureEl(measureIdx)} style={{ minWidth: 0, display: "flex", gap: "0.25rem", justifyContent: g.player === rightPlayer.avatar ? "space-between" : "flex-end", alignItems: "center", paddingLeft: "0.125rem" }}>
@@ -1424,7 +1464,7 @@ if (wantsNewGame) {
                   onClick={() => isActive && !used && actions.playRoute(side, r.id)}
                   selected={isSelected}
                   routeClass={routeClassForSide(side)}
-                  style={{ width: 46, alignSelf: "center", flex: "0 0 auto", minWidth: 0, aspectRatio: "7/13", cursor: isActive && !used ? "pointer" : "default", opacity: used ? 0.3 : 1 }}
+                  style={{ width: routeDominoW ?? "3rem", alignSelf: "center", flex: "0 0 auto", minWidth: 0, aspectRatio: "7/13", cursor: isActive && !used ? "pointer" : "default", opacity: used ? 0.3 : 1 }}
                 />
               )
             })}
@@ -1605,40 +1645,35 @@ if (wantsNewGame) {
                   >
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        minWidth: 0,
-                        color: "#e8e4d8",
                         fontFamily: "'Cinzel', serif",
-                        fontSize: 11,
+                        fontSize: "1.3rem",
                         fontWeight: 700,
-                        letterSpacing: "0.04em",
-                        lineHeight: 1.1,
+                        letterSpacing: "0.03em",
+                        lineHeight: 1,
+                        color: g.player === "W" ? "#e8e4d8" : "#5de8f7",
                         whiteSpace: "nowrap",
+                        textAlign: "center",
                       }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 640 640" fill="#b0aa9e" style={{ flex: "0 0 auto" }}>
-                        <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
-                      </svg>
-                      <span style={{ color: g.player === "W" ? "#e8e4d8" : "#5de8f7" }}>
-                        {g.player} {fmtClock(clocks[g.player as "W" | "B"])}
-                      </span>
+                      {fmtClock(clocks[g.player as "W" | "B"])}
                     </div>
                     <div
                       style={{
-                        marginTop: 2,
+                        marginTop: "0.2rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.2rem",
                         fontFamily: "'Cinzel', serif",
-                        fontSize: 9,
-                        letterSpacing: "0.08em",
+                        fontSize: "0.65rem",
+                        letterSpacing: "0.1em",
                         color: "#b0aa9e",
-                        lineHeight: 1.1,
+                        lineHeight: 1,
                         whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
                       }}
                     >
-                      {timeControl.label}
+                      <span style={{ color: g.player === "W" ? "#e8e4d8" : "#5de8f7" }}>{g.player}</span>
+                      <span>{formatLabel}</span>
                     </div>
                   </div>
 
@@ -1811,7 +1846,7 @@ if (wantsNewGame) {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateRows: "minmax(0, 0.58fr) minmax(0, 0.42fr)",
+                    gridTemplateRows: "minmax(0, 0.62fr) minmax(0, 0.38fr)",
                     gap: "0.375rem",
                     flexShrink: 0,
                     
@@ -1875,120 +1910,23 @@ if (wantsNewGame) {
                       borderRadius: "0.5rem",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "0.25rem",
                       alignItems: "center",
-                      justifyContent: "flex-start",
+                      justifyContent: "center",
+                      gap: "0.2rem",
                       overflow: "hidden",
                       boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
                       minHeight: 0,
                     }}
                   >
-                    <div
-                      style={{
-                        fontFamily: "'Cinzel', serif",
-                        fontWeight: 600,
-                        fontSize: "0.6rem",
-                        letterSpacing: "0.15em",
-                        textTransform: "uppercase",
-                        color: "#b8966a",
-                        marginBottom: "2px",
-                      }}
-                    >
-                      V
+                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "0.6rem", color: "#b8966a", letterSpacing: "0.15em", textTransform: "uppercase", textAlign: "center" }}>V</span>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.1rem", padding: "0.25rem 0" }}>
+                      <div className={tokenClass("B")} style={{ width: "0.6rem", height: "0.6rem", borderRadius: "50%", position: "relative" }} />
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "1.9rem", color: "#e8e4d8", lineHeight: 1, textAlign: "center" }}>{g.void.B}</span>
                     </div>
-                    {(() => {
-                      const VOID_VISIBLE_MAX = 6
-                      const wVisible = Math.min(g.void.W, VOID_VISIBLE_MAX)
-                      const bVisible = Math.min(g.void.B, VOID_VISIBLE_MAX)
-                      const wHidden = Math.max(0, g.void.W - wVisible)
-                      const bHidden = Math.max(0, g.void.B - bVisible)
-
-                      return (
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "flex-start",
-                            gap: "0.35rem",
-                            width: "100%",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: "0.125rem",
-                              minWidth: 0,
-                            }}
-                          >
-                            {Array.from({ length: wVisible }).map((_, i) => (
-                              <div
-                                key={`vw${i}`}
-                                className={tokenClass("W")}
-                                style={{
-                                  width: "0.75rem",
-                                  height: "0.75rem",
-                                  borderRadius: "50%",
-                                  position: "relative",
-                                }}
-                              />
-                            ))}
-                            {wHidden > 0 && (
-                              <div
-                                style={{
-                                  fontFamily: "'Cinzel', serif",
-                                  fontSize: "0.55rem",
-                                  fontWeight: 700,
-                                  lineHeight: 1,
-                                  color: "#b8966a",
-                                  marginTop: "1px",
-                                }}
-                              >
-                                +{wHidden}
-                              </div>
-                            )}
-                          </div>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: "0.125rem",
-                              minWidth: 0,
-                            }}
-                          >
-                            {Array.from({ length: bVisible }).map((_, i) => (
-                              <div
-                                key={`vb${i}`}
-                                className={tokenClass("B")}
-                                style={{
-                                  width: "0.75rem",
-                                  height: "0.75rem",
-                                  borderRadius: "50%",
-                                  position: "relative",
-                                }}
-                              />
-                            ))}
-                            {bHidden > 0 && (
-                              <div
-                                style={{
-                                  fontFamily: "'Cinzel', serif",
-                                  fontSize: "0.55rem",
-                                  fontWeight: 700,
-                                  lineHeight: 1,
-                                  color: "#b8966a",
-                                  marginTop: "1px",
-                                }}
-                              >
-                                +{bHidden}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })()}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.1rem", padding: "0.25rem 0" }}>
+                      <div className={tokenClass("W")} style={{ width: "0.6rem", height: "0.6rem", borderRadius: "50%", position: "relative" }} />
+                      <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, fontSize: "1.9rem", color: "#e8e4d8", lineHeight: 1, textAlign: "center" }}>{g.void.W}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -2520,7 +2458,7 @@ if (wantsNewGame) {
               }}
             >
               {/* Left Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch" }}>
                 {/* White Player Section */}
                 <div
                   style={{
@@ -2581,137 +2519,6 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Special Actions */}
-                  <div style={{ display: "flex", width: "100%", gap: g.player === leftPlayer.avatar ? 8 : 10, marginBottom: 12, justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Ransom - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
-                        onClick={() => canUseRansom && actions.useRansom()}
-                        disabled={!canUseRansom}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
-                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Defection - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
-                        onClick={() => canUseDefection && actions.armDefection()}
-                        disabled={!canUseDefection}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
-                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Recoil - only show when it's opponent's turn */}
-                    {g.player !== leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
-                        onClick={() => canUseRecoil && actions.armRecoil()}
-                        disabled={!canUseRecoil}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
-                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    <button
-                      onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#b8966a",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
-                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
-                        </svg>
-                    </button>
-                  </div>
-
                   {/* Reserves and Captives */}
                   <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -2726,7 +2533,7 @@ if (wantsNewGame) {
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
-                        {Array.from({ length: g.captives[leftPlayer.avatar === "W" ? "B" : "W"] }).map((_, i) => (
+                        {Array.from({ length: g.captives[leftPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(leftPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
@@ -2765,6 +2572,34 @@ if (wantsNewGame) {
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #b8966a, transparent)", margin: "10px 0 2px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-evenly", alignItems: "center", paddingTop: 6, paddingBottom: 2 }}>
+                    {g.player === leftPlayer.avatar ? (
+                      <>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()} disabled={!canBuyExtraReinforcement} style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button onClick={() => canUseRansom && actions.useRansom()} disabled={!canUseRansom} style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button onClick={() => canEarlySwap && actions.armEarlySwap()} disabled={!canEarlySwap} style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button onClick={() => canUseDefection && actions.armDefection()} disabled={!canUseDefection} style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>
+                        </button></span>
+                      </>
+                    ) : (
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button onClick={() => canUseRecoil && actions.armRecoil()} disabled={!canUseRecoil} style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>
+                      </button></span>
+                    )}
+                    <button onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")} style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill="#b8966a"><path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/></svg>
+                    </button>
                   </div>
                 </div>
 
@@ -3243,7 +3078,7 @@ if (wantsNewGame) {
               </div>
 
               {/* Right Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch" }}>
                 {/* Blue Player Section */}
                 <div
                   style={{
@@ -3313,137 +3148,6 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Special Actions */}
-                  <div style={{ display: "flex", width: "100%", gap: g.player === rightPlayer.avatar ? 8 : 10, marginBottom: 12, justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Ransom - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
-                        onClick={() => canUseRansom && actions.useRansom()}
-                        disabled={!canUseRansom}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
-                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Defection - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
-                        onClick={() => canUseDefection && actions.armDefection()}
-                        disabled={!canUseDefection}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
-                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Recoil - only show when it's opponent's turn */}
-                    {g.player !== rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
-                        onClick={() => canUseRecoil && actions.armRecoil()}
-                        disabled={!canUseRecoil}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
-                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    <button
-                      onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#b8966a",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
-                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
-                        </svg>
-                    </button>
-                  </div>
-
                   {/* Reserves and Captives */}
                   <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -3458,7 +3162,7 @@ if (wantsNewGame) {
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#b8966a" }}>Captives</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "center" }}>
-                        {Array.from({ length: g.captives[rightPlayer.avatar === "W" ? "B" : "W"] }).map((_, i) => (
+                        {Array.from({ length: g.captives[rightPlayer.avatar as "W" | "B"] }).map((_, i) => (
                           <div key={i} className={tokenClass(rightPlayer.avatar === "W" ? "B" : "W")} style={{ width: 22, height: 22, borderRadius: "50%", position: "relative" }} />
                         ))}
                       </div>
@@ -3497,6 +3201,34 @@ if (wantsNewGame) {
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #b8966a, transparent)", margin: "10px 0 2px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-evenly", alignItems: "center", paddingTop: 6, paddingBottom: 2 }}>
+                    {g.player === rightPlayer.avatar ? (
+                      <>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()} disabled={!canBuyExtraReinforcement} style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button onClick={() => canUseRansom && actions.useRansom()} disabled={!canUseRansom} style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button onClick={() => canEarlySwap && actions.armEarlySwap()} disabled={!canEarlySwap} style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button onClick={() => canUseDefection && actions.armDefection()} disabled={!canUseDefection} style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>
+                        </button></span>
+                      </>
+                    ) : (
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button onClick={() => canUseRecoil && actions.armRecoil()} disabled={!canUseRecoil} style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>
+                      </button></span>
+                    )}
+                    <button onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")} style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill="#b8966a"><path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/></svg>
+                    </button>
                   </div>
                 </div>
 

@@ -165,6 +165,7 @@ export function GamePage(props: GamePageProps = {}) {
     return true
   })
   const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
+  const [themeMuted, setThemeMuted] = useState(false)
 
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
   const [showLogExpanded, setShowLogExpanded] = useState(true)
@@ -409,12 +410,28 @@ export function GamePage(props: GamePageProps = {}) {
     }
   }, [showGameOverModal, props.newlyUnlockedAchievements])
 
-  // Show game over modal whenever a new game ends.
+  // Theme music
+  const playTheme = () => {
+    if (themeMuted || sounds.theme.playing()) return
+    sounds.theme.stop()
+    const id = sounds.theme.play()
+    sounds.theme.fade(0, 0.25, 1200, id)
+  }
+  const stopTheme = () => {
+    sounds.theme.fade(0.25, 0, 600)
+    setTimeout(() => sounds.theme.stop(), 650)
+  }
+  // Stop on unmount (navigation away)
   useEffect(() => {
-    if (g.gameOver) setShowGameOverModal(true)
+    return () => { sounds.theme.stop() }
+  }, [])
+
+    // Show game over modal whenever a new game ends.
+  useEffect(() => {
+    if (g.gameOver) { setShowGameOverModal(true); playTheme() }
   }, [!!g.gameOver])
 
-  async function fetchSkinImages(ids: (string | null | undefined)[]): Promise<Record<string, string | null>> {
+    async function fetchSkinImages(ids: (string | null | undefined)[]): Promise<Record<string, string | null>> {
     const uniq = Array.from(new Set(ids.filter(Boolean) as string[]))
     if (uniq.length === 0) return {}
 
@@ -1217,8 +1234,23 @@ if (wantsNewGame) {
   // If the player has an Order, Order colors override this entirely.
   const W_DEFAULT_COLORS = { primary: "#ffffff", secondary: "#5de8f7" }
   const routeColorsForSide = (side: "W" | "B"): { primary: string; secondary: string } | undefined => {
-    const orderColors = side === mySide ? myOrderColors : opponentOrderColors
-    if (orderColors) return orderColors
+    // Prefer the equipped skin's style colors — these reflect what the player
+    // actually has selected in the skin selector, which may differ from their
+    // current order (e.g. a previous order's skin, a purchased skin, etc.)
+    const loadoutStyle = side === mySide ? myLoadout?.routeStyle : effectiveOpponentLoadout?.routeStyle
+    if (loadoutStyle) return { primary: loadoutStyle.primaryColor, secondary: loadoutStyle.secondaryColor }
+
+    // Only fall back to order colors if the equipped skin is actually an order
+    // skin — if the player explicitly picked route-default or another non-order
+    // skin, let the W_DEFAULT_COLORS or undefined (B default) apply instead.
+    const ids = side === mySide ? myLoadoutIds : opponentLoadoutIds
+    const routeSkinId = ids?.route_skin_id ?? ""
+    const isOrderSkin = routeSkinId.startsWith("route-order-")
+    if (isOrderSkin) {
+      const orderColors = side === mySide ? myOrderColors : opponentOrderColors
+      if (orderColors) return orderColors
+    }
+
     return side === "W" ? W_DEFAULT_COLORS : undefined
   }
   const routeSkinStyleForSide = (side: "W" | "B"): Record<string, string> | undefined => {
@@ -1553,7 +1585,7 @@ if (wantsNewGame) {
           onOpenProfile={() => setShowProfileModal(true)}
           onOpenSkins={() => setSkinsOpen(true)}
           onSignOut={async () => { await supabase.auth.signOut() }}
-          onPlay={() => { setNewGameOpen(true); setNewGameMsg(null) }}
+          onPlay={() => { setNewGameOpen(true); setNewGameMsg(null); playTheme() }}
           onMyGames={() => navigate("/my-games")}
           onLeaderboard={() => navigate("/leaderboard")}
           onChallenges={() => navigate("/challenges")}
@@ -1566,11 +1598,7 @@ if (wantsNewGame) {
         {newGameOpen && (
           <NewGameModal
             isOpen={newGameOpen}
-            onClose={() => { setNewGameOpen(false); setNewGameMsg(null) }}
-            userProfile={userProfile}
-            myElo={myElo}
-            myPeak={myPeak}
-            formatLabel={formatLabel}
+            onClose={() => { setNewGameOpen(false); setNewGameMsg(null); stopTheme() }}
             timeControlId={timeControlId}
             aiDifficulty={aiDifficulty}
             boardStyle={boardStyle}
@@ -1595,8 +1623,13 @@ if (wantsNewGame) {
               }
             }}
             onSignIn={() => setShowAuthModal(true)}
-            onEditProfile={() => setShowProfileModal(true)}
-            onLeaderboard={() => navigate("/leaderboard")}
+            onTutorial={() => navigate("/tutorial")}
+            isMuted={themeMuted}
+            onToggleMute={() => {
+              const next = !themeMuted
+              setThemeMuted(next)
+              sounds.theme.mute(next)
+            }}
           />
         )}
 
@@ -2458,7 +2491,7 @@ if (wantsNewGame) {
               }}
             >
               {/* Left Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch" }}>
                 {/* White Player Section */}
                 <div
                   style={{
@@ -2519,137 +2552,6 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Special Actions */}
-                  <div style={{ display: "flex", width: "100%", gap: g.player === leftPlayer.avatar ? 8 : 10, marginBottom: 12, justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Ransom - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
-                        onClick={() => canUseRansom && actions.useRansom()}
-                        disabled={!canUseRansom}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
-                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Defection - only show when it's this player's turn */}
-                    {g.player === leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
-                        onClick={() => canUseDefection && actions.armDefection()}
-                        disabled={!canUseDefection}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
-                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Recoil - only show when it's opponent's turn */}
-                    {g.player !== leftPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
-                        onClick={() => canUseRecoil && actions.armRecoil()}
-                        disabled={!canUseRecoil}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
-                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    <button
-                      onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#b8966a",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
-                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
-                        </svg>
-                    </button>
-                  </div>
-
                   {/* Reserves and Captives */}
                   <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -2703,6 +2605,34 @@ if (wantsNewGame) {
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #b8966a, transparent)", margin: "10px 0 2px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-evenly", alignItems: "center", paddingTop: 6, paddingBottom: 2 }}>
+                    {g.player === leftPlayer.avatar ? (
+                      <>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()} disabled={!canBuyExtraReinforcement} style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button onClick={() => canUseRansom && actions.useRansom()} disabled={!canUseRansom} style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button onClick={() => canEarlySwap && actions.armEarlySwap()} disabled={!canEarlySwap} style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button onClick={() => canUseDefection && actions.armDefection()} disabled={!canUseDefection} style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>
+                        </button></span>
+                      </>
+                    ) : (
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button onClick={() => canUseRecoil && actions.armRecoil()} disabled={!canUseRecoil} style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>
+                      </button></span>
+                    )}
+                    <button onClick={() => setShowHelpModal(g.player === leftPlayer.avatar ? "currentPlayer" : "recoil")} style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill="#b8966a"><path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/></svg>
+                    </button>
                   </div>
                 </div>
 
@@ -3181,7 +3111,7 @@ if (wantsNewGame) {
               </div>
 
               {/* Right Column */}
-              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
+              <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 12, flexShrink: 0, alignSelf: "stretch" }}>
                 {/* Blue Player Section */}
                 <div
                   style={{
@@ -3251,137 +3181,6 @@ if (wantsNewGame) {
                     </div>
                   </div>
 
-                  {/* Special Actions */}
-                  <div style={{ display: "flex", width: "100%", gap: g.player === rightPlayer.avatar ? 8 : 10, marginBottom: 12, justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* Early Reinforcement - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button
-                        onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()}
-                        disabled={!canBuyExtraReinforcement}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canBuyExtraReinforcement ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Ransom - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button
-                        onClick={() => canUseRansom && actions.useRansom()}
-                        disabled={!canUseRansom}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRansom ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}>
-                          <path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Route Swap - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button
-                        onClick={() => canEarlySwap && actions.armEarlySwap()}
-                        disabled={!canEarlySwap}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canEarlySwap ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}>
-                          <path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Defection - only show when it's this player's turn */}
-                    {g.player === rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button
-                        onClick={() => canUseDefection && actions.armDefection()}
-                        disabled={!canUseDefection}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseDefection ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}>
-                          <path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    {/* Recoil - only show when it's opponent's turn */}
-                    {g.player !== rightPlayer.avatar && (
-                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button
-                        onClick={() => canUseRecoil && actions.armRecoil()}
-                        disabled={!canUseRecoil}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: canUseRecoil ? "pointer" : "default",
-                          padding: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}>
-                          <path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/>
-                        </svg>
-                      </button></span>
-                    )}
-
-                    <button
-                      onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#b8966a",
-                        cursor: "pointer",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b8966a">
-                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/>
-                        </svg>
-                    </button>
-                  </div>
-
                   {/* Reserves and Captives */}
                   <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 12 }}>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -3435,6 +3234,34 @@ if (wantsNewGame) {
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Special Actions */}
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, #b8966a, transparent)", margin: "10px 0 2px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-evenly", alignItems: "center", paddingTop: 6, paddingBottom: 2 }}>
+                    {g.player === rightPlayer.avatar ? (
+                      <>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Extra Reinforcement</span><button onClick={() => canBuyExtraReinforcement && actions.buyExtraReinforcement()} disabled={!canBuyExtraReinforcement} style={{ background: "none", border: "none", cursor: canBuyExtraReinforcement ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canBuyExtraReinforcement ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Ransom</span><button onClick={() => canUseRansom && actions.useRansom()} disabled={!canUseRansom} style={{ background: "none", border: "none", cursor: canUseRansom ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRansom ? "#ee484c" : "#6b6558"}><path d="M320 64C324.6 64 329.2 65 333.4 66.9L521.8 146.8C543.8 156.1 560.2 177.8 560.1 204C559.6 303.2 518.8 484.7 346.5 567.2C329.8 575.2 310.4 575.2 293.7 567.2C121.3 484.7 80.6 303.2 80.1 204C80 177.8 96.4 156.1 118.4 146.8L306.7 66.9C310.9 65 315.4 64 320 64zM320 130.8L320 508.9C458 442.1 495.1 294.1 496 205.5L320 130.9L320 130.9z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Early Swap</span><button onClick={() => canEarlySwap && actions.armEarlySwap()} disabled={!canEarlySwap} style={{ background: "none", border: "none", cursor: canEarlySwap ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canEarlySwap ? "#ee484c" : "#6b6558"}><path d="M576 160C576 210.2 516.9 285.1 491.4 315C487.6 319.4 482 321.1 476.9 320L384 320C366.3 320 352 334.3 352 352C352 369.7 366.3 384 384 384L480 384C533 384 576 427 576 480C576 533 533 576 480 576L203.6 576C212.3 566.1 222.9 553.4 233.6 539.2C239.9 530.8 246.4 521.6 252.6 512L480 512C497.7 512 512 497.7 512 480C512 462.3 497.7 448 480 448L384 448C331 448 288 405 288 352C288 299 331 256 384 256L423.8 256C402.8 224.5 384 188.3 384 160C384 107 427 64 480 64C533 64 576 107 576 160zM181.1 553.1C177.3 557.4 173.9 561.2 171 564.4L169.2 566.4L169 566.2C163 570.8 154.4 570.2 149 564.4C123.8 537 64 466.5 64 416C64 363 107 320 160 320C213 320 256 363 256 416C256 446 234.9 483 212.5 513.9C201.8 528.6 190.8 541.9 181.7 552.4L181.1 553.1zM192 416C192 398.3 177.7 384 160 384C142.3 384 128 398.3 128 416C128 433.7 142.3 448 160 448C177.7 448 192 433.7 192 416zM480 192C497.7 192 512 177.7 512 160C512 142.3 497.7 128 480 128C462.3 128 448 142.3 448 160C448 177.7 462.3 192 480 192z"/></svg>
+                        </button></span>
+                        <span className="vk-tooltip-wrap"><span className="vk-tooltip">Defection</span><button onClick={() => canUseDefection && actions.armDefection()} disabled={!canUseDefection} style={{ background: "none", border: "none", cursor: canUseDefection ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseDefection ? "#ee484c" : "#6b6558"}><path d="M512 320C512 214 426 128 320 128L320 512C426 512 512 426 512 320zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320z"/></svg>
+                        </button></span>
+                      </>
+                    ) : (
+                      <span className="vk-tooltip-wrap"><span className="vk-tooltip">Recoil</span><button onClick={() => canUseRecoil && actions.armRecoil()} disabled={!canUseRecoil} style={{ background: "none", border: "none", cursor: canUseRecoil ? "pointer" : "default", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill={canUseRecoil ? "#ee484c" : "#6b6558"}><path d="M168.1 531.1L156.9 540.1C153.7 542.6 149.8 544 145.8 544C136 544 128 536 128 526.2L128 256C128 150 214 64 320 64C426 64 512 150 512 256L512 526.2C512 536 504 544 494.2 544C490.2 544 486.3 542.6 483.1 540.1L471.9 531.1C458.5 520.4 439.1 522.1 427.8 535L397.3 570C394 573.8 389.1 576 384 576C378.9 576 374.1 573.8 370.7 570L344.1 539.5C331.4 524.9 308.7 524.9 295.9 539.5L269.3 570C266 573.8 261.1 576 256 576C250.9 576 246.1 573.8 242.7 570L212.2 535C200.9 522.1 181.5 520.4 168.1 531.1zM288 256C288 238.3 273.7 224 256 224C238.3 224 224 238.3 224 256C224 273.7 238.3 288 256 288C273.7 288 288 273.7 288 256zM384 288C401.7 288 416 273.7 416 256C416 238.3 401.7 224 384 224C366.3 224 352 238.3 352 256C352 273.7 366.3 288 384 288z"/></svg>
+                      </button></span>
+                    )}
+                    <button onClick={() => setShowHelpModal(g.player === rightPlayer.avatar ? "currentPlayer" : "recoil")} style={{ background: "none", border: "none", color: "#b8966a", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 640 640" fill="#b8966a"><path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM320 240C302.3 240 288 254.3 288 272C288 285.3 277.3 296 264 296C250.7 296 240 285.3 240 272C240 227.8 275.8 192 320 192C364.2 192 400 227.8 400 272C400 319.2 364 339.2 344 346.5L344 350.3C344 363.6 333.3 374.3 320 374.3C306.7 374.3 296 363.6 296 350.3L296 342.2C296 321.7 310.8 307 326.1 302C332.5 299.9 339.3 296.5 344.3 291.7C348.6 287.5 352 281.7 352 272.1C352 254.4 337.7 240.1 320 240.1zM288 432C288 414.3 302.3 400 320 400C337.7 400 352 414.3 352 432C352 449.7 337.7 464 320 464C302.3 464 288 449.7 288 432z"/></svg>
+                    </button>
                   </div>
                 </div>
 
@@ -3502,7 +3329,7 @@ if (wantsNewGame) {
         {g.gameOver && !props.puzzleMode && (
           <GameOverModal
             isOpen={showGameOverModal}
-            onClose={() => setShowGameOverModal(false)}
+            onClose={() => { setShowGameOverModal(false); stopTheme() }}
             g={g}
             whitePlayer={whitePlayer}
             bluePlayer={bluePlayer}
@@ -3513,6 +3340,7 @@ if (wantsNewGame) {
               }
               setShowGameOverModal(false)
               setNewGameOpen(true)
+              playTheme()
             }}
             newlyUnlockedAchievements={props.newlyUnlockedAchievements}
             onRematch={() => {

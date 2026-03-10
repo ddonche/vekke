@@ -1,6 +1,7 @@
 import type { Route } from "./engine/move"
 import type { CSSProperties } from "react"
 import { RouteDomino } from "./RouteDomino"
+import type { DominoStyle } from "../services/skinService"
 
 const DIR_TO_STRING: Record<1|2|3|4|5|6|7|8, string> = {
   1: "N", 2: "NE", 3: "E", 4: "SE",
@@ -16,6 +17,7 @@ export function RouteIcon({
   primaryColor,
   secondaryColor,
   skinStyle,
+  dominoStyle = "default",
 }: {
   route: Route
   style?: CSSProperties
@@ -25,8 +27,8 @@ export function RouteIcon({
   primaryColor?: string
   secondaryColor?: string
   skinStyle?: Record<string, string>
+  dominoStyle?: DominoStyle
 }) {
-  // Derive pixel size from style.width - supports px numbers or rem strings
   const rawWidth = style?.width
   let size = 50
   if (typeof rawWidth === "number") {
@@ -56,6 +58,7 @@ export function RouteIcon({
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         skinStyle={skinStyle}
+        dominoStyle={dominoStyle}
       />
     </div>
   )

@@ -176,6 +176,24 @@ export default function OrdersPage() {
         const brakeSkinId = `token-order-${selectedOrderId}-brake`
         const routeSkinId = `route-order-${selectedOrderId}`
 
+        // Ensure the route skin row exists in the skins table, derived from
+        // the order's own colors. Token skins are seeded by admins, but the
+        // route skin may not be — create it here so the game can load its style.
+        const selectedOrder = orders.find(o => o.id === selectedOrderId)
+        if (selectedOrder) {
+          await supabase.from("skins").upsert({
+            id:               routeSkinId,
+            name:             selectedOrder.name,
+            type:             "route",
+            acquisition_type: "order",
+            style: {
+              primary_color:   selectedOrder.primary_color,
+              secondary_color: selectedOrder.secondary_color,
+            },
+            image_url: null,
+          }, { onConflict: "id" })
+        }
+
         await supabase.from("player_inventory").upsert([
           { user_id: userId, skin_id: wakeSkinId,  acquired_at: now },
           { user_id: userId, skin_id: brakeSkinId, acquired_at: now },

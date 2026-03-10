@@ -174,6 +174,12 @@ const DIR_ROTATION = {
   S: 180, SW: 225, W: 270, NW: 315,
 }
 
+// Notation: 1–8 clockwise from N
+const DIR_NOTATION = {
+  N: 1, NE: 2, E: 3, SE: 4,
+  S: 5, SW: 6, W: 7, NW: 8,
+}
+
 const PIP_LAYOUTS = {
   1: [{ x: 50, y: 50 }],
   2: [{ x: 30, y: 30 }, { x: 70, y: 70 }],
@@ -182,7 +188,7 @@ const PIP_LAYOUTS = {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7", primaryColor, secondaryColor, skinStyle }) {
+export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, highlightColor = "#5de8f7", primaryColor, secondaryColor, skinStyle, dominoStyle = "default" }) {
   injectStyles()
 
   const rotation = DIR_ROTATION[dir] ?? 0
@@ -262,38 +268,66 @@ export function RouteDomino({ dir = "N", dist = 1, selected = false, size = 72, 
         ...(ss.dividerInset      ? { left: 0, right: 0 }                : {}),
       }} />
 
-      {/* Top half: arrow */}
+      {/* Top half: arrow (default/modern) or direction numeral (notation) */}
       <div className="half half-top">
-        <div
-          className="arrow"
-          style={{
-            width: `${arrowEm}em`,
-            height: `${arrowEm}em`,
-            transform: `rotate(${rotation}deg)`,
-            filter: "drop-shadow(0.06em 0.08em 0.10em rgba(0,0,0,0.45))",
-          }}
-        >
-          <div className="arrow-body" style={arrowBodyBg ? { background: arrowBodyBg } : {}} />
-          <div className="arrow-hi"   style={ss.arrowHiBackground    ? { background: ss.arrowHiBackground }    : {}} />
-          <div className="arrow-shadow" style={ss.arrowCatchBackground ? { background: ss.arrowCatchBackground } : {}} />
-        </div>
+        {dominoStyle === "notation" ? (
+          <div style={{
+            fontFamily: "system-ui, sans-serif",
+            fontWeight: 700,
+            fontSize: `${arrowEm * 0.9}em`,
+            lineHeight: 1,
+            color: accentColor ?? "#ffffff",
+            textShadow: "0 0.06em 0.12em rgba(0,0,0,0.6)",
+            userSelect: "none",
+          }}>
+            {DIR_NOTATION[dir] ?? 1}
+          </div>
+        ) : (
+          <div
+            className="arrow"
+            style={{
+              width: `${arrowEm}em`,
+              height: `${arrowEm}em`,
+              transform: `rotate(${rotation}deg)`,
+              filter: "drop-shadow(0.06em 0.08em 0.10em rgba(0,0,0,0.45))",
+            }}
+          >
+            <div className="arrow-body" style={arrowBodyBg ? { background: arrowBodyBg } : {}} />
+            <div className="arrow-hi"   style={ss.arrowHiBackground    ? { background: ss.arrowHiBackground }    : {}} />
+            <div className="arrow-shadow" style={ss.arrowCatchBackground ? { background: ss.arrowCatchBackground } : {}} />
+          </div>
+        )}
       </div>
 
-      {/* Bottom half: pips */}
+      {/* Bottom half: pips (default) or distance numeral (modern/notation) */}
       <div className="half half-bottom" style={{ position: "absolute" }}>
-        {pips.map((pip, i) => (
-          <div
-            key={i}
-            className="pip"
-            style={{
-              left:   `calc(${pip.x}% - ${pipEm}em)`,
-              top:    `calc(${pip.y}% - ${pipEm}em)`,
-              width:  `${pipEm * 2}em`,
-              height: `${pipEm * 2}em`,
-              ...pipStyle,
-            }}
-          />
-        ))}
+        {dominoStyle === "default" ? (
+          pips.map((pip, i) => (
+            <div
+              key={i}
+              className="pip"
+              style={{
+                left:   `calc(${pip.x}% - ${pipEm}em)`,
+                top:    `calc(${pip.y}% - ${pipEm}em)`,
+                width:  `${pipEm * 2}em`,
+                height: `${pipEm * 2}em`,
+                ...pipStyle,
+              }}
+            />
+          ))
+        ) : (
+          <div style={{
+            fontFamily: "system-ui, sans-serif",
+            fontWeight: 700,
+            fontSize: `${arrowEm * 0.9}em`,
+            lineHeight: 1,
+            color: accentColor ?? "#ffffff",
+            textShadow: "0 0.06em 0.12em rgba(0,0,0,0.6)",
+            userSelect: "none",
+          }}>
+            {dist}
+          </div>
+        )}
       </div>
     </div>
   )

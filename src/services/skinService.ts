@@ -17,12 +17,15 @@ export type Skin = {
   image_url: string | null
 }
 
+export type DominoStyle = "default" | "modern" | "notation"
+
 export type PlayerLoadout = {
   user_id: string
   wake_token_skin_id: string
   brake_token_skin_id: string
   route_skin_id: string
   board_skin_id: string
+  domino_style: DominoStyle
 }
 
 // Resolved loadout — classes + optional image URLs (for PNG skins)
@@ -36,6 +39,11 @@ export type ResolvedLoadout = {
   brakeTokenImageUrl?: string | null
   routeImageUrl?: string | null
   boardImageUrl?: string | null
+
+  // For style-based route skins (order routes) that have no CSS class or image
+  routeStyle?: { primaryColor: string; secondaryColor: string } | null
+
+  dominoStyle: DominoStyle
 }
 
 export const DEFAULT_LOADOUT: PlayerLoadout = {
@@ -44,6 +52,7 @@ export const DEFAULT_LOADOUT: PlayerLoadout = {
   brake_token_skin_id: "token-default-brake",
   route_skin_id: "route-default",
   board_skin_id: "board-grid-default",
+  domino_style: "default",
 }
 
 export const DEFAULT_RESOLVED: ResolvedLoadout = {
@@ -56,6 +65,8 @@ export const DEFAULT_RESOLVED: ResolvedLoadout = {
   brakeTokenImageUrl: null,
   routeImageUrl: null,
   boardImageUrl: null,
+
+  dominoStyle: "default",
 }
 
 const SKIN_CLASS_MAP: Record<string, string> = {
@@ -102,11 +113,11 @@ export async function resolveLoadout(loadout: PlayerLoadout): Promise<ResolvedLo
   // Fetch equipped skins in one query so we can detect PNG skins via image_url
   const { data } = await supabase
     .from("skins")
-    .select("id, type, image_url")
+    .select("id, type, image_url, style")
     .in("id", ids)
 
-  const byId = new Map<string, { id: string; type: SkinType; image_url: string | null }>(
-    (data ?? []).map((s: any) => [s.id, { id: s.id, type: s.type as SkinType, image_url: s.image_url ?? null }])
+  const byId = new Map<string, { id: string; type: SkinType; image_url: string | null; style: any }>(
+    (data ?? []).map((s: any) => [s.id, { id: s.id, type: s.type as SkinType, image_url: s.image_url ?? null, style: s.style ?? null }])
   )
 
   const wakeSkin = byId.get(loadout.wake_token_skin_id)
@@ -134,6 +145,18 @@ export async function resolveLoadout(loadout: PlayerLoadout): Promise<ResolvedLo
     brakeTokenImageUrl: brakePngUrl,
     routeImageUrl: routeSkin?.type === "route" ? (routeSkin.image_url ?? null) : null,
     boardImageUrl: boardSkin?.type === "board" ? (boardSkin.image_url ?? null) : null,
+
+    routeStyle: (() => {
+      if (!routeSkin) return null
+      const s = routeSkin.style
+      if (!s || typeof s !== "object") return null
+      const p = s.primary_color ?? s.primaryColor
+      const sec = s.secondary_color ?? s.secondaryColor
+      if (!p || !sec) return null
+      return { primaryColor: p, secondaryColor: sec }
+    })(),
+
+    dominoStyle: (loadout.domino_style ?? "default") as DominoStyle,
   }
 }
 
@@ -153,6 +176,17 @@ export async function updateLoadoutSlot(
     .eq("user_id", userId)
 
   if (error) throw new Error(`Failed to update loadout slot ${slot}: ${error.message}`)
+}
+
+export async function updateDominoStyle(
+  userId: string,
+  style: DominoStyle,
+): Promise<void> {
+  const { error } = await supabase
+    .from("player_loadout")
+    .update({ domino_style: style, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+  if (error) throw new Error(`Failed to update domino style: ${error.message}`)
 }
 
 export async function getPlayerInventory(userId: string): Promise<Skin[]> {

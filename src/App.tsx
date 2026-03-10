@@ -6,7 +6,6 @@ import { InviteAcceptPage } from "./pages/InviteAcceptPage"
 import { InvitePage } from "./pages/InvitePage"
 import { ChallengesPage } from "./pages/ChallengesPage"
 import { PvPGameWrapper } from "./pages/PvPGameWrapper"
-import { SkinsPage } from "./pages/SkinsPage"
 import { AiGameWrapper } from "./pages/AiGameWrapper"
 import OrdersPage from "./pages/OrdersPage"
 import { AuthGatePage } from "./pages/AuthGatePage"
@@ -56,7 +55,6 @@ function App() {
       {/* Inviter inbox */}
       <Route path="/challenges" element={<ChallengesPage />} />
       <Route path="/my-games" element={<ChallengesPage />} />
-      <Route path="/skins" element={<SkinsPage />} />
       <Route path="/orders" element={<OrdersPage />} />
       <Route path="/leaderboard" element={<LeaderboardPage />} />
       <Route path="/rules" element={<RulesRedirect />} />

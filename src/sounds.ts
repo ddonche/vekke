@@ -27,9 +27,9 @@ export const sounds = {
   }),
 
   click: new Howl({
-  src: ["/assets/sounds/click.mp3"],
-  volume: 0.25,
-  onloaderror: (id, error) => console.error("Click sound load error:", error),
+    src: ["/assets/sounds/click.mp3"],
+    volume: 0.25,
+    onloaderror: (id, error) => console.error("Click sound load error:", error),
   }),
 
   invalid: new Howl({
@@ -53,13 +53,22 @@ export const sounds = {
 
   achievement: new Howl({
     src: ["/assets/sounds/achievement.mp3"],
-    volume: 0.7,
+    volume: 0.25,
     onloaderror: (id, error) => console.error("Achievement sound load error:", error),
   }),
 
   gameOver: new Howl({
     src: ["/assets/sounds/gameover.mp3"],
-    volume: 0.7,
+    volume: 0.25,
     onloaderror: (id, error) => console.error("GameOver sound load error:", error),
+  }),
+
+  // NEW — UI theme music (menus, game over modal, new game modal, etc.)
+  theme: new Howl({
+    src: ["/assets/sounds/theme.m4a"],
+    volume: 0.2,
+    loop: true,
+    onloaderror: (id, error) => console.error("Theme sound load error:", error),
+    onplayerror: (id, error) => console.error("Theme sound play error:", error),
   }),
 }

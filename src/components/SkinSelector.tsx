@@ -1,5 +1,6 @@
 // src/components/SkinSelector.tsx
 import "../styles/skins.css"
+import { RouteDomino } from "../RouteDomino"
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { supabase } from "../services/supabase"
 import {
@@ -9,6 +10,8 @@ import {
   type Skin,
   type PlayerLoadout,
   DEFAULT_LOADOUT,
+  type DominoStyle,
+  updateDominoStyle,
 } from "../services/skinService"
 
 type Slot = "wake_token_skin_id" | "brake_token_skin_id" | "route_skin_id" | "board_skin_id"
@@ -285,6 +288,7 @@ export function SkinSelector({
   const [selectedSlot, setSelectedSlot] = useState<Slot>("wake_token_skin_id")
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [dominoStyle, setDominoStyleState] = useState<DominoStyle>("default")
 
   useEffect(() => {
     let mounted = true
@@ -296,6 +300,7 @@ export function SkinSelector({
       if (!mounted) return
 
       setLoadout(lo)
+      setDominoStyleState((lo as any).domino_style ?? "default")
       setInventory(inv)
 
       const m = new Map<string, Skin>()
@@ -308,7 +313,30 @@ export function SkinSelector({
           `route-order-${orderId}`,
         ]
         const { data, error } = await supabase.from("skins").select("*").in("id", ids)
-        if (!error) (data ?? []).forEach((s: any) => m.set(s.id, s as Skin))
+        if (!error) {
+          ;(data ?? []).forEach((s: any) => m.set(s.id, s as Skin))
+
+          // If no dedicated route skin exists in DB, synthesize one from the
+          // order wake token's colors so the route slot always matches the tokens.
+          const routeId = `route-order-${orderId}`
+          if (!m.has(routeId)) {
+            const wakeSkin = m.get(`token-order-${orderId}-wake`)
+            if (wakeSkin) {
+              const wStyle: any = (wakeSkin as any).style ?? {}
+              m.set(routeId, {
+                id: routeId,
+                name: wakeSkin.name,
+                type: "route",
+                acquisition_type: wakeSkin.acquisition_type,
+                image_url: null,
+                style: {
+                  primary_color: wStyle.primary_color,
+                  secondary_color: wStyle.secondary_color,
+                },
+              } as Skin)
+            }
+          }
+        }
       }
 
       setSkinMap(m)
@@ -324,9 +352,19 @@ export function SkinSelector({
     const desiredBrake = `token-order-${orderId}-brake`
     const desiredRoute = `route-order-${orderId}`
 
-    const isWandererWake = !loadout.wake_token_skin_id
-    const isWandererBrake = !loadout.brake_token_skin_id
-    const isWandererRoute = !loadout.route_skin_id
+    // Treat slots as "unset" if they're null OR if they belong to a different order
+    const isWandererWake =
+      !loadout.wake_token_skin_id ||
+      (loadout.wake_token_skin_id.startsWith("token-order-") &&
+       !loadout.wake_token_skin_id.startsWith(`token-order-${orderId}-`))
+    const isWandererBrake =
+      !loadout.brake_token_skin_id ||
+      (loadout.brake_token_skin_id.startsWith("token-order-") &&
+       !loadout.brake_token_skin_id.startsWith(`token-order-${orderId}-`))
+    const isWandererRoute =
+      !loadout.route_skin_id ||
+      (loadout.route_skin_id.startsWith("route-order-") &&
+       loadout.route_skin_id !== `route-order-${orderId}`)
 
     if (!isWandererWake && !isWandererBrake && !isWandererRoute) return
 
@@ -369,6 +407,16 @@ export function SkinSelector({
       setSaving(false)
     }
   }, [userId, loadout, onLoadoutChange])
+
+  const saveDominoStyle = async (style: DominoStyle) => {
+    setDominoStyleState(style)
+    try {
+      await updateDominoStyle(userId, style)
+      onLoadoutChange?.()
+    } catch (e) {
+      console.error("Failed to update domino style:", e)
+    }
+  }
 
   const currentSlotType = SLOT_META[selectedSlot].type
 
@@ -444,6 +492,49 @@ export function SkinSelector({
               onClick={() => setSelectedSlot(slot)}
             />
           ))}
+        </div>
+      </div>
+
+      {/* ── Domino Style ── */}
+      <div>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.85rem", fontWeight: 600, letterSpacing: "0.3em", textTransform: "uppercase", color: "#b8966a", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          Domino Style
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {(["default", "modern", "notation"] as DominoStyle[]).map(s => {
+            const labels: Record<DominoStyle, { label: string; sub: string }> = {
+              default:  { label: "Default",  sub: "Arrow · Pips" },
+              modern:   { label: "Modern",   sub: "Arrow · Number" },
+              notation: { label: "Notation", sub: "Number · Number" },
+            }
+            const isSelected = dominoStyle === s
+            return (
+              <button
+                key={s}
+                onClick={() => saveDominoStyle(s)}
+                style={{
+                  flex: 1, minWidth: 110,
+                  background: isSelected ? "rgba(93,232,247,0.04)" : "#0f0f14",
+                  border: isSelected ? "1px solid rgba(93,232,247,0.5)" : "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 10, padding: "14px 12px", cursor: "pointer",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  transition: "all 0.15s ease",
+                  boxShadow: isSelected ? "0 0 18px rgba(93,232,247,0.08)" : "none",
+                }}
+              >
+                <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.85rem", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: isSelected ? "#5de8f7" : "#6b6558", transition: "color 0.15s" }}>
+                  {labels[s].label}
+                </div>
+                <div style={{ pointerEvents: "none" }}>
+                  <RouteDomino dir="E" dist={3} size={52} dominoStyle={s} primaryColor="#26c6da" secondaryColor="#ee484c" />
+                </div>
+                <div style={{ fontFamily: "'EB Garamond', Georgia, serif", fontSize: "1rem", fontStyle: "italic", color: "#6b6558", textAlign: "center" }}>
+                  {labels[s].sub}
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 
