@@ -111,6 +111,7 @@ const WIN_LABELS: Record<string, string> = {
   collapse:     "Cause Collapse",
   double_siege: "Achieve Double Siege",
   draft:        "Achieve a Draft",
+  survive_turn: "Survive the Turn",
 }
 
 function PuzzleInfoBanner({
@@ -495,8 +496,9 @@ export function PuzzlePage() {
 
     const left = movesLeftRef.current - 1
     const used = p.move_budget - left
+    const isSurvivePuzzle = p.win_conditions.includes("survive_turn")
 
-    if (checkWinConditions(g, p.win_conditions)) {
+    if (!isSurvivePuzzle && checkWinConditions(g, p.win_conditions)) {
       resultRef.current = "solved"
       setResult("solved")
       setMovesUsed(used)
@@ -505,7 +507,25 @@ export function PuzzlePage() {
       return
     }
 
+    if (g.gameOver) {
+      resultRef.current = "failed"
+      setResult("failed")
+      setMovesUsed(used)
+      setMovesLeft(0)
+      recordRef.current?.(false, used)
+      return
+    }
+
     if (left <= 0) {
+      if (isSurvivePuzzle) {
+        resultRef.current = "solved"
+        setResult("solved")
+        setMovesUsed(p.move_budget)
+        setMovesLeft(0)
+        recordRef.current?.(true, p.move_budget)
+        return
+      }
+
       resultRef.current = "failed"
       setResult("failed")
       setMovesUsed(p.move_budget)

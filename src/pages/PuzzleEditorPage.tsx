@@ -27,7 +27,14 @@ const PUZZLE_PREVIEW_STORAGE_KEY = "puzzle_preview_payload"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Brush = "W" | "B" | "erase"
-type WinCondition = "elimination" | "siegemate" | "collapse" | "double_siege" | "draft" | "siege_break"
+type WinCondition =
+  | "elimination"
+  | "siegemate"
+  | "collapse"
+  | "double_siege"
+  | "draft"
+  | "siege_break"
+  | "survive_turn"
 type Difficulty = "easy" | "medium" | "hard" | "grandmaster"
 
 type PuzzleEditorState = {
@@ -81,6 +88,7 @@ const WIN_CONDITION_LABELS: Record<WinCondition, string> = {
   double_siege: "Double Siege",
   draft:        "Draft Triggered",
   siege_break:  "Break the Siege",
+  survive_turn: "Survive the Turn",
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
