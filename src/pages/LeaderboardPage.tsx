@@ -7,7 +7,8 @@ import { createChallenge } from "../services/pvp"
 import { AuthModal } from "../AuthModal"
 import { newGame } from "../engine/state"
 
-type Format = "standard" | "rapid" | "blitz" | "daily"
+type TimeControl = "standard" | "rapid" | "blitz" | "daily"
+type Format = "all" | TimeControl
 
 type LeaderboardRow = {
   user_id: string
@@ -218,13 +219,50 @@ function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
   )
 }
 
+function overallElo(r: LeaderboardRow): number {
+  return Math.max(
+    safeInt(r.elo_standard),
+    safeInt(r.elo_rapid),
+    safeInt(r.elo_blitz),
+    safeInt(r.elo_daily),
+    safeInt(r.elo),
+  )
+}
+
+function overallGames(r: LeaderboardRow): number {
+  return (
+    safeInt(r.games_standard) +
+    safeInt(r.games_rapid) +
+    safeInt(r.games_blitz) +
+    safeInt(r.games_daily)
+  )
+}
+
+function overallWins(r: LeaderboardRow): number {
+  return (
+    safeInt(r.wins_standard) +
+    safeInt(r.wins_rapid) +
+    safeInt(r.wins_blitz) +
+    safeInt(r.wins_daily)
+  )
+}
+
+function overallLosses(r: LeaderboardRow): number {
+  return (
+    safeInt(r.losses_standard) +
+    safeInt(r.losses_rapid) +
+    safeInt(r.losses_blitz) +
+    safeInt(r.losses_daily)
+  )
+}
+
 export function LeaderboardPage() {
   injectFonts()
   const navigate = useNavigate()
 
   const [userId, setUserId] = useState<string | null>(null)
   const [me, setMe] = useState<{ username: string; avatar_url: string | null } | null>(null)
-  const [format, setFormat] = useState<Format>("standard")
+  const [format, setFormat] = useState<Format>("all")
   const [showAI, setShowAI] = useState(false)
   const [rows, setRows] = useState<LeaderboardRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -241,7 +279,11 @@ export function LeaderboardPage() {
       if (!data.session) return
       const uid = data.session.user.id
       setUserId(uid)
-      const { data: myp } = await supabase.from("profiles").select("username, avatar_url").eq("id", uid).single()
+      const { data: myp } = await supabase
+        .from("profiles")
+        .select("username, avatar_url")
+        .eq("id", uid)
+        .single()
       if (myp) setMe(myp as any)
     })
   }, [])
@@ -250,7 +292,7 @@ export function LeaderboardPage() {
     setLoading(true)
     setErr(null)
 
-    const eloCol =
+    const orderCol =
       format === "blitz"
         ? "elo_blitz"
         : format === "rapid"
@@ -260,7 +302,7 @@ export function LeaderboardPage() {
             : "elo_standard"
 
     ;(async () => {
-      const { data: statsData, error: statsErr } = await supabase
+      const baseQuery = supabase
         .from("player_stats")
         .select(`
           user_id,
@@ -272,9 +314,16 @@ export function LeaderboardPage() {
           losses_timeout, resignations, wins_by_opponent_resign,
           wins_total, losses_total
         `)
-        .gt(eloCol, 0)
-        .order(eloCol, { ascending: false })
-        .limit(100)
+
+      const statsQuery =
+        format === "all"
+          ? baseQuery.limit(500)
+          : baseQuery
+              .gt(orderCol, 0)
+              .order(orderCol, { ascending: false })
+              .limit(100)
+
+      const { data: statsData, error: statsErr } = await statsQuery
 
       if (statsErr) {
         setErr(statsErr.message)
@@ -306,7 +355,7 @@ export function LeaderboardPage() {
       const profileMap = new Map<string, any>()
       for (const p of profileData ?? []) profileMap.set(p.id, p)
 
-      const merged: LeaderboardRow[] = statsData
+      let merged: LeaderboardRow[] = statsData
         .filter((s: any) => profileMap.has(s.user_id))
         .map((s: any) => {
           const p = profileMap.get(s.user_id) ?? {}
@@ -364,6 +413,24 @@ export function LeaderboardPage() {
           }
         })
 
+      if (format === "all") {
+        merged = merged
+          .filter((r) => overallGames(r) > 0)
+          .sort((a, b) => {
+            const eloDiff = overallElo(b) - overallElo(a)
+            if (eloDiff !== 0) return eloDiff
+
+            const winsDiff = overallWins(b) - overallWins(a)
+            if (winsDiff !== 0) return winsDiff
+
+            const gamesDiff = overallGames(b) - overallGames(a)
+            if (gamesDiff !== 0) return gamesDiff
+
+            return a.username.localeCompare(b.username)
+          })
+          .slice(0, 100)
+      }
+
       setRows(merged)
       setLoading(false)
     })()
@@ -375,12 +442,17 @@ export function LeaderboardPage() {
     ;(async () => {
       const counts = emptyVictoryCounts()
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("games")
         .select("end_reason")
-        .eq("format", format)
         .not("winner_id", "is", null)
         .not("end_reason", "is", null)
+
+      if (format !== "all") {
+        query = query.eq("format", format)
+      }
+
+      const { data, error } = await query
 
       if (cancelled) return
 
@@ -404,6 +476,7 @@ export function LeaderboardPage() {
   }, [format])
 
   function rowElo(r: LeaderboardRow): number {
+    if (format === "all") return overallElo(r)
     if (format === "blitz") return r.elo_blitz
     if (format === "rapid") return r.elo_rapid
     if (format === "daily") return r.elo_daily
@@ -411,6 +484,7 @@ export function LeaderboardPage() {
   }
 
   function rowGames(r: LeaderboardRow): number {
+    if (format === "all") return overallGames(r)
     if (format === "blitz") return r.games_blitz
     if (format === "rapid") return r.games_rapid
     if (format === "daily") return r.games_daily
@@ -418,6 +492,7 @@ export function LeaderboardPage() {
   }
 
   function rowWins(r: LeaderboardRow): number {
+    if (format === "all") return overallWins(r)
     if (format === "blitz") return r.wins_blitz
     if (format === "rapid") return r.wins_rapid
     if (format === "daily") return r.wins_daily
@@ -425,6 +500,7 @@ export function LeaderboardPage() {
   }
 
   function rowLosses(r: LeaderboardRow): number {
+    if (format === "all") return overallLosses(r)
     if (format === "blitz") return r.losses_blitz
     if (format === "rapid") return r.losses_rapid
     if (format === "daily") return r.losses_daily
@@ -432,6 +508,7 @@ export function LeaderboardPage() {
   }
 
   const FORMAT_LABELS: Record<Format, string> = {
+    all: "All",
     standard: "Standard",
     rapid: "Rapid",
     blitz: "Blitz",
@@ -459,6 +536,7 @@ export function LeaderboardPage() {
     if (challenged[r.user_id]) return
 
     const invitedUserId = r.user_id
+    const challengeFormat: TimeControl = format === "all" ? "standard" : format
 
     setErr(null)
     setChallenging((m) => ({ ...m, [invitedUserId]: true }))
@@ -468,7 +546,7 @@ export function LeaderboardPage() {
 
       await createChallenge({
         invitedUserId,
-        timeControlId: format,
+        timeControlId: challengeFormat,
         isRanked: true,
         initialState,
       })
@@ -701,12 +779,13 @@ export function LeaderboardPage() {
             }}
           >
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {(["standard", "rapid", "blitz", "daily"] as Format[]).map((f) => (
+              {(["all", "standard", "rapid", "blitz", "daily"] as Format[]).map((f) => (
                 <button key={f} className={`format-tab${format === f ? " active" : ""}`} onClick={() => setFormat(f)}>
                   {FORMAT_LABELS[f]}
                 </button>
               ))}
             </div>
+
             <button
               onClick={() => setShowAI((v) => !v)}
               style={{
@@ -785,7 +864,8 @@ export function LeaderboardPage() {
                     <th className="lb-th lb-col-wl">W / L</th>
                     <th className="lb-th lb-col-winpct">Win %</th>
                     <th className="lb-th lb-col-challenge" style={{ width: 130 }}>
-                      <span className="lb-challenge-full">Challenge</span><span className="lb-challenge-short">vs</span>
+                      <span className="lb-challenge-full">Challenge</span>
+                      <span className="lb-challenge-short">vs</span>
                     </th>
                   </tr>
                 </thead>
@@ -832,6 +912,7 @@ export function LeaderboardPage() {
                       const isChallenged = !!challenged[r.user_id]
                       const isChallenging = !!challenging[r.user_id]
                       const canChallenge = canChallengeRow(r)
+                      const challengeFormat: TimeControl = format === "all" ? "standard" : format
 
                       return (
                         <tr
@@ -879,6 +960,7 @@ export function LeaderboardPage() {
                                   </span>
                                 )}
                               </div>
+
                               <div>
                                 <div
                                   style={{
@@ -920,20 +1002,33 @@ export function LeaderboardPage() {
                                     </span>
                                   )}
                                 </div>
+
                                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                                   {r.country_code && <FlagImg cc={r.country_code} size={13} />}
-                                  <span className="lb-mobile-sub" style={{
-                                    fontFamily: "'Cinzel', serif",
-                                    fontSize: "0.55rem",
-                                    letterSpacing: "0.12em",
-                                    textTransform: "uppercase",
-                                    color: eloColor(elo),
-                                  }}>{eloTitle(elo)}</span>
-                                  {wr !== null && <span className="lb-mobile-sub" style={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.7rem",
-                                    color: wr >= 50 ? "#6ee7b7" : "#f87171",
-                                  }}>{wr}%</span>}
+                                  <span
+                                    className="lb-mobile-sub"
+                                    style={{
+                                      fontFamily: "'Cinzel', serif",
+                                      fontSize: "0.55rem",
+                                      letterSpacing: "0.12em",
+                                      textTransform: "uppercase",
+                                      color: eloColor(elo),
+                                    }}
+                                  >
+                                    {eloTitle(elo)}
+                                  </span>
+                                  {wr !== null && (
+                                    <span
+                                      className="lb-mobile-sub"
+                                      style={{
+                                        fontFamily: "monospace",
+                                        fontSize: "0.7rem",
+                                        color: wr >= 50 ? "#6ee7b7" : "#f87171",
+                                      }}
+                                    >
+                                      {wr}%
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1003,10 +1098,25 @@ export function LeaderboardPage() {
                                         ? "Challenge sent"
                                         : isChallenging
                                           ? "Sending..."
-                                          : `Challenge (${FORMAT_LABELS[format]})`
+                                          : `Challenge (${FORMAT_LABELS[challengeFormat]})`
                               }
                             >
-                              {isChallenged ? <><span className="lb-challenge-full">Challenged</span><span className="lb-challenge-short">✓</span></> : isChallenging ? <><span className="lb-challenge-full">Sending...</span><span className="lb-challenge-short">...</span></> : <><span className="lb-challenge-full">Challenge</span><span className="lb-challenge-short">vs</span></>}
+                              {isChallenged ? (
+                                <>
+                                  <span className="lb-challenge-full">Challenged</span>
+                                  <span className="lb-challenge-short">✓</span>
+                                </>
+                              ) : isChallenging ? (
+                                <>
+                                  <span className="lb-challenge-full">Sending...</span>
+                                  <span className="lb-challenge-short">...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="lb-challenge-full">Challenge</span>
+                                  <span className="lb-challenge-short">vs</span>
+                                </>
+                              )}
                             </button>
                           </td>
                         </tr>
