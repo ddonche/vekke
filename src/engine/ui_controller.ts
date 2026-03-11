@@ -7,6 +7,7 @@ import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
 import { VgnRecorder } from "./vgn"
 import {
+  aiStepRookie,
   aiStepNovice,
   aiStepAdept,
   aiStepExpert,
@@ -79,6 +80,7 @@ export const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
 // NOTE: Keys must match AiLevel exactly.
 // ------------------------------------------------------------
 export const AI_RATING: Record<AiLevel, number> = {
+  rookie: 400,
   novice: 600,
   adept: 900,
   expert: 1200,
@@ -90,6 +92,7 @@ export const AI_RATING: Record<AiLevel, number> = {
 // Stable UUIDs to represent AI opponents in the games table.
 // These do NOT need to correspond to auth.users (and are never updated in player_stats).
 const AI_UUID: Record<AiLevel, string> = {
+  rookie: "29b6ad2a-4bfc-4041-938d-9077c6743cc2", // Scarecrow
   novice: "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen
   adept: "9d6503a7-1b18-46d4-878d-09367d6ac833", // Priya
   expert: "69174323-2b15-4b83-b1d7-96a324bce0a4", // Vladimir
@@ -711,6 +714,7 @@ export function useVekkeController(opts: {
       const t = window.setTimeout(() => {
         update((s) => {
           const stepMap: Record<AiLevel, typeof aiStepNovice> = {
+            rookie: aiStepRookie,
             novice: aiStepNovice,
             adept: aiStepAdept,
             expert: aiStepExpert,

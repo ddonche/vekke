@@ -772,7 +772,7 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
 
       const { data, error } = await supabase.functions.invoke("create_ai_game", {
         body: {
-          aiLevel: "novice",
+          aiLevel: "rookie",
           timeControl: "daily",
           initialState,
           vgnVersion: "1",
@@ -1415,7 +1415,7 @@ export function TutorialPage({ onComplete }: TutorialPageProps) {
                 Browse and join an Order from the <span style={{ color: "#e8e4d8", fontWeight: 500 }}>Orders</span> link in the top navigation. Each Order has its own doctrine, token style, and community.
               </span>
             </div>
-            <button onClick={launchGame} style={nextBtnStyle}>Play vs Glen →</button>
+            <button onClick={launchGame} style={nextBtnStyle}>Play vs Scarecrow →</button>
           </div>
         )}
 

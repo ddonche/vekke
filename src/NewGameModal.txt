@@ -20,7 +20,6 @@ type Props = {
 }
 
 const AI_LEVELS: { id: string; label: string; elo: number; color: string; outline?: boolean }[] = [
-  { id: "rookie",        label: "Scarecrow",     elo: 400,  color: "#ffffff" },
   { id: "novice",        label: "Novice",        elo: 600,  color: "#6b6558" },
   { id: "adept",         label: "Adept",         elo: 900,  color: "#2563eb" },
   { id: "expert",        label: "Expert",        elo: 1200, color: "#dc2626" },

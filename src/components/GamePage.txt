@@ -165,6 +165,7 @@ export function GamePage(props: GamePageProps = {}) {
     return true
   })
   const [newGameMsg, setNewGameMsg] = useState<string | null>(null)
+  const [themeMuted, setThemeMuted] = useState(false)
 
   const [boardStyle, setBoardStyle] = useState<"grid" | "intersection">("grid")
   const [showLogExpanded, setShowLogExpanded] = useState(true)
@@ -409,12 +410,28 @@ export function GamePage(props: GamePageProps = {}) {
     }
   }, [showGameOverModal, props.newlyUnlockedAchievements])
 
-  // Show game over modal whenever a new game ends.
+  // Theme music
+  const playTheme = () => {
+    if (themeMuted || sounds.theme.playing()) return
+    sounds.theme.stop()
+    const id = sounds.theme.play()
+    sounds.theme.fade(0, 0.25, 1200, id)
+  }
+  const stopTheme = () => {
+    sounds.theme.fade(0.25, 0, 600)
+    setTimeout(() => sounds.theme.stop(), 650)
+  }
+  // Stop on unmount (navigation away)
   useEffect(() => {
-    if (g.gameOver) setShowGameOverModal(true)
+    return () => { sounds.theme.stop() }
+  }, [])
+
+    // Show game over modal whenever a new game ends.
+  useEffect(() => {
+    if (g.gameOver) { setShowGameOverModal(true); playTheme() }
   }, [!!g.gameOver])
 
-  async function fetchSkinImages(ids: (string | null | undefined)[]): Promise<Record<string, string | null>> {
+    async function fetchSkinImages(ids: (string | null | undefined)[]): Promise<Record<string, string | null>> {
     const uniq = Array.from(new Set(ids.filter(Boolean) as string[]))
     if (uniq.length === 0) return {}
 
@@ -1217,8 +1234,23 @@ if (wantsNewGame) {
   // If the player has an Order, Order colors override this entirely.
   const W_DEFAULT_COLORS = { primary: "#ffffff", secondary: "#5de8f7" }
   const routeColorsForSide = (side: "W" | "B"): { primary: string; secondary: string } | undefined => {
-    const orderColors = side === mySide ? myOrderColors : opponentOrderColors
-    if (orderColors) return orderColors
+    // Prefer the equipped skin's style colors — these reflect what the player
+    // actually has selected in the skin selector, which may differ from their
+    // current order (e.g. a previous order's skin, a purchased skin, etc.)
+    const loadoutStyle = side === mySide ? myLoadout?.routeStyle : effectiveOpponentLoadout?.routeStyle
+    if (loadoutStyle) return { primary: loadoutStyle.primaryColor, secondary: loadoutStyle.secondaryColor }
+
+    // Only fall back to order colors if the equipped skin is actually an order
+    // skin — if the player explicitly picked route-default or another non-order
+    // skin, let the W_DEFAULT_COLORS or undefined (B default) apply instead.
+    const ids = side === mySide ? myLoadoutIds : opponentLoadoutIds
+    const routeSkinId = ids?.route_skin_id ?? ""
+    const isOrderSkin = routeSkinId.startsWith("route-order-")
+    if (isOrderSkin) {
+      const orderColors = side === mySide ? myOrderColors : opponentOrderColors
+      if (orderColors) return orderColors
+    }
+
     return side === "W" ? W_DEFAULT_COLORS : undefined
   }
   const routeSkinStyleForSide = (side: "W" | "B"): Record<string, string> | undefined => {
@@ -1553,7 +1585,7 @@ if (wantsNewGame) {
           onOpenProfile={() => setShowProfileModal(true)}
           onOpenSkins={() => setSkinsOpen(true)}
           onSignOut={async () => { await supabase.auth.signOut() }}
-          onPlay={() => { setNewGameOpen(true); setNewGameMsg(null) }}
+          onPlay={() => { setNewGameOpen(true); setNewGameMsg(null); playTheme() }}
           onMyGames={() => navigate("/my-games")}
           onLeaderboard={() => navigate("/leaderboard")}
           onChallenges={() => navigate("/challenges")}
@@ -1566,11 +1598,7 @@ if (wantsNewGame) {
         {newGameOpen && (
           <NewGameModal
             isOpen={newGameOpen}
-            onClose={() => { setNewGameOpen(false); setNewGameMsg(null) }}
-            userProfile={userProfile}
-            myElo={myElo}
-            myPeak={myPeak}
-            formatLabel={formatLabel}
+            onClose={() => { setNewGameOpen(false); setNewGameMsg(null); stopTheme() }}
             timeControlId={timeControlId}
             aiDifficulty={aiDifficulty}
             boardStyle={boardStyle}
@@ -1595,8 +1623,13 @@ if (wantsNewGame) {
               }
             }}
             onSignIn={() => setShowAuthModal(true)}
-            onEditProfile={() => setShowProfileModal(true)}
-            onLeaderboard={() => navigate("/leaderboard")}
+            onTutorial={() => navigate("/tutorial")}
+            isMuted={themeMuted}
+            onToggleMute={() => {
+              const next = !themeMuted
+              setThemeMuted(next)
+              sounds.theme.mute(next)
+            }}
           />
         )}
 
@@ -3296,7 +3329,7 @@ if (wantsNewGame) {
         {g.gameOver && !props.puzzleMode && (
           <GameOverModal
             isOpen={showGameOverModal}
-            onClose={() => setShowGameOverModal(false)}
+            onClose={() => { setShowGameOverModal(false); stopTheme() }}
             g={g}
             whitePlayer={whitePlayer}
             bluePlayer={bluePlayer}
@@ -3307,6 +3340,7 @@ if (wantsNewGame) {
               }
               setShowGameOverModal(false)
               setNewGameOpen(true)
+              playTheme()
             }}
             newlyUnlockedAchievements={props.newlyUnlockedAchievements}
             onRematch={() => {

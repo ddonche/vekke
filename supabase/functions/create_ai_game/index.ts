@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-type AiLevel = "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
+type AiLevel = "rookie" | "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
 type TimeControlId = "standard" | "rapid" | "blitz" | "daily"
 
 type CreateAiGameBody = {
@@ -38,6 +38,7 @@ const TIME_CONTROLS: Record<TimeControlId, { baseMs: number; incMs: number }> = 
 
 // Keep these in sync with ui_controller.ts
 const AI_UUID: Record<AiLevel, string> = {
+  rookie: "29b6ad2a-4bfc-4041-938d-9077c6743cc2", // Scarecrow
   novice: "d90c1ec7-a586-4594-85ad-702beca6af45",        // Glen
   adept: "9d6503a7-1b18-46d4-878d-09367d6ac833",         // Priya
   expert: "69174323-2b15-4b83-b1d7-96a324bce0a4",        // Vladimir

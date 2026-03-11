@@ -19,7 +19,7 @@ import {
   RANSOM_COST_CAPTIVES,
 } from "./game"
 
-export type AiLevel = "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
+export type AiLevel = "rookie" | "novice" | "adept" | "expert" | "master" | "senior_master" | "grandmaster"
 
 // ------------------------------------------------------------
 // Style system (config-driven personalities + strength)
@@ -73,7 +73,7 @@ type AiStyle = {
 }
 
 const AI_STYLE: Record<AiLevel, AiStyle> = {
-  novice: {
+  rookie: {
     opening: "random",
     mistakeChance: 1.0,
     earlySwapMode: "none",
@@ -81,33 +81,65 @@ const AI_STYLE: Record<AiLevel, AiStyle> = {
     reinforcePicker: "random",
     swapPicker: "random",
 
-    ransom: { mode: "random", resThreshold: 0, deadRouteBias: 0 },
-    extraReinforcement: { mode: "heuristic", simDelta: 0, minReserves: 999 },
+    ransom: { mode: "random", resThreshold: 999, deadRouteBias: 0 },
+    extraReinforcement: { mode: "heuristic", simDelta: 999999, minReserves: 999 },
 
     weights: {
-      materialOnBoard: 8,
-      reserves: 1.0,
-      captives: 0.8,
+      materialOnBoard: 0,
+      reserves: 0,
+      captives: 0,
+      void: 0,
+
+      siege3: 0,
+      siegeLock: 0,
+      siege7: 0,
+      siege8: 0,
+
+      threatened3: 0,
+      threatenedLock: 0,
+      threatened7: 0,
+      threatened8: 0,
+
+      mobility: 0,
+      deadRoutes: 0,
+    },
+  },
+
+  novice: {
+    opening: "random",
+    mistakeChance: 0.62,
+    earlySwapMode: "none",
+    actionPicker: "greedyTopN",
+    reinforcePicker: "safe",
+    swapPicker: "random",
+
+    ransom: { mode: "random", resThreshold: 999, deadRouteBias: 0 },
+    extraReinforcement: { mode: "heuristic", simDelta: 999999, minReserves: 999 },
+
+    weights: {
+      materialOnBoard: 9,
+      reserves: 1.1,
+      captives: 1.1,
       void: 0.2,
 
-      siege3: 3,
-      siegeLock: 6,
-      siege7: 10,
-      siege8: 25,
+      siege3: 5,
+      siegeLock: 11,
+      siege7: 16,
+      siege8: 38,
 
-      threatened3: -3,
-      threatenedLock: -7,
-      threatened7: -12,
-      threatened8: -30,
+      threatened3: -5,
+      threatenedLock: -12,
+      threatened7: -18,
+      threatened8: -42,
 
-      mobility: 0.10,
-      deadRoutes: 8,
+      mobility: 0.11,
+      deadRoutes: 11,
     },
   },
 
   adept: {
     opening: "center",
-    mistakeChance: 0.45,
+    mistakeChance: 0.30,
     earlySwapMode: "basic",
     actionPicker: "greedyTopN",
     reinforcePicker: "safe",
@@ -117,23 +149,23 @@ const AI_STYLE: Record<AiLevel, AiStyle> = {
     extraReinforcement: { mode: "heuristic", simDelta: 0, minReserves: 10 },
 
     weights: {
-      materialOnBoard: 10,
-      reserves: 2.0,
-      captives: 1.2,
-      void: 0.4,
+      materialOnBoard: 11,
+      reserves: 2.1,
+      captives: 1.4,
+      void: 0.45,
 
-      siege3: 6,
-      siegeLock: 14,
-      siege7: 22,
-      siege8: 60,
+      siege3: 7,
+      siegeLock: 16,
+      siege7: 26,
+      siege8: 68,
 
       threatened3: -7,
-      threatenedLock: -16,
-      threatened7: -28,
-      threatened8: -70,
+      threatenedLock: -18,
+      threatened7: -30,
+      threatened8: -76,
 
-      mobility: 0.18,
-      deadRoutes: 18,
+      mobility: 0.20,
+      deadRoutes: 20,
     },
   },
 
@@ -203,66 +235,66 @@ const AI_STYLE: Record<AiLevel, AiStyle> = {
   },
 
   senior_master: {
-    opening: "center",
-    mistakeChance: 0.01,
+    opening: "e4_mafia",
+    mistakeChance: 0.005,
     earlySwapMode: "brutal",
     actionPicker: "seniorMasterSearch",
     reinforcePicker: "best",
     swapPicker: "best",
 
-    ransom: { mode: "tempo", resThreshold: 3, deadRouteBias: 3 },
-    extraReinforcement: { mode: "sim", simDelta: 6, minReserves: 4 },
+    ransom: { mode: "tempo", resThreshold: 3, deadRouteBias: 4 },
+    extraReinforcement: { mode: "sim", simDelta: 5, minReserves: 4 },
 
     weights: {
       materialOnBoard: 10,
-      reserves: 2.5,
-      captives: 2.1,
-      void: 1.4,
+      reserves: 2.7,
+      captives: 2.3,
+      void: 1.5,
 
-      siege3: 16,
-      siegeLock: 38,
-      siege7: 60,
-      siege8: 120,
+      siege3: 18,
+      siegeLock: 48,
+      siege7: 78,
+      siege8: 135,
 
-      threatened3: -16,
-      threatenedLock: -38,
-      threatened7: -65,
-      threatened8: -140,
+      threatened3: -18,
+      threatenedLock: -48,
+      threatened7: -80,
+      threatened8: -155,
 
-      mobility: 0.22,
-      deadRoutes: 35,
+      mobility: 0.28,
+      deadRoutes: 48,
     },
   },
 
   grandmaster: {
-    opening: "center",
+    opening: "e4_mafia",
     mistakeChance: 0.0,
     earlySwapMode: "brutal",
     actionPicker: "gmSearch",
     reinforcePicker: "best",
     swapPicker: "best",
 
-    ransom: { mode: "tempo", resThreshold: 4, deadRouteBias: 4 },
-    extraReinforcement: { mode: "sim", simDelta: 4, minReserves: 4 },
+    ransom: { mode: "tempo", resThreshold: 4, deadRouteBias: 5 },
+    extraReinforcement: { mode: "sim", simDelta: 2, minReserves: 4 },
 
     weights: {
       materialOnBoard: 12,
-      reserves: 3.2,
-      captives: 2.8,
-      void: 2.0,
+      reserves: 3.6,
+      captives: 3.0,
+      void: 2.2,
 
-      siege3: 22,
-      siegeLock: 55,
-      siege7: 85,
-      siege8: 180,
+      siege3: 26,
+      siegeLock: 70,
+      siege7: 115,
+      siege8: 220,
 
-      threatened3: -22,
-      threatenedLock: -55,
-      threatened7: -95,
-      threatened8: -220,
+      threatened3: -24,
+      threatenedLock: -70,
+      threatened7: -120,
+      threatened8: -260,
 
-      mobility: 0.30,
-      deadRoutes: 50,
+      mobility: 0.40,
+      deadRoutes: 72,
     },
   },
 }
@@ -987,6 +1019,40 @@ function enumerateLegalActionMoves(state: GameState, p: Player): ActionMove[] {
   return out
 }
 
+function forcingMoves(state: GameState, me: Player, style: AiStyle): ActionMove[] {
+  const moves = enumerateLegalActionMoves(state, me)
+  const out: ActionMove[] = []
+
+  for (const mv of moves) {
+    const c: GameState = structuredClone(state)
+    applyRouteMove(c, mv.tokenId, mv.routeId)
+
+    const them = other(me)
+    const theirBefore = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+    const theirAfter = c.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
+
+    let maxSiege = 0
+    for (const e of c.tokens) {
+      if (e.in !== "BOARD" || e.owner !== them) continue
+      const sides = siegeSidesFor(c, me, e.pos.x, e.pos.y)
+      if (sides > maxSiege) maxSiege = sides
+    }
+
+    const deadAfter = countDeadRoutesEstimate(c, them)
+    const deadBefore = countDeadRoutesEstimate(state, them)
+
+    if (
+      theirAfter < theirBefore ||
+      maxSiege >= 4 ||
+      deadAfter > deadBefore
+    ) {
+      out.push(mv)
+    }
+  }
+
+  return out
+}
+
 // Run a deterministic policy until the active player changes (full turn finishes), or game ends.
 function playoutFullTurn(state: GameState, p: Player, level: AiLevel) {
   const hardCap = 256
@@ -1202,13 +1268,30 @@ function orderMoves(state: GameState, me: Player, moves: ActionMove[]): ActionMo
 // ------------------------------------------------------------
 // Time-budgeted search helpers
 // ------------------------------------------------------------
-const SEARCH_BUDGET_MS: Record<AiLevel, number> = {
+const SEARCH_BUDGET_MS_NORMAL: Record<AiLevel, number> = {
+  rookie: 0,
   novice: 0,
   adept: 0,
   expert: 0,
   master: 80,
-  senior_master: 200,
-  grandmaster: 500,
+  senior_master: 250,
+  grandmaster: 700,
+}
+
+const SEARCH_BUDGET_MS_HEADLESS: Record<AiLevel, number> = {
+  rookie: 0,
+  novice: 0,
+  adept: 0,
+  expert: 0,
+  master: 80,
+  senior_master: 250,
+  grandmaster: 700,
+}
+
+function searchBudgetMs(level: AiLevel): number {
+  return (globalThis as any).__VEKKE_HEADLESS__
+    ? SEARCH_BUDGET_MS_HEADLESS[level]
+    : SEARCH_BUDGET_MS_NORMAL[level]
 }
 
 function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player, meStyle: AiStyle, oppLevel: AiLevel, deadline?: number): number {
@@ -1252,7 +1335,7 @@ function bestMasterActionMove(state: GameState, me: Player, style: AiStyle): Act
   const moves = enumerateLegalActionMoves(state, me)
   if (moves.length === 0) return null
 
-  const deadline = Date.now() + SEARCH_BUDGET_MS.master
+  const deadline = Date.now() + searchBudgetMs("master")
   const ordered = orderMoves(state, me, moves)
   const candidates = ordered.slice(0, 8)  // cap to top 8 to stay fast
   let best: ActionMove | null = null
@@ -1353,7 +1436,7 @@ function bestSeniorMasterActionMove(state: GameState, me: Player, style: AiStyle
   const moves = enumerateLegalActionMoves(state, me)
   if (moves.length === 0) return null
 
-  const deadline = Date.now() + SEARCH_BUDGET_MS.senior_master
+  const deadline = Date.now() + searchBudgetMs("senior_master")
   const ordered = orderMoves(state, me, moves)
   const candidates = ordered.slice(0, 8)  // cap to top 8
   const useThreePly = ordered.length <= 10
@@ -1390,17 +1473,23 @@ function bestGrandmasterActionMove(state: GameState, me: Player, style: AiStyle)
   const moves = enumerateLegalActionMoves(state, me)
   if (moves.length === 0) return null
 
-  const deadline = Date.now() + SEARCH_BUDGET_MS.grandmaster
-  const ordered = orderMoves(state, me, moves)
-  const candidates = ordered.slice(0, 16)  // more candidates with larger time budget
+  const deadline = Date.now() + searchBudgetMs("grandmaster")
+
+  const forcing = forcingMoves(state, me)
+  const ordered =
+    forcing.length > 0
+      ? orderMoves(state, me, forcing)
+      : orderMoves(state, me, moves)
+
+  const candidates = ordered.slice(0, 16)
 
   let best: ActionMove | null = null
   let bestScore = -Infinity
 
   for (const mv of candidates) {
     if (Date.now() > deadline) break
-    const c: GameState = structuredClone(state)
 
+    const c: GameState = structuredClone(state)
     applyRouteMove(c, mv.tokenId, mv.routeId)
     playoutFast(c, me)
 
@@ -1486,7 +1575,7 @@ function aiStepWithStyle(state: GameState, aiPlayer: Player, level: AiLevel, sty
     }
 
     // Consider arming early swap.
-    if (style.earlySwapMode !== "none") {
+    if (level !== "rookie" && style.earlySwapMode !== "none") {
       const earlyPlan =
         style.earlySwapMode === "brutal"
           ? bestEarlySwapPlanBrutal(state, aiPlayer, style)
@@ -1498,44 +1587,44 @@ function aiStepWithStyle(state: GameState, aiPlayer: Player, level: AiLevel, sty
       }
     }
 
-    // Ransom (style-driven)
-    if (shouldRansom(state, aiPlayer, style)) {
+    // Ransom (disabled for Rookie)
+    if (level !== "rookie" && shouldRansom(state, aiPlayer, style)) {
       useRansom(state)
       return
     }
 
-    // Extra reinforcement (style-driven)
-    if (style.extraReinforcement.mode === "sim") {
-      if (
-        state.phase === "ACTION" &&
-        !state.gameOver &&
-        !(state as any).extraReinforcementBoughtThisTurn
-      ) {
-        const myOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === aiPlayer).length
-        const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === other(aiPlayer)).length
-        const badlyOutnumbered = theirOnBoard >= myOnBoard + 2
+    // Extra reinforcement (disabled for Rookie)
+    if (level !== "rookie") {
+      if (style.extraReinforcement.mode === "sim") {
+        if (
+          state.phase === "ACTION" &&
+          !state.gameOver &&
+          !(state as any).extraReinforcementBoughtThisTurn
+        ) {
+          const myOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === aiPlayer).length
+          const theirOnBoard = state.tokens.filter((t) => t.in === "BOARD" && t.owner === other(aiPlayer)).length
+          const badlyOutnumbered = theirOnBoard >= myOnBoard + 2
 
-        // Survival override: buy extra reinforcement when badly outnumbered,
-        // even if below normal reserve threshold (as long as we can afford it)
-        const canAfford = state.reserves[aiPlayer] >= 2  // buyExtraReinforcement costs 2
-        if (badlyOutnumbered && canAfford && !(state as any).extraReinforcementBoughtThisTurn) {
-          buyExtraReinforcement(state)
-          return
-        }
-
-        if (state.reserves[aiPlayer] >= style.extraReinforcement.minReserves) {
-          const base = evalState(state, aiPlayer, style)
-          const after = simulateAndScore(state, aiPlayer, style, (s) => buyExtraReinforcement(s))
-          if (after >= base + style.extraReinforcement.simDelta) {
+          const canAfford = state.reserves[aiPlayer] >= 2
+          if (badlyOutnumbered && canAfford && !(state as any).extraReinforcementBoughtThisTurn) {
             buyExtraReinforcement(state)
             return
           }
+
+          if (state.reserves[aiPlayer] >= style.extraReinforcement.minReserves) {
+            const base = evalState(state, aiPlayer, style)
+            const after = simulateAndScore(state, aiPlayer, style, (s) => buyExtraReinforcement(s))
+            if (after >= base + style.extraReinforcement.simDelta) {
+              buyExtraReinforcement(state)
+              return
+            }
+          }
         }
-      }
-    } else {
-      if (shouldBuyExtraReinforcementHeuristic(state, aiPlayer)) {
-        buyExtraReinforcement(state)
-        return
+      } else {
+        if (shouldBuyExtraReinforcementHeuristic(state, aiPlayer)) {
+          buyExtraReinforcement(state)
+          return
+        }
       }
     }
 
@@ -1606,6 +1695,10 @@ function aiStepWithStyle(state: GameState, aiPlayer: Player, level: AiLevel, sty
 // ------------------------------------------------------------
 // Legacy named exports (kept for external callers; now style-driven)
 // ------------------------------------------------------------
+export function aiStepRookie(state: GameState, aiPlayer: Player) {
+  return aiStepWithStyle(state, aiPlayer, "rookie", AI_STYLE.rookie)
+}
+
 export function aiStepNovice(state: GameState, aiPlayer: Player) {
   return aiStepWithStyle(state, aiPlayer, "novice", AI_STYLE.novice)
 }
@@ -1653,6 +1746,7 @@ export type AiChatContext = {
 
 export function aiChatPickLine(level: AiLevel, ev: AiChatEvent, ctx?: AiChatContext): string | null {
   const table = {
+    rookie: NOVICE_CHAT,
     novice: NOVICE_CHAT,
     adept: ADEPT_CHAT,
     expert: EXPERT_CHAT,
@@ -1667,6 +1761,12 @@ function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
   if (ev === "SILENCE") return false
 
   switch (level) {
+    case "rookie":
+      if (ev === "HELLO") return Math.random() < 0.95
+      if (ev === "OPENING_PLAY") return Math.random() < 0.5
+      if (ev === "GAME_OVER_WIN" || ev === "GAME_OVER_LOSS") return Math.random() < 0.95
+      return Math.random() < 0.25
+    
     case "novice":
       if (ev === "HELLO") return Math.random() < 0.9
       if (ev === "OPENING_PLAY") return Math.random() < 0.4
