@@ -50,3 +50,13 @@ entrypoint = "./functions/respond_to_challenge/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/check_achievements/index.ts"
+
+[functions.create-checkout-session]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-checkout-session/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/stripe-webhook/index.ts"

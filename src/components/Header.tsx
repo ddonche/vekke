@@ -18,6 +18,7 @@ export type ActivePage =
   | "skins"
   | "announcements"
   | "puzzles"
+  | "marketplace"
   | null
 
 export interface HeaderProps {
@@ -45,6 +46,7 @@ export interface HeaderProps {
   onRules?: () => void
   onTutorial?: () => void
   onPuzzles?: () => void
+  onShop?: () => void
   onAnnouncements?: () => void
 
   // User callbacks
@@ -524,6 +526,7 @@ export function Header(props: HeaderProps) {
   const goRules       = props.onRules       ?? (() => navigate("/rules"))
   const goTutorial    = props.onTutorial    ?? (() => navigate("/tutorial"))
   const goPuzzles     = props.onPuzzles     ?? (() => navigate("/puzzles"))
+  const goShop        = props.onShop        ?? (() => navigate("/marketplace"))
   const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
   const goChallenges  = props.onChallenges  ?? (() => navigate("/challenges"))
 
@@ -642,6 +645,7 @@ export function Header(props: HeaderProps) {
               <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
             )}
             <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
+            <NavItem label="Shop" active={activePage === "marketplace"} onClick={goShop} />
             <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
@@ -713,6 +717,12 @@ export function Header(props: HeaderProps) {
           onClick={() => { goPuzzles(); setMobileOpen(false) }}
         >
           Puzzles
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "marketplace" ? " active" : ""}`}
+          onClick={() => { goShop(); setMobileOpen(false) }}
+        >
+          Shop
         </button>
         <button
           className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}

@@ -502,7 +502,14 @@ function PuzzlesPanel() {
 
 // ─── Gear panel ──────────────────────────────────────────────────────────────
 
-type SkinType = "token" | "route" | "board"
+type SkinType = "token" | "route" | "board" | "shop"
+
+const SHOP_CATEGORIES = [
+  "Animals", "Craft", "Cultural", "Fantasy", "Floral",
+  "Food & Drink", "Geometric", "Gothic", "Historical", "Holiday",
+  "Industrial", "Music", "Mystical", "Nautical", "Nature",
+  "Sci-Fi", "Seasonal", "Sports", "Western",
+]
 
 function GearPanel() {
   const [tab, setTab] = useState<SkinType>("token")
@@ -525,6 +532,16 @@ function GearPanel() {
   const [cssType, setCssType] = useState<"route" | "board">("route")
   const [cssStyle, setCssStyle] = useState("{}")
 
+  // Shop form
+  const [shopSetId, setShopSetId] = useState("")
+  const [shopSetName, setShopSetName] = useState("")
+  const [shopSetDesc, setShopSetDesc] = useState("")
+  const [shopCategory, setShopCategory] = useState("")
+  const [shopLightFile, setShopLightFile] = useState<File | null>(null)
+  const [shopDarkFile, setShopDarkFile] = useState<File | null>(null)
+  const [shopLightPreview, setShopLightPreview] = useState<string | null>(null)
+  const [shopDarkPreview, setShopDarkPreview] = useState<string | null>(null)
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -543,6 +560,9 @@ function GearPanel() {
     setLightPreview(null); setDarkPreview(null)
     setCssSetId(""); setCssSetName(""); setCssSetDesc("")
     setCssStyle("{}")
+    setShopSetId(""); setShopSetName(""); setShopSetDesc("")
+    setShopCategory(""); setShopLightFile(null); setShopDarkFile(null)
+    setShopLightPreview(null); setShopDarkPreview(null)
     setError(null)
   }
 
@@ -648,6 +668,58 @@ function GearPanel() {
     setSaving(false)
   }
 
+  async function saveShopSet() {
+    if (!shopSetId.trim())     return setError("Set ID is required")
+    if (!shopSetName.trim())   return setError("Set name is required")
+    if (!shopCategory)         return setError("Category is required")
+    if (!shopLightFile)        return setError("Light token image is required")
+    if (!shopDarkFile)         return setError("Dark token image is required")
+
+    setSaving(true); setError(null)
+    try {
+      const [lightUrl, darkUrl] = await Promise.all([
+        uploadToken(shopLightFile, shopSetId, "light"),
+        uploadToken(shopDarkFile,  shopSetId, "dark"),
+      ])
+
+      const { error: setErr } = await supabase.from("skin_sets").insert({
+        id: shopSetId, name: shopSetName,
+        description: shopSetDesc || null,
+        acquisition_type: "purchase",
+        category: shopCategory,
+      })
+      if (setErr) throw new Error(setErr.message)
+
+      const { error: skinErr } = await supabase.from("skins").insert([
+        {
+          id: `token-${shopSetId}-light`,
+          name: `${shopSetName} (Light)`,
+          type: "token", set_id: shopSetId,
+          acquisition_type: "purchase",
+          description: `${shopSetName} light token`,
+          style: {}, image_url: lightUrl,
+        },
+        {
+          id: `token-${shopSetId}-dark`,
+          name: `${shopSetName} (Dark)`,
+          type: "token", set_id: shopSetId,
+          acquisition_type: "purchase",
+          description: `${shopSetName} dark token`,
+          style: {}, image_url: darkUrl,
+        },
+      ])
+      if (skinErr) throw new Error(skinErr.message)
+
+      setSkinSets(prev => [...prev, { id: shopSetId, name: shopSetName, acquisition_type: "purchase" }])
+      setSuccess(`Shop set "${shopSetName}" created and listed in the marketplace.`)
+      setTimeout(() => setSuccess(null), 3000)
+      reset()
+    } catch (e: any) {
+      setError(e.message)
+    }
+    setSaving(false)
+  }
+
   const INPUT: React.CSSProperties = {
     fontFamily: "'EB Garamond', serif", fontSize: 14,
     background: "#0a0a0c", border: "1px solid rgba(255,255,255,0.1)",
@@ -667,7 +739,7 @@ function GearPanel() {
     <div>
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24 }}>
-        {(["token", "route", "board"] as SkinType[]).map(t => (
+        {(["token", "route", "board", "shop"] as SkinType[]).map(t => (
           <button key={t} onClick={() => { setTab(t as SkinType); setCssType(t as "route" | "board"); setError(null) }} style={{
             fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.15em",
             textTransform: "uppercase", padding: "7px 18px", borderRadius: 4,
@@ -777,6 +849,85 @@ function GearPanel() {
             color: "#d4af7a", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1,
           }}>
             {saving ? "Saving…" : `Create ${tab.charAt(0).toUpperCase() + tab.slice(1)} Set`}
+          </button>
+        </div>
+      )}
+
+      {/* Shop form */}
+      {tab === "shop" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
+          <div style={{
+            padding: "10px 14px", borderRadius: 6,
+            border: "1px solid rgba(184,150,106,0.2)",
+            background: "rgba(184,150,106,0.05)",
+            fontFamily: "'EB Garamond', serif", fontSize: 13, color: "#b8966a",
+            lineHeight: 1.5,
+          }}>
+            Creates a purchasable skin set listed in the Shop with <code style={{ fontFamily: "monospace", fontSize: 11 }}>acquisition_type: "purchase"</code>. It will appear in the marketplace immediately.
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LABEL}>Set ID</label>
+              <input style={INPUT} value={shopSetId} onChange={e => setShopSetId(e.target.value)} placeholder="e.g. winter-beanie" />
+            </div>
+            <div>
+              <label style={LABEL}>Set Name</label>
+              <input style={INPUT} value={shopSetName} onChange={e => setShopSetName(e.target.value)} placeholder="e.g. Winter Beanies" />
+            </div>
+          </div>
+
+          <div>
+            <label style={LABEL}>Description (optional)</label>
+            <input style={INPUT} value={shopSetDesc} onChange={e => setShopSetDesc(e.target.value)} placeholder="Short description shown in shop" />
+          </div>
+
+          <div>
+            <label style={LABEL}>Category</label>
+            <select
+              value={shopCategory}
+              onChange={e => setShopCategory(e.target.value)}
+              style={{ ...INPUT, cursor: "pointer" }}
+            >
+              <option value="">— Select category —</option>
+              {SHOP_CATEGORIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LABEL}>Light Token</label>
+              <label style={UPLOAD_ZONE}>
+                {shopLightPreview
+                  ? <img src={shopLightPreview} alt="Light preview" style={{ maxHeight: 80, maxWidth: "100%", objectFit: "contain" }} />
+                  : <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.15em", color: "#6b6558" }}>CLICK TO UPLOAD</span>
+                }
+                <input type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setShopLightFile(f); setShopLightPreview(URL.createObjectURL(f)) } }} />
+              </label>
+            </div>
+            <div>
+              <label style={LABEL}>Dark Token</label>
+              <label style={UPLOAD_ZONE}>
+                {shopDarkPreview
+                  ? <img src={shopDarkPreview} alt="Dark preview" style={{ maxHeight: 80, maxWidth: "100%", objectFit: "contain" }} />
+                  : <span style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.15em", color: "#6b6558" }}>CLICK TO UPLOAD</span>
+                }
+                <input type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setShopDarkFile(f); setShopDarkPreview(URL.createObjectURL(f)) } }} />
+              </label>
+            </div>
+          </div>
+
+          <button onClick={saveShopSet} disabled={saving} style={{
+            fontFamily: "'Cinzel', serif", fontSize: 11, letterSpacing: "0.15em",
+            textTransform: "uppercase", padding: "11px", borderRadius: 4,
+            border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.08)",
+            color: "#5de8f7", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1,
+          }}>
+            {saving ? "Saving…" : "Publish to Shop"}
           </button>
         </div>
       )}
