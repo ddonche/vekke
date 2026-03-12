@@ -220,6 +220,7 @@ export function PvPGameWrapper() {
               clocks_w_ms: (updated as any).clocks_w_ms,
               clocks_b_ms: (updated as any).clocks_b_ms,
               turn_started_at: (updated as any).turn_started_at,
+              vgn: (updated as any).vgn ?? (prev as any)?.vgn ?? null,
             }
             gameDataRef.current = next
             return next
@@ -289,7 +290,11 @@ export function PvPGameWrapper() {
   }, [myUserId, rematchInviteToken])
 
   const handleMoveComplete = useCallback(
-    async (state: GameState, clocks: { W: number; B: number }) => {
+    async (
+      state: GameState,
+      clocks: { W: number; B: number },
+      vgn?: string
+    ) => {
       if (!gameId) return
 
       // Refresh safety: if the DB already shows this game ended, never write/finalize again.
@@ -315,6 +320,10 @@ export function PvPGameWrapper() {
         clocks_b_ms: Math.round(clocks.B),
       }
 
+      if (typeof vgn === "string") {
+        update.vgn = vgn
+      }
+
       // Anchor for elapsed-clock reconstruction after refresh
       if (turnFlipped || (state as any).gameOver) {
         update.turn_started_at = nowIso
@@ -326,6 +335,23 @@ export function PvPGameWrapper() {
         // Don't block finalization on a failed final state save.
         if (!isOver) return
       }
+
+      // Keep local cache aligned
+      setGameData((prev) => {
+        if (!prev) return prev
+        const next = {
+          ...prev,
+          current_state: state,
+          turn: (state as any).player,
+          last_move_at: nowIso,
+          clocks_w_ms: Math.round(clocks.W),
+          clocks_b_ms: Math.round(clocks.B),
+          turn_started_at: (turnFlipped || (state as any).gameOver) ? nowIso : (prev as any).turn_started_at,
+          vgn: typeof vgn === "string" ? vgn : (prev as any).vgn ?? null,
+        } as any
+        gameDataRef.current = next
+        return next
+      })
 
       // If gameOver, finalize on the server (updates player_stats + rating_applied)
       if (isOver) {
@@ -343,7 +369,10 @@ export function PvPGameWrapper() {
           gameId,
           winner: go.winner,
           reason: go.reason,
+          vgn: typeof vgn === "string" ? vgn : null,
+          logs: Array.isArray((state as any).log) ? (state as any).log : [],
         }).catch((e) => console.error("finalize_game failed:", e))
+
         try {
           const achResult = await invokeAuthed<{ newlyUnlocked: any[] }>("check_achievements", { gameId })
           if (achResult?.newlyUnlocked?.length) setNewlyUnlockedAchievements(achResult.newlyUnlocked)
@@ -400,7 +429,7 @@ export function PvPGameWrapper() {
   }
 
   if (showIntro) {
-    const myAccent  = mySide === "W" ? "#e8e4d8" : "#5de8f7"
+    const myAccent = mySide === "W" ? "#e8e4d8" : "#5de8f7"
     const oppAccent = mySide === "W" ? "#5de8f7" : "#e8e4d8"
     return (
       <MatchIntroOverlay
@@ -499,7 +528,7 @@ export function PvPGameWrapper() {
         initialTimeControlId={(gameData.format as TimeControlId) ?? "standard"}
         initialClocks={initialClocks}
         onMoveComplete={handleMoveComplete}
-      newlyUnlockedAchievements={newlyUnlockedAchievements}
+        newlyUnlockedAchievements={newlyUnlockedAchievements}
         onRequestRematch={requestRematch}
         onPlayComputer={() => navigate("/")}
       />

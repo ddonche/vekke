@@ -1,16 +1,14 @@
 import type { GameState, Player, Token } from "./state"
-import type { TimeControlId, TimeControl } from "./ui_controller"
+import type { TimeControlId } from "./ui_controller"
 
 // ---------- helpers ----------
 function sq(x: number, y: number) {
-  // coords are 0..5? map to A1..F6 (confirm your coord conventions)
   const file = String.fromCharCode("A".charCodeAt(0) + x)
   const rank = (y + 1).toString()
   return `${file}${rank}`
 }
 
 function tokenKey(t: Token): string {
-  // engine has ids; we use them internally only
   return t.id
 }
 
@@ -18,11 +16,30 @@ type Loc = string // "A1" | "RESERVE" | "CAPTIVE" | "VOID" | "HAND" | "QUEUE" | 
 
 function tokenLoc(t: Token): Loc {
   if (t.in === "BOARD") return sq(t.pos.x, t.pos.y)
-  return t.in // "RESERVE" | "CAPTIVE" | "VOID"
+  return t.in
 }
 
 function fmtRoute(dir: number, dist: number) {
   return `${dir}/${dist}`
+}
+
+function isSquare(v: string): boolean {
+  return /^[A-F][1-6]$/.test(v)
+}
+
+function other(p: Player): Player {
+  return p === "W" ? "B" : "W"
+}
+
+function inc<K extends string>(obj: Record<K, number>, key: K, n = 1) {
+  obj[key] = (obj[key] ?? 0) + n
+}
+
+function takeOne(arr: string[], value: string): boolean {
+  const idx = arr.indexOf(value)
+  if (idx === -1) return false
+  arr.splice(idx, 1)
+  return true
 }
 
 // ---------- VGN Recorder ----------
@@ -52,8 +69,6 @@ export class VgnRecorder {
     this.lines.push(`META|PLAYERS|W=${args.whiteId}|B=${args.blueId}`)
     this.lines.push(`META|TOKENS|W=${args.tokensW}|B=${args.tokensB}`)
     this.lines.push(`META|TC|mode=${args.tc.id}|base=${args.tc.baseMs}|inc=${args.tc.incMs}`)
-
-    // optional round marker at start (ties later lines)
     this.lines.push(this.mkLine(0, `ROUND|n=1`))
   }
 
@@ -62,8 +77,6 @@ export class VgnRecorder {
   }
 
   private mkLine(t: number, body: string) {
-    // dt is optional; include it for readability if you want.
-    // We'll include dt for non-META lines except the first.
     const dt = this.lastNonMetaT === 0 ? null : Math.max(0, t - this.lastNonMetaT)
     this.lastNonMetaT = t
     return dt != null ? `t=${t}|dt=${dt}|${body}` : `t=${t}|${body}`
@@ -84,187 +97,173 @@ export class VgnRecorder {
     }
     if (this.lastTurnPlayer === nextPlayer) return
 
-    // increment "round" every time turn changes? (turn-based marker)
-    // If you want "round" to mean both players completed a turn, adjust here.
     this.roundN += 1
     this.lines.push(this.mkLine(t, `ROUND|n=${this.roundN}`))
     this.lastTurnPlayer = nextPlayer
   }
 
-  // Core: diff previous and next state and emit VGN transfers
-  captureDiff(perfNow: number, prev: GameState, next: GameState, lastPlayedRoute?: { by: Player; routeId: string } | null) {
+  // Pure state-transition ledger:
+  // emit only factual transfers of tokens and routes.
+  captureDiff(
+    perfNow: number,
+    prev: GameState,
+    next: GameState,
+    lastPlayedRoute?: { by: Player; routeId: string } | null
+  ) {
     const t = this.nowT(perfNow)
 
-    // ---- TOKENS: per-token diff (using ids internally) ----
     const prevById = new Map<string, Token>()
+    const nextById = new Map<string, Token>()
     for (const tok of prev.tokens) prevById.set(tokenKey(tok), tok)
+    for (const tok of next.tokens) nextById.set(tokenKey(tok), tok)
 
-    // Count token moves by (p, from, to)
-    const tokenMoves = new Map<string, number>() // key => count
-    const bump = (p: Player, from: Loc, to: Loc, n: number) => {
-      const k = `${p}|${from}|${to}`
-      tokenMoves.set(k, (tokenMoves.get(k) ?? 0) + n)
-    }
+    const reserveToBoardCount: Record<Player, number> = { W: 0, B: 0 }
+    const boardToReserveCount: Record<Player, number> = { W: 0, B: 0 }
+    const boardCaptureCount: Record<Player, number> = { W: 0, B: 0 }
 
-    for (const tok of next.tokens) {
-      const old = prevById.get(tokenKey(tok))
-      if (!old) continue
-      const from = tokenLoc(old)
-      const to = tokenLoc(tok)
-      if (from === to) continue
-      bump(tok.owner, from, to, 1)
-    }
-
-    // Emit token transfers:
-    // - BOARD placements: from=RESERVE to=A3
-    // - Captures: from=E5 to=CAPTIVE (p is capturer per your spec, NOT the captured owner)
-    //   For captures we need capturer, which is NOT tok.owner (captured owner).
-    //   We’ll handle captures via next.lastMove and board removals instead of token owner moves.
-
-    // First: placements/moves for the moving player using lastMove + lastPlayedRoute
-    // Use lastMove if present and changed.
     const lmPrev = (prev as any).lastMove
     const lmNext = (next as any).lastMove
-
     const lastMoveChanged =
       lmNext && (!lmPrev || lmPrev.moveNumber !== lmNext.moveNumber)
 
-    if (lastMoveChanged) {
-      const by: Player = lmNext.by
-      const fromSq = sq(lmNext.from.x, lmNext.from.y)
-      const toSq = sq(lmNext.to.x, lmNext.to.y)
-
-      // route string: derive from routeId if provided
-      let routeStr: string | null = null
-      if (lastPlayedRoute && lastPlayedRoute.by === by) {
-        const r = next.routes[by].find((rr: any) => rr.id === lastPlayedRoute.routeId) // might be missing if it was consumed
-        // fallback: search prev hand too
-        const r2 =
-          r ??
-          prev.routes[by].find((rr: any) => rr.id === lastPlayedRoute.routeId) ??
-          null
-        if (r2) routeStr = fmtRoute(r2.dir, r2.dist)
-      }
-
-      if (routeStr) {
-        this.lines.push(this.mkLine(t, `p=${by}|from=${fromSq}|route=${routeStr}|to=${toSq}`))
-      } else {
-        // If routeStr missing, still log the move (but this is a red flag to fix route lookup)
-        this.lines.push(this.mkLine(t, `p=${by}|from=${fromSq}|to=${toSq}`))
-      }
-
-      // capture: if a token was captured this move, it should now be in CAPTIVE and lmNext.tokenId exists
-      // Your controller uses lm.tokenId, so we can locate the capture square by lmNext.to.
-      // Per spec: p is capturer, from is capture square, to=CAPTIVE
-      const capturedTokenId = lmNext.tokenId as string | undefined
-      if (capturedTokenId) {
-        const capSq = toSq
-        // We only emit capture if we can verify a board token disappeared at that square OR a token moved to CAPTIVE.
-        // (This keeps it factual.)
-        // Simple check: total captives increased for capturer.
-        const capCountPrev = prev.captives[by] ?? 0
-        const capCountNext = next.captives[by] ?? 0
-        if (capCountNext > capCountPrev) {
-          this.lines.push(this.mkLine(t, `p=${by}|from=${capSq}|to=CAPTIVE`))
-        }
-      }
+    const routeById = (by: Player, routeId: string) => {
+      return (
+        next.routes?.[by]?.find((rr: any) => rr.id === routeId) ??
+        prev.routes?.[by]?.find((rr: any) => rr.id === routeId) ??
+        null
+      )
     }
 
-    // ---- MULLIGAN: player returned a board token to reserves and redrew routes ----
-    for (const p of ["W", "B"] as Player[]) {
-      const prevCount = (prev as any).mulliganCount?.[p] ?? 0
-      const nextCount = (next as any).mulliganCount?.[p] ?? 0
-      if (nextCount > prevCount) {
-        // Find the token that disappeared from the board
-        const nextIds = new Set(next.tokens.map((t) => t.id))
-        for (const tok of prev.tokens) {
-          if (tok.owner !== p || tok.in !== "BOARD") continue
-          if (!nextIds.has(tok.id)) {
-            const fromSq = sq(tok.pos.x, tok.pos.y)
-            this.lines.push(this.mkLine(t, `p=${p}|from=${fromSq}|to=RESERVE`))
-            this.lines.push(this.mkLine(t, `NOTE|text="Mulligan"`))
-            break
+    // ---- TOKEN TRANSFERS ----
+
+    // 1) Existing or newly created tokens in next
+    for (const tok of next.tokens) {
+      const id = tokenKey(tok)
+      const old = prevById.get(id)
+
+      // Newly created board token => RESERVE -> BOARD
+      if (!old) {
+        if (tok.in === "BOARD") {
+          const to = tokenLoc(tok)
+          this.lines.push(this.mkLine(t, `p=${tok.owner}|from=RESERVE|to=${to}`))
+          inc(reserveToBoardCount, tok.owner)
+        }
+        continue
+      }
+
+      const oldIn = old.in
+      const newIn = tok.in
+
+      if (oldIn === "BOARD" && newIn === "BOARD") {
+        const from = sq(old.pos.x, old.pos.y)
+        const to = sq(tok.pos.x, tok.pos.y)
+        if (from !== to) {
+          let routeStr: string | null = null
+          if (
+            lastMoveChanged &&
+            lmNext?.tokenId === tok.id &&
+            lastPlayedRoute &&
+            lastPlayedRoute.by === lmNext.by
+          ) {
+            const r = routeById(lastPlayedRoute.by, lastPlayedRoute.routeId)
+            if (r) routeStr = fmtRoute(r.dir, r.dist)
+          }
+
+          if (routeStr) {
+            this.lines.push(this.mkLine(t, `p=${tok.owner}|from=${from}|route=${routeStr}|to=${to}`))
+          } else {
+            this.lines.push(this.mkLine(t, `p=${tok.owner}|from=${from}|to=${to}`))
           }
         }
+        continue
+      }
+
+      if (oldIn === "RESERVE" && newIn === "BOARD") {
+        const to = tokenLoc(tok)
+        this.lines.push(this.mkLine(t, `p=${tok.owner}|from=RESERVE|to=${to}`))
+        inc(reserveToBoardCount, tok.owner)
+        continue
+      }
+
+      if (oldIn === "BOARD" && newIn === "CAPTIVE") {
+        const from = sq(old.pos.x, old.pos.y)
+        const capturer = other(tok.owner)
+        this.lines.push(this.mkLine(t, `p=${capturer}|from=${from}|to=CAPTIVE`))
+        inc(boardCaptureCount, capturer)
+        continue
+      }
+
+      if (oldIn === "BOARD" && newIn === "VOID") {
+        const from = sq(old.pos.x, old.pos.y)
+        this.lines.push(this.mkLine(t, `p=${tok.owner}|from=${from}|to=VOID`))
+        continue
+      }
+
+      if (oldIn === "BOARD" && newIn === "RESERVE") {
+        const from = sq(old.pos.x, old.pos.y)
+        this.lines.push(this.mkLine(t, `p=${tok.owner}|from=${from}|to=RESERVE`))
+        inc(boardToReserveCount, tok.owner)
+        continue
       }
     }
 
-    // ---- YIELD: tokens moved to VOID from RESERVE/CAPTIVE (aggregate) ----
-    // We can infer yield counts from tokenMoves using token.owner as payer (matches your spec p=...).
-    // Note: VOID is global; yield lines must include from=... and to=VOID and yield=n.
-    for (const [k, n] of tokenMoves.entries()) {
-      const [p, from, to] = k.split("|") as [Player, Loc, Loc]
-      if (to !== "VOID") continue
-      if (from !== "RESERVE" && from !== "CAPTIVE") continue
-      this.lines.push(this.mkLine(t, `p=${p}|from=${from}|to=VOID|yield=${n}`))
+    // 2) Tokens removed entirely from state
+    // Current engine does this for mulligan: BOARD token disappears and reserves increase.
+    for (const tok of prev.tokens) {
+      const id = tokenKey(tok)
+      if (nextById.has(id)) continue
+
+      if (tok.in === "BOARD") {
+        const from = sq(tok.pos.x, tok.pos.y)
+        this.lines.push(this.mkLine(t, `p=${tok.owner}|from=${from}|to=RESERVE`))
+        inc(boardToReserveCount, tok.owner)
+      }
     }
 
-    // ---- RANSOM: pay 2 captives to recover 1 from void ----
+    // ---- OFF-BOARD COUNT TRANSFERS ----
+    // Pure deltas only. No game semantics.
     for (const p of ["W", "B"] as Player[]) {
-      const captivesDelta = (next.captives[p] ?? 0) - (prev.captives[p] ?? 0)
-      const voidDelta = (next.void[p] ?? 0) - (prev.void[p] ?? 0)
-      const reservesDelta = (next.reserves[p] ?? 0) - (prev.reserves[p] ?? 0)
+      const prevReserve = prev.reserves[p] ?? 0
+      const nextReserve = next.reserves[p] ?? 0
 
-      // Ransom pattern: exactly -2 captives, -1 void, +1 reserves
-      if (captivesDelta === -2 && voidDelta === -1 && reservesDelta === 1) {
-        // Express as transfers: 2 captives consumed, 1 recovered from void
-        this.lines.push(this.mkLine(t, `p=${p}|from=CAPTIVE|to=VOID|yield=2`))
-        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=RESERVE|count=1`))
-        this.lines.push(this.mkLine(t, `NOTE|text="Ransom"`))
+      const prevCaptive = prev.captives[p] ?? 0
+      const nextCaptive = next.captives[p] ?? 0
+
+      const prevVoid = prev.void[p] ?? 0
+      const nextVoid = next.void[p] ?? 0
+
+      // RESERVE -> VOID
+      // Subtract placements because those are already emitted as RESERVE -> BOARD.
+      const reserveSpentToVoid =
+        Math.max(0, prevReserve - nextReserve - reserveToBoardCount[p])
+      if (reserveSpentToVoid > 0) {
+        this.lines.push(this.mkLine(t, `p=${p}|from=RESERVE|to=VOID|yield=${reserveSpentToVoid}`))
       }
 
-      // Recoil pattern: exactly -1 captives, -1 reserves, +2 void,
-      // AND a token moved on board for the defender (p = defender, not active player)
-      // We detect via the recoilArmed flag transitioning false and a token moving
-      const prevRecoilArmed = (prev as any).recoilArmed ?? false
-      const nextRecoilArmed = (next as any).recoilArmed ?? false
-      const recoilFired = prevRecoilArmed && !nextRecoilArmed
-
-      if (recoilFired && captivesDelta === -1 && reservesDelta === -1 && voidDelta === 2) {
-        // Find where the recoiling token moved
-        for (const tok of next.tokens) {
-          if (tok.owner !== p || tok.in !== "BOARD") continue
-          const old = prevById.get(tokenKey(tok))
-          if (!old || old.in !== "BOARD") continue
-          const fromLoc = tokenLoc(old)
-          const toLoc = tokenLoc(tok)
-          if (fromLoc === toLoc) continue
-          this.lines.push(this.mkLine(t, `p=${p}|from=${fromLoc}|to=${toLoc}`))
-          this.lines.push(this.mkLine(t, `NOTE|text="Recoil"`))
-          break
-        }
+      // VOID -> RESERVE
+      // Subtract BOARD -> RESERVE because those are already emitted separately.
+      const reserveGainedFromVoid =
+        Math.max(0, nextReserve - prevReserve - boardToReserveCount[p])
+      if (reserveGainedFromVoid > 0) {
+        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=RESERVE|count=${reserveGainedFromVoid}`))
       }
 
-      // Defection pattern: defectionUsedThisTurn transitions false -> true
-      // One of p's tokens moves BOARD -> VOID, enemy void decreases, p's captives increase
-      const prevDefectionUsed = (prev as any).defectionUsedThisTurn ?? false
-      const nextDefectionUsed = (next as any).defectionUsedThisTurn ?? false
-      const defectionFired = !prevDefectionUsed && nextDefectionUsed
+      // CAPTIVE -> VOID
+      const captiveSpentToVoid = Math.max(0, prevCaptive - nextCaptive)
+      if (captiveSpentToVoid > 0) {
+        this.lines.push(this.mkLine(t, `p=${p}|from=CAPTIVE|to=VOID|yield=${captiveSpentToVoid}`))
+      }
 
-      if (defectionFired) {
-        // Find the sacrificed token: p's token that moved from BOARD to VOID
-        for (const tok of next.tokens) {
-          if (tok.owner !== p || tok.in !== "VOID") continue
-          const old = prevById.get(tokenKey(tok))
-          if (!old || old.in !== "BOARD") continue
-          const sacrificedSq = sq(old.pos.x, old.pos.y)
-          this.lines.push(this.mkLine(t, `p=${p}|from=${sacrificedSq}|to=VOID`))
-          this.lines.push(this.mkLine(t, `NOTE|text="Defection — sacrificed token"`))
-          break
-        }
-        // Claim 1 enemy token from their void into p's captives
-        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|count=1`))
-        this.lines.push(this.mkLine(t, `NOTE|text="Defection — claimed from void"`))
+      // VOID -> CAPTIVE
+      // Subtract BOARD -> CAPTIVE because capture lines are already emitted.
+      const captiveGainedFromVoid =
+        Math.max(0, nextCaptive - prevCaptive - boardCaptureCount[p])
+      if (captiveGainedFromVoid > 0) {
+        this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|count=${captiveGainedFromVoid}`))
       }
     }
 
-    // ---- ROUTES: diff hand/queue/deck ----
-    // This assumes your state has:
-    // - next.routes[Player] as HAND (array of route objects {id,dir,dist})
-    // - next.queue as QUEUE (array)
-    // - next.deck as DECK (array)
-    // If those names differ, we’ll adjust, but this is the correct mechanism.
-
+    // ---- ROUTE TRANSFERS ----
     const emitRouteTransfers = () => {
       const prevHandW = (prev.routes?.W ?? []) as any[]
       const prevHandB = (prev.routes?.B ?? []) as any[]
@@ -284,7 +283,6 @@ export class VgnRecorder {
       }
 
       const diffOut = (a: Map<string, number>, b: Map<string, number>) => {
-        // items in a not in b (a - b)
         const out: string[] = []
         for (const [id, cnt] of a) {
           const left = cnt - (b.get(id) ?? 0)
@@ -293,9 +291,13 @@ export class VgnRecorder {
         return out
       }
 
-      // helper to lookup route by id from any pool
       const lookup = (id: string) => {
-        const all = [...prevHandW, ...prevHandB, ...nextHandW, ...nextHandB, ...prevQueue, ...nextQueue, ...prevDeck, ...nextDeck]
+        const all = [
+          ...prevHandW, ...prevHandB,
+          ...nextHandW, ...nextHandB,
+          ...prevQueue, ...nextQueue,
+          ...prevDeck, ...nextDeck,
+        ]
         return all.find((r) => r.id === id) ?? null
       }
 
@@ -304,52 +306,60 @@ export class VgnRecorder {
       const prevQ = multiset(prevQueue), nextQ = multiset(nextQueue)
       const prevD = multiset(prevDeck), nextD = multiset(nextDeck)
 
-      // QUEUE -> HAND (player-scoped)
-      // detect: removed from queue and added to a hand
       const qRemoved = diffOut(prevQ, nextQ)
+      const qAdded = diffOut(nextQ, prevQ)
+      const dRemoved = diffOut(prevD, nextD)
+      const dAdded = diffOut(nextD, prevD)
       const wAdded = diffOut(nextHW, prevHW)
       const bAdded = diffOut(nextHB, prevHB)
-
-      // naive pairing: assume 1:1 in normal operations
-      for (const id of wAdded) {
-        if (!qRemoved.includes(id)) continue
-        const r = lookup(id)
-        if (!r) continue
-        this.lines.push(this.mkLine(t, `p=W|route=${fmtRoute(r.dir, r.dist)}|from=QUEUE|to=HAND`))
-      }
-      for (const id of bAdded) {
-        if (!qRemoved.includes(id)) continue
-        const r = lookup(id)
-        if (!r) continue
-        this.lines.push(this.mkLine(t, `p=B|route=${fmtRoute(r.dir, r.dist)}|from=QUEUE|to=HAND`))
-      }
-
-      // HAND -> DECK (player-scoped)
       const wRemoved = diffOut(prevHW, nextHW)
       const bRemoved = diffOut(prevHB, nextHB)
-      const dAdded = diffOut(nextD, prevD)
 
+      // HAND additions: QUEUE -> HAND or DECK -> HAND
+      for (const id of wAdded) {
+        const r = lookup(id)
+        if (!r) continue
+        if (takeOne(qRemoved, id)) {
+          this.lines.push(this.mkLine(t, `p=W|route=${fmtRoute(r.dir, r.dist)}|from=QUEUE|to=HAND`))
+        } else if (takeOne(dRemoved, id)) {
+          this.lines.push(this.mkLine(t, `p=W|route=${fmtRoute(r.dir, r.dist)}|from=DECK|to=HAND`))
+        }
+      }
+
+      for (const id of bAdded) {
+        const r = lookup(id)
+        if (!r) continue
+        if (takeOne(qRemoved, id)) {
+          this.lines.push(this.mkLine(t, `p=B|route=${fmtRoute(r.dir, r.dist)}|from=QUEUE|to=HAND`))
+        } else if (takeOne(dRemoved, id)) {
+          this.lines.push(this.mkLine(t, `p=B|route=${fmtRoute(r.dir, r.dist)}|from=DECK|to=HAND`))
+        }
+      }
+
+      // HAND removals: HAND -> DECK
       for (const id of wRemoved) {
-        if (!dAdded.includes(id)) continue
         const r = lookup(id)
         if (!r) continue
-        this.lines.push(this.mkLine(t, `p=W|route=${fmtRoute(r.dir, r.dist)}|from=HAND|to=DECK`))
-      }
-      for (const id of bRemoved) {
-        if (!dAdded.includes(id)) continue
-        const r = lookup(id)
-        if (!r) continue
-        this.lines.push(this.mkLine(t, `p=B|route=${fmtRoute(r.dir, r.dist)}|from=HAND|to=DECK`))
+        if (takeOne(dAdded, id)) {
+          this.lines.push(this.mkLine(t, `p=W|route=${fmtRoute(r.dir, r.dist)}|from=HAND|to=DECK`))
+        }
       }
 
-      // DECK -> QUEUE refill (global, no p)
-      const dRemoved = diffOut(prevD, nextD)
-      const qAdded = diffOut(nextQ, prevQ)
-      for (const id of qAdded) {
-        if (!dRemoved.includes(id)) continue
+      for (const id of bRemoved) {
         const r = lookup(id)
         if (!r) continue
-        this.lines.push(this.mkLine(t, `route=${fmtRoute(r.dir, r.dist)}|from=DECK|to=QUEUE`))
+        if (takeOne(dAdded, id)) {
+          this.lines.push(this.mkLine(t, `p=B|route=${fmtRoute(r.dir, r.dist)}|from=HAND|to=DECK`))
+        }
+      }
+
+      // DECK -> QUEUE refill
+      for (const id of [...qAdded]) {
+        const r = lookup(id)
+        if (!r) continue
+        if (takeOne(dRemoved, id)) {
+          this.lines.push(this.mkLine(t, `route=${fmtRoute(r.dir, r.dist)}|from=DECK|to=QUEUE`))
+        }
       }
     }
 
@@ -360,14 +370,17 @@ export class VgnRecorder {
     const t = this.nowT(perfNow)
     const loser: Player = winner === "W" ? "B" : "W"
 
-    // Map engine reason -> VGN terminal type
     const type =
-      reason === "resignation" ? "RESIGN" :
-      reason === "timeout" ? "TIMEOUT" :
-      reason === "siegemate" ? "SIEGEMATE" :
-      "ELIMINATION"
+      reason === "resignation"
+        ? "RESIGN"
+        : reason === "timeout"
+          ? "TIMEOUT"
+          : reason === "siegemate"
+            ? "SIEGEMATE"
+            : reason === "collapse"
+              ? "COLLAPSE"
+              : "ELIMINATION"
 
-    // Per your spec: TIMEOUT is recorded as LOSS, not WIN.
     const tag = type === "TIMEOUT" ? "LOSS" : "WIN"
 
     this.lines.push(this.mkLine(t, `${tag}|type=${type}|winner=${winner}|loser=${loser}`))

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import { getCurrentUserId } from "../services/auth"
 import { reportVsAiEloAndStats } from "../services/player_stats"
-import { getAccountTier, saveGameLog } from "../services/game_logs"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
 import { VgnRecorder } from "./vgn"
@@ -105,11 +104,15 @@ type Clocks = { W: number; B: number }
 
 const other = (p: Player): Player => (p === "W" ? "B" : "W")
 
-export function useVekkeController(opts: { 
+export function useVekkeController(opts: {
   sounds: Sounds
   aiDelayMs?: number
   opponentType?: "ai" | "pvp"
-  onMoveComplete?: (state: GameState, clocks: { W: number; B: number }) => void
+  onMoveComplete?: (
+    state: GameState,
+    clocks: { W: number; B: number },
+    vgn?: string
+  ) => void
   initialState?: GameState
   /**
    * PvP only: pass the latest state received from the DB here.
@@ -117,6 +120,7 @@ export function useVekkeController(opts: {
    * which is how the opponent's move is shown on your board.
    */
   externalState?: GameState
+  externalGameData?: any
   mySide?: Player
   initialTimeControlId?: TimeControlId
   initialClocks?: { W: number; B: number }
@@ -150,7 +154,9 @@ export function useVekkeController(opts: {
   // NEW: time controls + clocks
   const [timeControlId, setTimeControlId] = useState<TimeControlId>(opts.initialTimeControlId ?? "standard")
   const timeControl = TIME_CONTROLS[timeControlId]
-  const [clocks, setClocks] = useState<Clocks>(() => opts.initialClocks ?? ({ W: timeControl.baseMs, B: timeControl.baseMs }))
+  const [clocks, setClocks] = useState<Clocks>(
+    () => opts.initialClocks ?? { W: timeControl.baseMs, B: timeControl.baseMs }
+  )
 
   // ------------------------------------------------------------
   // Online reporting / Elo wiring
@@ -252,8 +258,40 @@ export function useVekkeController(opts: {
   const vgnGameIdRef = useRef<string | null>(null)
   const vgnStartPerfRef = useRef<number>(0)
   const vgnEndedKeyRef = useRef<string | null>(null)
-  const savedVgnRef = useRef<string | null>(null)
   const lastPlayedRouteRef = useRef<{ by: Player; routeId: string } | null>(null)
+
+  useEffect(() => {
+    const externalGameData = (opts as any).externalGameData
+    if (!externalGameData) return
+    if (vgnRef.current) return
+
+    const tcId = opts.initialTimeControlId ?? "standard"
+    const tc = TIME_CONTROLS[tcId]
+    const perf0 = performance.now()
+
+    vgnStartPerfRef.current = perf0
+    vgnGameIdRef.current = externalGameData.id ?? externalGameData.game_id ?? crypto.randomUUID()
+    vgnEndedKeyRef.current = null
+
+    const rec = new VgnRecorder({
+      gameId: vgnGameIdRef.current,
+      ruleset: "vekke",
+      version: 1,
+      whiteId: String(externalGameData.wake_id ?? "W"),
+      blueId: String(externalGameData.brake_id ?? "B"),
+      tokensW: 18,
+      tokensB: 18,
+      tc: { id: tcId, baseMs: tc.baseMs, incMs: tc.incMs },
+      gameStartPerfMs: perf0,
+    })
+
+    const existingVgn = externalGameData.vgn as string | null | undefined
+    if (existingVgn) {
+      ;(rec as any).lines = String(existingVgn).split("\n")
+    }
+
+    vgnRef.current = rec
+  }, [opts.initialTimeControlId, (opts as any).externalGameData])
 
   // Timer refs
   const lastTickAtRef = useRef<number>(0)
@@ -318,7 +356,8 @@ export function useVekkeController(opts: {
     return m
   }, [g.tokens])
 
-  const remainingRoutes = g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
+  const remainingRoutes =
+    g.phase === "ACTION" ? g.routes[g.player].filter((r) => !g.usedRoutes.includes(r.id)) : []
 
   const forcedYieldAvailable = useMemo(() => {
     if (!started) return false
@@ -378,11 +417,9 @@ export function useVekkeController(opts: {
     !g.gameOver &&
     !recoilArmed &&
     g.phase !== "OPENING" &&
-    (isMiracleWinScenario || (
-      g.captives[defender] >= RECOIL_COST_CAPTIVES &&
-      g.reserves[defender] >= RECOIL_COST_RESERVES
-    ))
-
+    (isMiracleWinScenario ||
+      (g.captives[defender] >= RECOIL_COST_CAPTIVES &&
+        g.reserves[defender] >= RECOIL_COST_RESERVES))
 
   // Defection
   const defectionArmed = Boolean(g.defectionArmed)
@@ -404,14 +441,15 @@ export function useVekkeController(opts: {
     g.usedRoutes.length >= g.routes[g.player].length &&
     g.routes[g.player].length > 0
   const pendingRecoil = (g as any).pendingRecoil as { tokenId: string | null; to: Coord | null } | undefined
-  const recoilSourcePos = recoilArmed && selectedTokenId
-    ? (() => {
-        const token = g.tokens.find((t) => t.id === selectedTokenId)
-        if (token?.in === "BOARD") return token.pos
-        if (token?.in === "CAPTIVE" && g.lastMove?.tokenId === selectedTokenId) return g.lastMove.to
-        return null
-      })()
-    : null
+  const recoilSourcePos =
+    recoilArmed && selectedTokenId
+      ? (() => {
+          const token = g.tokens.find((t) => t.id === selectedTokenId)
+          if (token?.in === "BOARD") return token.pos
+          if (token?.in === "CAPTIVE" && g.lastMove?.tokenId === selectedTokenId) return g.lastMove.to
+          return null
+        })()
+      : null
 
   const update = useCallback((mut: (s: GameState) => void) => {
     setG((prev) => {
@@ -429,40 +467,6 @@ export function useVekkeController(opts: {
     },
     [update]
   )
-
-  // Sync state to database after a real local state change.
-  // IMPORTANT: do NOT include `clocks` in the deps – clocks tick every second
-  // and would cause this to spam writes, overwriting the opponent's move.
-  useEffect(() => {
-    if (!started) return
-    if (!onMoveComplete) return
-
-    // Skip if this state update came from the DB (opponent's move).
-    // Echoing it back would overwrite the DB with stale local state.
-    if (applyingExternalRef.current) {
-      applyingExternalRef.current = false
-      return
-    }
-
-    // Dedup: only fire when g actually changed to a new logical state.
-    const gAny = g as any
-    let key: string
-    if (gAny.gameOver) {
-      key = `gameover-${gAny.gameOver.winner}-${gAny.gameOver.reason}-${gAny.log?.length ?? 0}`
-    } else if (gAny.phase === "OPENING") {
-      key = `opening-${gAny.openingPlaced?.B ?? 0}-${gAny.openingPlaced?.W ?? 0}`
-    } else {
-      key = `${gAny.player}-${gAny.phase}-${gAny.log?.length ?? 0}`
-    }
-
-    if (key === lastSyncedKeyRef.current) return
-    lastSyncedKeyRef.current = key
-
-    onMoveComplete(g, clocks)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g, started, onMoveComplete])
-  // Note: clocks intentionally omitted – clock values are included in the
-  // argument but must not be the trigger, only g changing should trigger a write.
 
   // Play invalid sound whenever the game (or UI) sets an INVALID warning.
   const lastInvalidRef = useRef<string | null>(null)
@@ -635,7 +639,23 @@ export function useVekkeController(opts: {
         setSelectedTokenId(t.id)
       }
     },
-    [started, g, update, playSound, sounds.place, sounds.click, boardMap, selectedTokenId, warn, recoilArmed, pendingRecoil, defectionArmed, mulliganArmed]
+    [
+      started,
+      g,
+      update,
+      playSound,
+      sounds.place,
+      sounds.click,
+      boardMap,
+      selectedTokenId,
+      warn,
+      recoilArmed,
+      pendingRecoil,
+      defectionArmed,
+      mulliganArmed,
+      opponentType,
+      mySide,
+    ]
   )
 
   useEffect(() => {
@@ -671,7 +691,7 @@ export function useVekkeController(opts: {
 
     // Normal auto-selection for regular turns
     if (!recoilArmed) {
-      const sel = selectedTokenId ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId) : null
+      const sel = selectedTokenId ? g.tokens.find((t) => t.in === "BOARD" && t.id === selectedTokenId) ?? null : null
 
       if (g.phase === "ACTION" || g.phase === "SWAP") {
         if (!sel || sel.owner !== g.player) {
@@ -683,83 +703,83 @@ export function useVekkeController(opts: {
   }, [g.player, g.phase, g.tokens, recoilArmed, g.lastMove, defender, update, selectedTokenId])
 
   useEffect(() => {
-      if (!started) return
-      if (g.gameOver) return
-      if (opponentType !== "ai") return // Skip AI in PvP mode
-      if (recoilArmed) return // Don't let AI move during evasion interrupt
+    if (!started) return
+    if (g.gameOver) return
+    if (opponentType !== "ai") return // Skip AI in PvP mode
+    if (recoilArmed) return // Don't let AI move during evasion interrupt
 
-      // AI auto-passes mulligan
-      if (g.phase === "MULLIGAN" && !(g as any).mulliganReady?.[ai]) {
-        const t = window.setTimeout(() => {
-          update((s) => passMulligan(s, ai))
-        }, 1500)
-        return () => window.clearTimeout(t)
-      }
-
-      if (g.player !== ai) return
-
-      // --- AI "thinking" delay ---
-      // Human pacing: ~1–5 seconds per AI action, regardless of level/time control.
-      // (Still respects opts.aiDelayMs if you want a fixed delay.)
-      const delayMs = (() => {
-        if (opts.aiDelayMs != null) return AI_DELAY_MS
-
-        const MIN_MS = 1000
-        const MAX_MS = 5000
-        const ms = MIN_MS + Math.random() * (MAX_MS - MIN_MS)
-        return Math.max(MIN_MS, Math.round(ms))
-      })()
-      // --- end delay ---
-
+    // AI auto-passes mulligan
+    if (g.phase === "MULLIGAN" && !(g as any).mulliganReady?.[ai]) {
       const t = window.setTimeout(() => {
-        update((s) => {
-          const stepMap: Record<AiLevel, typeof aiStepNovice> = {
-            rookie: aiStepRookie,
-            novice: aiStepNovice,
-            adept: aiStepAdept,
-            expert: aiStepExpert,
-            master: aiStepMaster,
-            senior_master: aiStepSeniorMaster,
-            grandmaster: aiStepGrandmaster,
-          }
-          // If AI has used all its routes, advance the phase instead of trying to move/yield.
-          // (finishActionIfDone is a no-op; the AI must call advanceFromAction explicitly.)
-          if (
-            s.phase === "ACTION" &&
-            s.routes[ai].length > 0 &&
-            s.usedRoutes.length >= s.routes[ai].length
-          ) {
-            advanceFromAction(s)
-            return
-          }
-
-          const step = stepMap[aiDifficulty] ?? aiStepNovice
-          step(s, ai)
-        })
-      }, delayMs)
-
+        update((s) => passMulligan(s, ai))
+      }, 1500)
       return () => window.clearTimeout(t)
-    }, [
-      started,
-      g.player,
-      g.phase,
-      g.usedRoutes.length,
-      g.pendingSwap.handRouteId,
-      g.pendingSwap.queueIndex,
-      g.reinforcementsToPlace,
-      g.openingPlaced.B,
-      g.openingPlaced.W,
-      g.gameOver,
-      g.log.length,
-      ai,
-      aiDifficulty,
-      update,
-      AI_DELAY_MS,
-      recoilArmed,
-      opponentType,
-      timeControlId,
-      opts.aiDelayMs,
-    ])
+    }
+
+    if (g.player !== ai) return
+
+    // --- AI "thinking" delay ---
+    // Human pacing: ~1–5 seconds per AI action, regardless of level/time control.
+    // (Still respects opts.aiDelayMs if you want a fixed delay.)
+    const delayMs = (() => {
+      if (opts.aiDelayMs != null) return AI_DELAY_MS
+
+      const MIN_MS = 1000
+      const MAX_MS = 5000
+      const ms = MIN_MS + Math.random() * (MAX_MS - MIN_MS)
+      return Math.max(MIN_MS, Math.round(ms))
+    })()
+    // --- end delay ---
+
+    const t = window.setTimeout(() => {
+      update((s) => {
+        const stepMap: Record<AiLevel, typeof aiStepNovice> = {
+          rookie: aiStepRookie,
+          novice: aiStepNovice,
+          adept: aiStepAdept,
+          expert: aiStepExpert,
+          master: aiStepMaster,
+          senior_master: aiStepSeniorMaster,
+          grandmaster: aiStepGrandmaster,
+        }
+        // If AI has used all its routes, advance the phase instead of trying to move/yield.
+        // (finishActionIfDone is a no-op; the AI must call advanceFromAction explicitly.)
+        if (
+          s.phase === "ACTION" &&
+          s.routes[ai].length > 0 &&
+          s.usedRoutes.length >= s.routes[ai].length
+        ) {
+          advanceFromAction(s)
+          return
+        }
+
+        const step = stepMap[aiDifficulty] ?? aiStepNovice
+        step(s, ai)
+      })
+    }, delayMs)
+
+    return () => window.clearTimeout(t)
+  }, [
+    started,
+    g.player,
+    g.phase,
+    g.usedRoutes.length,
+    g.pendingSwap.handRouteId,
+    g.pendingSwap.queueIndex,
+    g.reinforcementsToPlace,
+    g.openingPlaced.B,
+    g.openingPlaced.W,
+    g.gameOver,
+    g.log.length,
+    ai,
+    aiDifficulty,
+    update,
+    AI_DELAY_MS,
+    recoilArmed,
+    opponentType,
+    timeControlId,
+    opts.aiDelayMs,
+  ])
 
   useEffect(() => {
     if (!started) return
@@ -780,95 +800,6 @@ export function useVekkeController(opts: {
       playedGameOverSound.current = false
     }
   }, [g.gameOver, sounds.gameOver])
-
-  // ------------------------------------------------------------
-  // Report result + apply Elo (AI fixed rating; human updates only)
-  // NOTE: We are NOT persisting games rows yet.
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!started) return
-    if (!g.gameOver) return
-
-    // De-dupe: same terminal state can re-render.
-    const reportKey = `${g.gameOver.winner}:${g.gameOver.reason}:${g.log.length}`
-    if (reportedResultRef.current === reportKey) return
-    reportedResultRef.current = reportKey
-
-    // --- VGN TERMINAL MARKER (emit once) ---
-    if (vgnRef.current && vgnEndedKeyRef.current !== reportKey) {
-      vgnEndedKeyRef.current = reportKey
-      vgnRef.current.end(performance.now(), g.gameOver.winner, g.gameOver.reason)
-    }
-    // --- END VGN TERMINAL MARKER ---
-
-    ;(async () => {
-      try {
-        const endedAt = new Date().toISOString()
-
-        const userId = await getCurrentUserId()
-        if (!userId) return
-
-        // PvP isn't wired yet. For now we treat all matches as vs AI.
-        if (!vsAi) return
-
-        await reportVsAiEloAndStats({
-          userId,
-          timeControlId,
-          aiRating: AI_RATING[aiDifficulty] ?? 600,
-          humanPlayer: human,
-          winner: g.gameOver.winner,
-          reason: g.gameOver.reason,
-          endedAt,
-        })
-
-        // --- SAVE VGN (AI only for PRO accounts) ---
-        try {
-          if (savedVgnRef.current !== reportKey) {
-            savedVgnRef.current = reportKey
-
-            if (vsAi) {
-              const accountTier = await getAccountTier(userId)
-              if (accountTier === "pro") {
-                const gameId = vgnGameIdRef.current
-                const rec: any = vgnRef.current as any
-
-                const vgnText: string | null =
-                  rec?.toVgnText?.() ??
-                  rec?.toVgn?.() ??
-                  rec?.toText?.() ??
-                  rec?.dump?.() ??
-                  (typeof rec?.toString === "function" ? rec.toString() : null)
-
-                if (gameId && vgnText) {
-                  await saveGameLog({
-                    gameId,
-                    ownerId: userId,
-                    opponentId: AI_UUID[aiDifficulty] ?? null,
-                    mode: "ai",
-                    timeControlId,
-                    winner: g.gameOver.winner,
-                    reason: g.gameOver.reason,
-                    aiLevel: aiDifficulty,
-                    vgn: vgnText,
-                  })
-                } else {
-                  console.warn("VGN not saved: missing gameId or VGN text", {
-                    gameId,
-                    hasRecorder: !!vgnRef.current,
-                  })
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.error("VGN save failed:", e)
-        }
-        // --- END SAVE VGN ---
-      } catch (err) {
-        console.error("Result reporting / Elo failed:", err)
-      }
-    })()
-  }, [started, g.gameOver, g.log.length, vsAi, timeControlId, aiDifficulty, human])
 
   useEffect(() => {
     if (!started) return
@@ -920,7 +851,8 @@ export function useVekkeController(opts: {
 
     const didPickSwap =
       g.phase === "SWAP" &&
-      (g.pendingSwap.handRouteId !== prev.pendingSwap.handRouteId || g.pendingSwap.queueIndex !== prev.pendingSwap.queueIndex)
+      (g.pendingSwap.handRouteId !== prev.pendingSwap.handRouteId ||
+        g.pendingSwap.queueIndex !== prev.pendingSwap.queueIndex)
 
     const prevCaptives = prev.captives.B + prev.captives.W
     const nextCaptives = g.captives.B + g.captives.W
@@ -973,7 +905,89 @@ export function useVekkeController(opts: {
     }
   }, [g, started, audioReady, playSound, sounds])
 
-  const selected = selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
+  // ------------------------------------------------------------
+  // Report result + apply Elo (AI fixed rating; human updates only)
+  // NOTE: We are NOT persisting games rows yet.
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if (!started) return
+    if (!g.gameOver) return
+
+    // De-dupe: same terminal state can re-render.
+    const reportKey = `${g.gameOver.winner}:${g.gameOver.reason}:${g.log.length}`
+    if (reportedResultRef.current === reportKey) return
+    reportedResultRef.current = reportKey
+
+    // --- VGN TERMINAL MARKER (emit once) ---
+    if (vgnRef.current && vgnEndedKeyRef.current !== reportKey) {
+      vgnEndedKeyRef.current = reportKey
+      vgnRef.current.end(performance.now(), g.gameOver.winner, g.gameOver.reason)
+    }
+    // --- END VGN TERMINAL MARKER ---
+
+    ;(async () => {
+      try {
+        const endedAt = new Date().toISOString()
+
+        const userId = await getCurrentUserId()
+        if (!userId) return
+
+        // PvP isn't wired yet. For now we treat all matches as vs AI.
+        if (!vsAi) return
+
+        await reportVsAiEloAndStats({
+          userId,
+          timeControlId,
+          aiRating: AI_RATING[aiDifficulty] ?? 600,
+          humanPlayer: human,
+          winner: g.gameOver.winner,
+          reason: g.gameOver.reason,
+          endedAt,
+        })
+      } catch (err) {
+        console.error("Result reporting / Elo failed:", err)
+      }
+    })()
+  }, [started, g.gameOver, g.log.length, vsAi, timeControlId, aiDifficulty, human])
+
+  // Sync state to database after a real local state change.
+  // IMPORTANT: do NOT include `clocks` in the deps – clocks tick every second
+  // and would cause this to spam writes, overwriting the opponent's move.
+  // This effect is intentionally BELOW the VGN effects so the serialized VGN
+  // includes captureDiff() and terminal end() for the current state.
+  useEffect(() => {
+    if (!started) return
+    if (!onMoveComplete) return
+
+    // Skip if this state update came from the DB (opponent's move).
+    // Echoing it back would overwrite the DB with stale local state.
+    if (applyingExternalRef.current) {
+      applyingExternalRef.current = false
+      return
+    }
+
+    // Dedup: only fire when g actually changed to a new logical state.
+    const gAny = g as any
+    let key: string
+    if (gAny.gameOver) {
+      key = `gameover-${gAny.gameOver.winner}-${gAny.gameOver.reason}-${gAny.log?.length ?? 0}`
+    } else if (gAny.phase === "OPENING") {
+      key = `opening-${gAny.openingPlaced?.B ?? 0}-${gAny.openingPlaced?.W ?? 0}`
+    } else {
+      key = `${gAny.player}-${gAny.phase}-${gAny.log?.length ?? 0}`
+    }
+
+    if (key === lastSyncedKeyRef.current) return
+    lastSyncedKeyRef.current = key
+
+    onMoveComplete(g, clocks, vgnRef.current?.toString?.() ?? undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [g, started, onMoveComplete])
+  // Note: clocks intentionally omitted – clock values are included in the
+  // argument but must not be the trigger, only g changing should trigger a write.
+
+  const selected =
+    selectedTokenId ? g.tokens.find((t) => t.id === selectedTokenId && t.in === "BOARD") ?? null : null
 
   const actions = useMemo(() => {
     return {
@@ -999,7 +1013,6 @@ export function useVekkeController(opts: {
         await unlockAudio()
 
         reportedResultRef.current = null // RESET result de-dupe for the next game
-        savedVgnRef.current = null // RESET VGN save de-dupe for the next game
 
         const ng = newGame()
         setG(ng)
@@ -1023,6 +1036,7 @@ export function useVekkeController(opts: {
         const humanSide: Player = Math.random() < 0.5 ? "W" : "B"
         setHuman(humanSide) // keep your existing reset behavior, but make it deterministic for VGN
         const aiSide: Player = humanSide === "W" ? "B" : "W"
+        void aiSide
 
         const t = TIME_CONTROLS[tc]
 
@@ -1433,6 +1447,10 @@ export function useVekkeController(opts: {
     warn,
     timeControlId,
     ensureGameRow,
+    aiDifficulty,
+    opponentType,
+    mySide,
+    isMiracleWinScenario,
   ])
 
   return {

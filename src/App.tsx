@@ -21,6 +21,7 @@ import { PuzzleEditorPage } from "./pages/PuzzleEditorPage"
 import { PuzzlePage } from "./pages/PuzzlePage"
 import { PuzzlesListPage } from "./pages/PuzzlesListPage"
 import MarketplacePage from "./pages/MarketplacePage"
+import { ReplayPage } from "./pages/ReplayPage"
 
 function RulesRedirect() {
   window.location.replace("https://rules.vekke.net")
@@ -69,6 +70,7 @@ function App() {
       <Route path="/puzzle/:id" element={<PuzzlePage />} />
       <Route path="/play" element={<GamePage />} />
       <Route path="/marketplace" element={<MarketplacePage />} />
+      <Route path="/replay/:gameId" element={<ReplayPage />} />
 
     </Routes>
   )

@@ -154,14 +154,16 @@ export function AiGameWrapper() {
           lvl === "senior_master"
             ? "Senior Master AI"
             : lvl
-            ? `${lvl.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} AI`
-            : "Computer"
+              ? `${lvl.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())} AI`
+              : "Computer"
 
         if (!mounted) return
 
         setMySide(side)
         setGameData(game)
         gameDataRef.current = game
+
+        prevPlayerRef.current = (game.current_state as any)?.player ?? null
 
         setMyName(myProfile?.username || "You")
         setMyAvatarUrl((myProfile as any)?.avatar_url ?? null)
@@ -201,11 +203,15 @@ export function AiGameWrapper() {
     return () => {
       mounted = false
     }
-  }, [gameId])
+  }, [gameId, nav])
 
   // Persist state to DB after each move (both human and AI turns)
   const handleMoveComplete = useCallback(
-    async (state: GameState, clocks?: { W: number; B: number }) => {
+    async (
+      state: GameState,
+      clocks?: { W: number; B: number },
+      vgn?: string
+    ) => {
       if (!gameId) return
 
       // Refresh safety: if the DB already shows this game ended, never write/finalize again.
@@ -230,6 +236,11 @@ export function AiGameWrapper() {
         current_state: state,
         last_move_at: nowIso,
       }
+
+      if (typeof vgn === "string") {
+        patch.vgn = vgn
+      }
+
       if (turnFlipped || isOver) patch.turn_started_at = nowIso
       if (clocks) {
         patch.clocks_w_ms = Math.round(clocks.W)
@@ -255,12 +266,44 @@ export function AiGameWrapper() {
         if (!isOver) return
       }
 
+      // Keep local cache aligned
+      setGameData((prev) => {
+        if (!prev) return prev
+        const next = {
+          ...prev,
+          current_state: state,
+          last_move_at: nowIso,
+          turn_started_at: (turnFlipped || isOver) ? nowIso : (prev as any).turn_started_at,
+          turn: nextTurn ?? (prev as any).turn,
+          clocks_w_ms: clocks ? Math.round(clocks.W) : (prev as any).clocks_w_ms,
+          clocks_b_ms: clocks ? Math.round(clocks.B) : (prev as any).clocks_b_ms,
+          vgn: typeof vgn === "string" ? vgn : (prev as any).vgn ?? null,
+          ...(isOver && gd
+            ? {
+                status: "ended",
+                winner_id: (state as any).gameOver?.winner === "W" ? gd.wake_id : gd.brake_id,
+                loser_id: (state as any).gameOver?.winner === "W" ? gd.brake_id : gd.wake_id,
+                end_reason: (state as any).gameOver?.reason,
+                ended_at: nowIso,
+              }
+            : null),
+        } as any
+        gameDataRef.current = next
+        return next
+      })
+
       // Finalize on server (idempotent via games.rating_applied). This updates stats for AI opponents
       // without double-finalizing on refresh.
       if (isOver && !alreadyEnded) {
         const go = (state as any).gameOver
         try {
-          await invokeAuthed("finalize_game", { gameId, winner: go.winner, reason: go.reason })
+          await invokeAuthed("finalize_game", {
+            gameId,
+            winner: go.winner,
+            reason: go.reason,
+            vgn: typeof vgn === "string" ? vgn : null,
+            logs: Array.isArray((state as any).log) ? (state as any).log : [],
+          })
         } catch (e) {
           console.error("finalize_game failed (AI):", e)
         }
@@ -284,37 +327,40 @@ export function AiGameWrapper() {
 
   console.log("[AiGameWrapper] render:", { loading, showIntro, hasGameData: !!gameData, mySide, error })
 
-  if (showIntro) return (
-    <MatchIntroOverlay
-      onDone={() => setShowIntro(false)}
-      left={{
-        username: myName,
-        avatar_url: myAvatarUrl,
-        country_code: myCountryCode,
-        elo: myElo,
-        tag: "YOU",
-        account_tier: null,
-        accent: mySide === "W" ? "#e8e4d8" : "#5de8f7",
-      }}
-      right={{
-        username: opponentName,
-        avatar_url: opponentAvatarUrl,
-        country_code: opponentCountryCode,
-        elo: opponentElo,
-        tag: "AI",
-        account_tier: null,
-        accent: mySide === "W" ? "#5de8f7" : "#e8e4d8",
-      }}
-      subtitleLine={`Now playing vs ${opponentName}`}
-      labels={[
-        "Preparing your match...",
-        `Loading ${opponentName}...`,
-        "Shuffling route cards...",
-        "Placing opening tokens...",
-        "Starting game...",
-      ]}
-    />
-  )
+  if (showIntro) {
+    return (
+      <MatchIntroOverlay
+        onDone={() => setShowIntro(false)}
+        left={{
+          username: myName,
+          avatar_url: myAvatarUrl,
+          country_code: myCountryCode,
+          elo: myElo,
+          tag: "YOU",
+          account_tier: null,
+          accent: mySide === "W" ? "#e8e4d8" : "#5de8f7",
+        }}
+        right={{
+          username: opponentName,
+          avatar_url: opponentAvatarUrl,
+          country_code: opponentCountryCode,
+          elo: opponentElo,
+          tag: "AI",
+          account_tier: null,
+          accent: mySide === "W" ? "#5de8f7" : "#e8e4d8",
+        }}
+        subtitleLine={`Now playing vs ${opponentName}`}
+        labels={[
+          "Preparing your match...",
+          `Loading ${opponentName}...`,
+          "Shuffling route cards...",
+          "Placing opening tokens...",
+          "Starting game...",
+        ]}
+      />
+    )
+  }
+
   if (error) return <div style={{ padding: 24, color: "crimson" }}>{error}</div>
   if (!gameData || !mySide) return <div style={{ padding: 24 }}>Missing game data</div>
 

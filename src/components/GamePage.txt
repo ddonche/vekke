@@ -75,7 +75,11 @@ type GamePageProps = {
   opponentType?: "ai" | "pvp"
   mySide?: Player
   initialState?: GameState
-  onMoveComplete?: (state: GameState, clocks: { W: number; B: number }) => void
+  onMoveComplete?: (
+    state: GameState,
+    clocks: { W: number; B: number },
+    vgn?: string
+  ) => void
   myName?: string
   myElo?: number
   opponentName?: string
@@ -144,6 +148,7 @@ export function GamePage(props: GamePageProps = {}) {
     initialTimeControlId: props.initialTimeControlId,
     initialClocks: props.initialClocks,
     initialAiDifficulty: props.aiDifficulty as any,
+    externalGameData: props.externalGameData,
   })
 
   const [ghost, setGhost] = useState<null | {

@@ -1,3 +1,4 @@
+// supabase/functions/finalize_game.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 type EndReason = "timeout" | "resign" | "collapse" | "siegemate" | "elimination"
@@ -5,7 +6,13 @@ type Format = "blitz" | "rapid" | "standard" | "daily"
 type Scope = "season" | "all_time"
 type AggFormat = Format | "all"
 
-type Body = { gameId: string; winner: "W" | "B"; reason: string }
+type Body = {
+  gameId: string
+  winner: "W" | "B"
+  reason: string
+  vgn?: string | null
+  logs?: string[] | null
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,37 +48,30 @@ function normalizeFormat(fmt: unknown): Format {
   return "standard"
 }
 
-/**
- * Canonicalize whatever the client sends into EXACTLY your 5 win conditions.
- * This is required to satisfy the games.end_reason constraint.
- */
 function normalizeEndReason(reason: unknown): EndReason {
   const r = String(reason ?? "").trim().toLowerCase()
 
-  // already canonical
   if (r === "timeout") return "timeout"
   if (r === "resign") return "resign"
   if (r === "collapse") return "collapse"
   if (r === "siegemate") return "siegemate"
   if (r === "elimination") return "elimination"
 
-  // tolerate legacy / UI strings
   if (r.startsWith("timeout")) return "timeout"
   if (r === "resignation" || r.startsWith("resign")) return "resign"
 
-  // If they send something unexpected, DO NOT write junk into games.end_reason.
-  // Defaulting to elimination is the safest *DB-compatible* behavior; if you prefer hard-fail, change this to throw.
   return "elimination"
 }
 
-// ✅ Your real AI auth user IDs
+// Real AI profile IDs
 const AI_IDS = new Set<string>([
-  "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen (novice)
-  "9d6503a7-1b18-46d4-878d-09367d6ac833", // Priya (adept)
-  "69174323-2b15-4b83-b1d7-96a324bce0a4", // Vladimir (expert)
-  "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe", // Yui (master)
-  "92c903e8-aa7d-4571-9905-0611b4a07a1d", // Haoran (senior_master)
-  "492a8702-9470-4f43-85e0-d6b44ec5c562", // Chioma (grandmaster)
+  "29b6ad2a-4bfc-4041-938d-9077c6743cc2", // Scarecrow (rookie)
+  "d90c1ec7-a586-4594-85ad-702beca6af45", // Glen
+  "9d6503a7-1b18-46d4-878d-09367d6ac833", // Priya
+  "69174323-2b15-4b83-b1d7-96a324bce0a4", // Vladimir
+  "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe", // Yui
+  "92c903e8-aa7d-4571-9905-0611b4a07a1d", // Haoran
+  "492a8702-9470-4f43-85e0-d6b44ec5c562", // Chioma
 ])
 
 type PlayerStatsAggRow = {
@@ -170,13 +170,11 @@ async function applyAggUpdate(args: {
   format: AggFormat
   isWinner: boolean
   endReason: EndReason
-  // Elo updates (PvP only). If null, do not touch elo/peak_elo.
   newElo: number | null
 }) {
   const { admin, userId, scope, seasonId, format, isWinner, endReason, newElo } = args
 
   const row = await getAggRow(admin, userId, scope, seasonId, format)
-
   const now = new Date().toISOString()
 
   const patch: Record<string, any> = {
@@ -184,31 +182,47 @@ async function applyAggUpdate(args: {
     scope,
     season_id: scope === "season" ? seasonId : null,
     format,
-
     games_played: (row?.games_played ?? 0) + 1,
     wins: (row?.wins ?? 0) + (isWinner ? 1 : 0),
     losses: (row?.losses ?? 0) + (!isWinner ? 1 : 0),
-
     updated_at: now,
   }
 
   if (isWinner) {
     const k = winKeyForReason(endReason)
-    patch[k] = (row?.[k] as number | null ?? 0) + 1
+    patch[k] = ((row?.[k] as number | null) ?? 0) + 1
   } else {
     const k = lossKeyForReason(endReason)
-    patch[k] = (row?.[k] as number | null ?? 0) + 1
+    patch[k] = ((row?.[k] as number | null) ?? 0) + 1
   }
 
   if (newElo !== null) {
     const prevPeak = row?.peak_elo ?? null
     const nextPeak = prevPeak === null ? newElo : Math.max(prevPeak, newElo)
-
     patch.elo = clamp(newElo, 100, 5000)
     patch.peak_elo = clamp(nextPeak, 100, 5000)
   }
 
   await upsertAggRow(admin, patch)
+}
+
+async function gameLogExists(admin: any, gameId: string) {
+  const { data, error } = await admin
+    .from("game_logs")
+    .select("game_id")
+    .eq("game_id", gameId)
+    .maybeSingle()
+
+  if (error) throw new Error(`game_logs exists check: ${error.message}`)
+  return !!data
+}
+
+async function insertGameLog(admin: any, row: Record<string, any>) {
+  const exists = await gameLogExists(admin, row.game_id)
+  if (exists) return
+
+  const { error } = await admin.from("game_logs").insert(row)
+  if (error) throw new Error(`game_logs insert: ${error.message}`)
 }
 
 Deno.serve(async (req) => {
@@ -226,7 +240,6 @@ Deno.serve(async (req) => {
     const SRV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     if (!URL || !ANON || !SRV) return json(500, { error: "Missing Supabase env vars" })
 
-    // Verify caller
     const userClient = createClient(URL, ANON, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
     })
@@ -241,11 +254,11 @@ Deno.serve(async (req) => {
 
     const admin = createClient(URL, SRV)
 
-    // Load game (include season_id, format)
+    // Load the game row, including vgn + current_state.log + created_at for archival
     const { data: g, error: gerr } = await admin
       .from("games")
       .select(
-        "id, wake_id, brake_id, status, winner_id, loser_id, is_vs_ai, ai_level, format, rating_applied, season_id"
+        "id, created_at, current_state, wake_id, brake_id, status, winner_id, loser_id, is_vs_ai, format, rating_applied, season_id, vgn"
       )
       .eq("id", body.gameId)
       .single()
@@ -257,7 +270,6 @@ Deno.serve(async (req) => {
       return json(403, { error: "Not a participant" })
     }
 
-    // Idempotency: once rating_applied is true, never apply again.
     if ((g as any).rating_applied === true) {
       return json(200, {
         ok: true,
@@ -273,17 +285,17 @@ Deno.serve(async (req) => {
     const fmt: Format = normalizeFormat((g as any)?.format)
     const endReason: EndReason = normalizeEndReason(body.reason)
 
-    // Snapshot orders at match end (order switching allowed)
+    // Snapshot orders at match end
     const { data: p1, error: p1e } = await admin
       .from("profiles")
-      .select("id, order_id")
+      .select("id, order_id, account_tier")
       .eq("id", winnerId)
       .maybeSingle()
     if (p1e) return json(500, { error: `winner profile: ${p1e.message}` })
 
     const { data: p2, error: p2e } = await admin
       .from("profiles")
-      .select("id, order_id")
+      .select("id, order_id, account_tier")
       .eq("id", loserId)
       .maybeSingle()
     if (p2e) return json(500, { error: `loser profile: ${p2e.message}` })
@@ -291,27 +303,8 @@ Deno.serve(async (req) => {
     const winnerOrderId = (p1 as any)?.order_id ?? null
     const loserOrderId = (p2 as any)?.order_id ?? null
 
-    // Mark game ended + flip rating_applied (our "finalized" flag)
-    const endedAt = new Date().toISOString()
-    const { error: endErr } = await admin
-      .from("games")
-      .update({
-        status: "finished",
-        winner_id: winnerId,
-        loser_id: loserId,
-        end_reason: endReason, // ✅ canonical only
-        ended_at: endedAt,
-        rating_applied: true,
-        winner_order_id: winnerOrderId,
-        loser_order_id: loserOrderId,
-      })
-      .eq("id", body.gameId)
-
-    if (endErr) return json(500, { error: endErr.message })
-
     const seasonId = (g as any).season_id as string | null
     if (!seasonId) {
-      // If your DB has season_id NOT NULL, this should never happen.
       return json(500, { error: "games.season_id is missing" })
     }
 
@@ -321,12 +314,93 @@ Deno.serve(async (req) => {
     const brakeIsAi = AI_IDS.has(brakeId)
     const involvesAi = !!g?.is_vs_ai || wakeIsAi || brakeIsAi
 
-    // Elo updates are PvP-only. AI opponents are fixed.
+    let humanProfile: any = null
+    if (involvesAi) {
+      const { data: hp, error: hpe } = await admin
+        .from("profiles")
+        .select("id, account_tier")
+        .eq("id", callerId)
+        .maybeSingle()
+      if (hpe) return json(500, { error: `human profile: ${hpe.message}` })
+      humanProfile = hp
+    }
+
+    // Archive decision:
+    // - all PvP games
+    // - AI games only if human player is Pro
+    const shouldArchive =
+      !involvesAi ||
+      ((humanProfile as any)?.account_tier === "pro")
+
+    const endedAt = new Date().toISOString()
+
+    if (shouldArchive) {
+      const payloadVgn =
+        typeof body.vgn === "string" && body.vgn.trim()
+          ? body.vgn
+          : null
+
+      const rowVgn =
+        typeof (g as any).vgn === "string" && (g as any).vgn.trim()
+          ? (g as any).vgn
+          : null
+
+      const vgnText = payloadVgn ?? rowVgn
+      if (!vgnText) {
+        return json(500, { error: "Missing VGN; cannot archive replay" })
+      }
+
+      const payloadLogs =
+        Array.isArray(body.logs) ? body.logs : null
+
+      const currentState = (g as any).current_state ?? null
+      const rowLogs =
+        currentState && typeof currentState === "object" && Array.isArray((currentState as any).log)
+          ? (currentState as any).log
+          : []
+
+      const logs = payloadLogs ?? rowLogs
+
+      await insertGameLog(admin, {
+        game_id: g.id,
+        created_at: (g as any).created_at,
+        wake_id: g.wake_id,
+        brake_id: g.brake_id,
+        mode: involvesAi ? "ai" : "pvp",
+        time_control: fmt,
+        winner: body.winner,
+        reason: endReason,
+        vgn: vgnText,
+        logs,
+        ended_at: endedAt,
+        winner_id: winnerId,
+        loser_id: loserId,
+        is_vs_ai: involvesAi,
+      })
+    }
+
+    // Mark game ended + finalized
+    const { error: endErr } = await admin
+      .from("games")
+      .update({
+        status: "finished",
+        winner_id: winnerId,
+        loser_id: loserId,
+        end_reason: endReason,
+        ended_at: endedAt,
+        rating_applied: true,
+        winner_order_id: winnerOrderId,
+        loser_order_id: loserOrderId,
+      })
+      .eq("id", body.gameId)
+
+    if (endErr) return json(500, { error: endErr.message })
+
+    // Elo updates are PvP-only
     let newWinnerElo: number | null = null
     let newLoserElo: number | null = null
 
     if (!involvesAi) {
-      // Read current season+format elo as the base if it exists; otherwise fallback to 1200.
       const wRow = await getAggRow(admin, String(winnerId), "season", seasonId, fmt)
       const lRow = await getAggRow(admin, String(loserId), "season", seasonId, fmt)
 
@@ -346,11 +420,8 @@ Deno.serve(async (req) => {
       newLoserElo = clamp(newLoserElo, 100, 5000)
     }
 
-    // Update stats aggregates:
-    // For each player: season(fmt), season(all), all_time(fmt), all_time(all)
     const updates: Array<Promise<void>> = []
 
-    // Winner
     updates.push(
       applyAggUpdate({
         admin,
@@ -400,7 +471,6 @@ Deno.serve(async (req) => {
       })
     )
 
-    // Loser
     updates.push(
       applyAggUpdate({
         admin,
@@ -462,6 +532,7 @@ Deno.serve(async (req) => {
       endReason,
       newWinnerElo,
       newLoserElo,
+      archived: shouldArchive,
     })
   } catch (e) {
     return json(500, { error: String(e) })
