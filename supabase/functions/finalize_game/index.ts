@@ -20,6 +20,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 }
 
+const ALL_TIME_SEASON_ID = "00000000-0000-0000-0000-000000000000"
+
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
@@ -139,26 +141,29 @@ async function getAggRow(
   seasonId: string | null,
   format: AggFormat
 ): Promise<PlayerStatsAggRow | null> {
-  const q = admin
+  const effectiveSeasonId =
+    scope === "season" ? seasonId : ALL_TIME_SEASON_ID
+
+  const { data, error } = await admin
     .from("player_stats_agg")
     .select("*")
     .eq("user_id", userId)
     .eq("scope", scope)
+    .eq("season_id", effectiveSeasonId)
     .eq("format", format)
+    .maybeSingle()
 
-  if (scope === "season") {
-    q.eq("season_id", seasonId)
-  } else {
-    q.is("season_id", null)
-  }
-
-  const { data, error } = await q.maybeSingle()
   if (error) throw new Error(error.message)
   return (data as PlayerStatsAggRow) ?? null
 }
 
 async function upsertAggRow(admin: any, patch: Record<string, any>) {
-  const { error } = await admin.from("player_stats_agg").upsert(patch)
+  const { error } = await admin
+    .from("player_stats_agg")
+    .upsert(patch, {
+      onConflict: "user_id,scope,season_id,format",
+    })
+
   if (error) throw new Error(error.message)
 }
 
@@ -180,7 +185,7 @@ async function applyAggUpdate(args: {
   const patch: Record<string, any> = {
     user_id: userId,
     scope,
-    season_id: scope === "season" ? seasonId : null,
+    season_id: scope === "season" ? seasonId : ALL_TIME_SEASON_ID,
     format,
     games_played: (row?.games_played ?? 0) + 1,
     wins: (row?.wins ?? 0) + (isWinner ? 1 : 0),
@@ -451,7 +456,7 @@ Deno.serve(async (req) => {
         admin,
         userId: String(winnerId),
         scope: "all_time",
-        seasonId: null,
+        seasonId: ALL_TIME_SEASON_ID,
         format: fmt,
         isWinner: true,
         endReason,
@@ -463,7 +468,7 @@ Deno.serve(async (req) => {
         admin,
         userId: String(winnerId),
         scope: "all_time",
-        seasonId: null,
+        seasonId: ALL_TIME_SEASON_ID,
         format: "all",
         isWinner: true,
         endReason,
@@ -500,7 +505,7 @@ Deno.serve(async (req) => {
         admin,
         userId: String(loserId),
         scope: "all_time",
-        seasonId: null,
+        seasonId: ALL_TIME_SEASON_ID,
         format: fmt,
         isWinner: false,
         endReason,
@@ -512,7 +517,7 @@ Deno.serve(async (req) => {
         admin,
         userId: String(loserId),
         scope: "all_time",
-        seasonId: null,
+        seasonId: ALL_TIME_SEASON_ID,
         format: "all",
         isWinner: false,
         endReason,

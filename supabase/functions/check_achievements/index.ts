@@ -68,6 +68,39 @@ const AI_BOT_KEY: Record<string, string> = {
   "492a8702-9470-4f43-85e0-d6b44ec5c562": "chioma",
 }
 
+const SUM_FIELDS = [
+  "games_played",
+  "wins",
+  "losses",
+  "wins_timeout",
+  "wins_resign",
+  "wins_collapse",
+  "wins_siegemate",
+  "wins_elimination",
+  "losses_timeout",
+  "losses_resign",
+  "losses_collapse",
+  "losses_siegemate",
+  "losses_elimination",
+  "mulligans_used",
+  "invades_for",
+  "invades_against",
+  "sieges_for",
+  "sieges_against",
+  "ransoms_used",
+  "defections_used",
+  "recoils_used",
+  "early_swaps_used",
+  "extra_reinforcements_bought",
+  "collapse_tax_paid_routes",
+  "collapse_forces_events",
+  "chains_2",
+  "chains_3",
+  "chains_4",
+  "chains_5",
+  "pvp_wins",
+] as const
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function json(status: number, body: unknown) {
@@ -84,6 +117,24 @@ function eloTier(elo: number): string {
   if (elo < 1750) return "master"
   if (elo < 2000) return "senior_master"
   return "grandmaster"
+}
+
+function sumLifetimeRows(rows: Record<string, any>[]): Record<string, number> {
+  const out: Record<string, number> = {}
+
+  for (const field of SUM_FIELDS) out[field] = 0
+  out.longest_chain = 0
+  out.peak_elo = 0
+
+  for (const row of rows) {
+    for (const field of SUM_FIELDS) {
+      out[field] += Number(row?.[field] ?? 0)
+    }
+    out.longest_chain = Math.max(out.longest_chain, Number(row?.longest_chain ?? 0))
+    out.peak_elo = Math.max(out.peak_elo, Number(row?.peak_elo ?? 0))
+  }
+
+  return out
 }
 
 // ─── Chain detection ──────────────────────────────────────────────────────────
@@ -159,7 +210,7 @@ function extractPerGameStats(state: GameState, humanSide: Player): PerGameStats 
 
 function getValueForKey(
   key: string,
-  L: Record<string, number>,      // lifetime totals from player_stats_agg
+  L: Record<string, number>,       // lifetime totals summed from season rows
   streaks: Record<string, number>, // from player_streaks
   bots: Record<string, number>,    // wins per bot name
   fmtWins: Record<string, number>, // wins per format
@@ -212,7 +263,7 @@ function getValueForKey(
     case key.startsWith("daily_wins_"):       return fmtWins.daily ?? 0
     // ── Quirky ──
     case key.startsWith("quirky_"):           return quirky[key] ? 1 : 0
-    default:                                  return 0
+    default:                                   return 0
   }
 }
 
@@ -292,26 +343,27 @@ Deno.serve(async (req) => {
       return json(403, { error: "Cannot check achievements for another player" })
     }
 
-    const isWinner   = String(game.winner_id) === humanId
-    const gameState  = game.current_state as GameState
-    const format     = (game.format ?? "standard") as string
-    const endReason  = (game.end_reason ?? "elimination") as string
-    const now        = new Date().toISOString()
+    const seasonId  = String(game.season_id ?? "")
+    if (!seasonId) return json(500, { error: "games.season_id is missing" })
+
+    const isWinner  = String(game.winner_id) === humanId
+    const gameState = game.current_state as GameState
+    const now       = new Date().toISOString()
 
     // ── Extract per-game stats from engine state ──────────────────────────────
 
     const perGame = extractPerGameStats(gameState, humanSide)
 
-    // ── Update mechanic columns in player_stats_agg (all_time / all) ─────────
+    // ── Update mechanic columns in player_stats_agg (season / all) ───────────
     // finalize_game owns wins/losses/elo; we own the mechanic counters.
 
     const { data: aggRow } = await admin
       .from("player_stats_agg")
       .select("*")
       .eq("user_id", humanId)
-      .eq("scope",   "all_time")
+      .eq("scope",   "season")
       .eq("format",  "all")
-      .is("season_id", null)
+      .eq("season_id", seasonId)
       .maybeSingle()
 
     const maxChainThisGame =
@@ -320,10 +372,10 @@ Deno.serve(async (req) => {
       perGame.chains.chain3 > 0 ? 3 :
       perGame.chains.chain2 > 0 ? 2 : 0
 
-    await admin.from("player_stats_agg").upsert({
+    const { error: aggErr } = await admin.from("player_stats_agg").upsert({
       user_id:                      humanId,
-      scope:                        "all_time",
-      season_id:                    null,
+      scope:                        "season",
+      season_id:                    seasonId,
       format:                       "all",
       updated_at:                   now,
       // Preserve finalize_game fields (these were already set; upsert merges)
@@ -348,26 +400,31 @@ Deno.serve(async (req) => {
       chains_4:                     (aggRow?.chains_4 ?? 0) + perGame.chains.chain4,
       chains_5:                     (aggRow?.chains_5 ?? 0) + perGame.chains.chain5,
       longest_chain:                Math.max(aggRow?.longest_chain ?? 0, maxChainThisGame),
+    }, {
+      onConflict: "user_id,scope,season_id,format",
     })
 
-    // Also track pvp_wins in a dedicated column if game is PvP
+    if (aggErr) return json(500, { error: aggErr.message })
+
+    // Also track pvp_wins in the current season/all row if game is PvP
     if (!game.is_vs_ai && !wakeIsAi && !brakeIsAi && isWinner) {
-      // Re-fetch after upsert and bump pvp_wins
       const { data: freshAgg } = await admin
         .from("player_stats_agg")
         .select("pvp_wins")
         .eq("user_id", humanId)
-        .eq("scope",   "all_time")
+        .eq("scope",   "season")
         .eq("format",  "all")
-        .is("season_id", null)
+        .eq("season_id", seasonId)
         .maybeSingle()
 
-      await admin.from("player_stats_agg")
+      const { error: pvpErr } = await admin.from("player_stats_agg")
         .update({ pvp_wins: ((freshAgg as any)?.pvp_wins ?? 0) + 1 })
         .eq("user_id",  humanId)
-        .eq("scope",    "all_time")
+        .eq("scope",    "season")
         .eq("format",   "all")
-        .is("season_id", null)
+        .eq("season_id", seasonId)
+
+      if (pvpErr) return json(500, { error: pvpErr.message })
     }
 
     // ── Win streak (within same elo bracket) ──────────────────────────────────
@@ -384,8 +441,8 @@ Deno.serve(async (req) => {
     if (isWinner) {
       // Only count streak if opponent is in same elo tier
       const [{ data: humanEloRow }, { data: oppEloRow }] = await Promise.all([
-        admin.from("player_stats_agg").select("elo").eq("user_id", humanId).eq("scope", "all_time").eq("format", "all").is("season_id", null).maybeSingle(),
-        admin.from("player_stats_agg").select("elo").eq("user_id", opponentId).eq("scope", "all_time").eq("format", "all").is("season_id", null).maybeSingle(),
+        admin.from("player_stats_agg").select("elo").eq("user_id", humanId).eq("scope", "season").eq("format", "all").eq("season_id", seasonId).maybeSingle(),
+        admin.from("player_stats_agg").select("elo").eq("user_id", opponentId).eq("scope", "season").eq("format", "all").eq("season_id", seasonId).maybeSingle(),
       ])
       const humanElo = (humanEloRow as any)?.elo ?? 1200
       const oppElo   = (oppEloRow   as any)?.elo ?? 1200
@@ -429,56 +486,58 @@ Deno.serve(async (req) => {
       updated_at:            now,
     })
 
-    // ── Load updated lifetime totals ──────────────────────────────────────────
+    // ── Load lifetime totals by summing season/all rows ───────────────────────
 
-    const { data: lifetime } = await admin
+    const { data: lifetimeRows, error: lifetimeErr } = await admin
       .from("player_stats_agg")
       .select("*")
       .eq("user_id", humanId)
-      .eq("scope",   "all_time")
+      .eq("scope",   "season")
       .eq("format",  "all")
-      .is("season_id", null)
-      .maybeSingle()
 
-    const L: Record<string, number> = (lifetime as any) ?? {}
+    if (lifetimeErr) return json(500, { error: lifetimeErr.message })
 
-    // Format-specific win counts
-    const { data: fmtRows } = await admin
+    const L: Record<string, number> = sumLifetimeRows((lifetimeRows as Record<string, any>[] | null) ?? [])
+
+    // Format-specific win counts summed across all seasons
+    const { data: fmtRows, error: fmtErr } = await admin
       .from("player_stats_agg")
       .select("format, wins")
       .eq("user_id", humanId)
-      .eq("scope",   "all_time")
-      .is("season_id", null)
+      .eq("scope",   "season")
       .in("format", ["blitz", "rapid", "standard", "daily"])
+
+    if (fmtErr) return json(500, { error: fmtErr.message })
 
     const fmtWins: Record<string, number> = {}
     for (const row of fmtRows ?? []) {
-      fmtWins[row.format] = row.wins ?? 0
+      fmtWins[row.format] = (fmtWins[row.format] ?? 0) + (row.wins ?? 0)
     }
 
     // Bot win counts (batch: wins where opponent is each bot)
     const botWins: Record<string, number> = {}
     await Promise.all(
       Object.entries(AI_BOT_KEY).map(async ([botId, botName]) => {
-        const { count } = await admin
+        const { count, error } = await admin
           .from("games")
           .select("id", { count: "exact", head: true })
           .eq("winner_id", humanId)
           .or(`wake_id.eq.${botId},brake_id.eq.${botId}`)
+
+        if (error) throw new Error(error.message)
         botWins[botName] = count ?? 0
       })
     )
 
     // ── Per-game quirky checks ────────────────────────────────────────────────
 
-    const log        = gameState?.log ?? []
-    const oppSide: Player = humanSide === "W" ? "B" : "W"
-    const logChron   = [...log].reverse()
+    const log      = gameState?.log ?? []
+    const logChron = [...log].reverse()
 
     // Recoil on turn 1: used before the first reinforcement phase of the game
     const firstReinforceIdx = logChron.findIndex(l => /== [WB] reinforcements:/.test(l))
-    const preFirstReinforce  = firstReinforceIdx >= 0 ? logChron.slice(0, firstReinforceIdx) : logChron
-    const recoilOnTurn1      = preFirstReinforce.some(l => l.includes(`${humanSide} RECOIL:`))
+    const preFirstReinforce = firstReinforceIdx >= 0 ? logChron.slice(0, firstReinforceIdx) : logChron
+    const recoilOnTurn1     = preFirstReinforce.some(l => l.includes(`${humanSide} RECOIL:`))
 
     // Flawless: won without any of human's tokens being captured or sent to void
     const tokensLostByHuman =
@@ -493,9 +552,25 @@ Deno.serve(async (req) => {
     // Ransom 3+ times in one game
     const ransomSpree = perGame.ransoms >= 3
 
-    // Giant slayer: beat someone 400+ elo above you
-    const { data: humanEloNow } = await admin.from("player_stats_agg").select("elo").eq("user_id", humanId).eq("scope", "all_time").eq("format", "all").is("season_id", null).maybeSingle()
-    const { data: oppEloNow }   = await admin.from("player_stats_agg").select("elo").eq("user_id", opponentId).eq("scope", "all_time").eq("format", "all").is("season_id", null).maybeSingle()
+    // Giant slayer: beat someone 400+ elo above you, based on current season/all Elo
+    const { data: humanEloNow } = await admin
+      .from("player_stats_agg")
+      .select("elo")
+      .eq("user_id", humanId)
+      .eq("scope", "season")
+      .eq("format", "all")
+      .eq("season_id", seasonId)
+      .maybeSingle()
+
+    const { data: oppEloNow } = await admin
+      .from("player_stats_agg")
+      .select("elo")
+      .eq("user_id", opponentId)
+      .eq("scope", "season")
+      .eq("format", "all")
+      .eq("season_id", seasonId)
+      .maybeSingle()
+
     const giantSlayer = isWinner && (((oppEloNow as any)?.elo ?? 1200) - ((humanEloNow as any)?.elo ?? 1200)) >= 400
 
     // quirky_last_stand requires engine-level tracking (not yet available) — always false
@@ -509,53 +584,93 @@ Deno.serve(async (req) => {
     }
 
     const streaks: Record<string, number> = {
-      best_win_streak:    bestWinStreak,
-      best_daily_streak:  bestDailyStreak,
+      best_win_streak:   bestWinStreak,
+      best_daily_streak: bestDailyStreak,
     }
 
     // ── Load achievement definitions + current player state ───────────────────
 
-    const [{ data: allAchievements }, { data: playerAchs }] = await Promise.all([
+    const [{ data: allAchievements, error: achErr }, { data: playerAchs, error: paErr }] = await Promise.all([
       admin.from("achievements").select("*").order("sort_order"),
       admin.from("player_achievements").select("id, achievement_id, progress, unlocked_at").eq("user_id", humanId),
     ])
 
-    if (!allAchievements || !playerAchs) {
-      return json(500, { error: "Failed to load achievements" })
+    if (achErr || paErr || !allAchievements || !playerAchs) {
+      return json(500, { error: achErr?.message ?? paErr?.message ?? "Failed to load achievements" })
     }
 
     const playerAchMap = new Map(playerAchs.map(pa => [pa.achievement_id, pa]))
 
     // ── Evaluate all achievements ─────────────────────────────────────────────
 
-    const newlyUnlocked:  any[] = []
+    const newlyUnlocked: any[] = []
     const progressUpdates: Promise<any>[] = []
-    const eventInserts:   any[] = []
+    const eventInserts: any[] = []
 
     for (const achievement of allAchievements) {
-      const pa = playerAchMap.get(achievement.id)
-      if (!pa || pa.unlocked_at) continue // skip missing rows or already unlocked
+      let pa = playerAchMap.get(achievement.id)
+
+      if (!pa) {
+        const { data: insertedPa, error: insertPaErr } = await admin
+          .from("player_achievements")
+          .insert({
+            user_id: humanId,
+            achievement_id: achievement.id,
+            progress: 0,
+            unlocked_at: null,
+          })
+          .select("id, achievement_id, progress, unlocked_at")
+          .single()
+
+        if (insertPaErr) {
+          throw new Error(`Failed creating player_achievement row for ${achievement.key}: ${insertPaErr.message}`)
+        }
+
+        pa = insertedPa
+        playerAchMap.set(achievement.id, pa)
+      }
+
+      if (pa.unlocked_at) continue
 
       const value     = getValueForKey(achievement.key, L, streaks, botWins, fmtWins, quirky)
       const threshold = achievement.threshold ?? 1
       const newProg   = Math.min(value, threshold)
-      const unlocked  = value >= threshold
+
+      let unlocked = value >= threshold
+
+      if (unlocked && achievement.max_unlocks != null) {
+        const { count: unlockedCount, error: countErr } = await admin
+          .from("player_achievements")
+          .select("id", { count: "exact", head: true })
+          .eq("achievement_id", achievement.id)
+          .not("unlocked_at", "is", null)
+
+        if (countErr) {
+          throw new Error(`Failed counting capped unlocks for ${achievement.key}: ${countErr.message}`)
+        }
+
+        if ((unlockedCount ?? 0) >= achievement.max_unlocks) {
+          unlocked = false
+        }
+      }
 
       if (newProg !== pa.progress || unlocked) {
         progressUpdates.push(
-          admin.from("player_achievements").update({
-            progress:    newProg,
-            unlocked_at: unlocked ? now : null,
-          }).eq("id", pa.id)
+          admin.from("player_achievements")
+            .update({
+              progress: newProg,
+              unlocked_at: unlocked ? now : null,
+            })
+            .eq("id", pa.id)
         )
 
         if (unlocked) {
           newlyUnlocked.push(achievement)
           eventInserts.push({
-            user_id:        humanId,
+            user_id: humanId,
             achievement_id: achievement.id,
-            game_id:        body.gameId,
-            created_at:     now,
+            game_id: body.gameId,
+            created_at: now,
           })
         }
       }
@@ -564,7 +679,8 @@ Deno.serve(async (req) => {
     await Promise.all(progressUpdates)
 
     if (eventInserts.length > 0) {
-      await admin.from("achievement_events").insert(eventInserts)
+      const { error: eventErr } = await admin.from("achievement_events").insert(eventInserts)
+      if (eventErr) return json(500, { error: eventErr.message })
     }
 
     // ── Auto-grant cosmetic rewards for newly unlocked achievements ───────────
@@ -575,10 +691,12 @@ Deno.serve(async (req) => {
     if (achievementsWithRewards.length > 0) {
       const setIds = [...new Set(achievementsWithRewards.map((a: any) => a.reward_id))]
 
-      const { data: skinsInSets } = await admin
+      const { data: skinsInSets, error: skinsErr } = await admin
         .from("skins")
         .select("id, set_id")
         .in("set_id", setIds)
+
+      if (skinsErr) return json(500, { error: skinsErr.message })
 
       const rewardInserts: any[] = []
       for (const achievement of achievementsWithRewards) {
@@ -594,7 +712,8 @@ Deno.serve(async (req) => {
       }
 
       if (rewardInserts.length > 0) {
-        await admin.from("player_inventory").insert(rewardInserts)
+        const { error: invErr } = await admin.from("player_inventory").insert(rewardInserts)
+        if (invErr) return json(500, { error: invErr.message })
       }
     }
 

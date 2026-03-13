@@ -167,10 +167,26 @@ function AchievementsPanel() {
 
   if (loading) return <div style={{ padding: 24, color: "#6b6558" }}>Loading…</div>
 
-  const grouped = Object.entries(CATEGORY_LABELS).map(([cat, label]) => ({
-    cat, label,
-    items: achievements.filter(a => a.category === cat),
-  })).filter(g => g.items.length > 0)
+  const grouped = Array.from(new Set(achievements.map(a => a.category)))
+      .sort((a, b) => {
+        const aIndex = Object.keys(CATEGORY_LABELS).indexOf(a)
+        const bIndex = Object.keys(CATEGORY_LABELS).indexOf(b)
+
+        if (aIndex === -1 && bIndex === -1) return a.localeCompare(b)
+        if (aIndex === -1) return 1
+        if (bIndex === -1) return -1
+        return aIndex - bIndex
+      })
+      .map(cat => ({
+        cat,
+        label:
+          CATEGORY_LABELS[cat] ??
+          cat
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, m => m.toUpperCase()),
+        items: achievements.filter(a => a.category === cat),
+      }))
+      .filter(g => g.items.length > 0)
 
   const TIER_COLOR: Record<string, string> = {
     gold: "#f5c842", silver: "#b0b8c8", bronze: "#cd7f32", basic: "#b8966a",

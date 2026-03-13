@@ -66,6 +66,26 @@ type LeaderboardRow = {
 
 type Format = "standard" | "rapid" | "blitz" | "daily"
 
+type ShopSet = {
+  id: string
+  name: string
+  description: string
+  acquisition_type: string
+  acquisition_meta: { stripe_price_id?: string } | null
+  price_coins: number | null
+  category: string | null
+  created_at: string
+}
+
+type ShopSkinPreview = {
+  id: string
+  set_id: string
+  name: string
+  type: string
+  style: Record<string, any>
+  image_url: string | null
+}
+
 function injectFonts() {
   if (typeof document === "undefined") return
   if (document.getElementById("vekke-home-fonts")) return
@@ -320,7 +340,6 @@ function HomeButton({
   variant?: "primary" | "secondary" | "ghost"
   full?: boolean
 }) {
-
   const base: React.CSSProperties = {
     position: "relative",
     fontFamily: "'Cinzel', serif",
@@ -364,6 +383,7 @@ function HomeButton({
     </button>
   )
 }
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="section-label">
@@ -445,6 +465,16 @@ function RankBadge({ rank }: { rank: number }) {
   )
 }
 
+function buildSwatchStyle(style: Record<string, any> | null | undefined): React.CSSProperties {
+  if (!style) return { background: "#2a2218" }
+  const bg = style.background || style.backgroundColor || style.color || style.primary || "#2a2218"
+  return { background: bg }
+}
+
+function shopPriceLabel(_set: ShopSet) {
+  return "$1.99"
+}
+
 export default function HomePage() {
   injectFonts()
 
@@ -466,6 +496,10 @@ export default function HomePage() {
   const [challenged, setChallenged] = useState<Record<string, boolean>>({})
   const [challenging, setChallenging] = useState<Record<string, boolean>>({})
   const [pvpToast, setPvpToast] = useState(false)
+
+  const [latestShopSets, setLatestShopSets] = useState<ShopSet[]>([])
+  const [shopPreviewBySet, setShopPreviewBySet] = useState<Record<string, ShopSkinPreview[]>>({})
+  const [shopLoading, setShopLoading] = useState(true)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -552,7 +586,7 @@ export default function HomePage() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         setUserId(null)
         setMe(null)
         setStats(null)
@@ -681,18 +715,86 @@ export default function HomePage() {
     })
   }, [ladderFormat])
 
+  useEffect(() => {
+    ;(async () => {
+      setShopLoading(true)
+
+      const { data: fetchedSets, error: setsErr } = await supabase
+        .from("skin_sets")
+        .select(`
+          id,
+          name,
+          description,
+          acquisition_type,
+          acquisition_meta,
+          price_coins,
+          category,
+          created_at
+        `)
+        .eq("acquisition_type", "purchase")
+        .order("created_at", { ascending: false })
+        .limit(3)
+
+      if (setsErr) {
+        if (!isMountedRef.current) return
+        setErr((prev) => prev ?? setsErr.message)
+        setLatestShopSets([])
+        setShopPreviewBySet({})
+        setShopLoading(false)
+        return
+      }
+
+      const sets = (fetchedSets as ShopSet[] | null) ?? []
+      if (!sets.length) {
+        if (!isMountedRef.current) return
+        setLatestShopSets([])
+        setShopPreviewBySet({})
+        setShopLoading(false)
+        return
+      }
+
+      const setIds = sets.map((s) => s.id)
+
+      const { data: skinsData, error: skinsErr } = await supabase
+        .from("skins")
+        .select("id, set_id, name, type, style, image_url")
+        .in("set_id", setIds)
+
+      if (skinsErr) {
+        if (!isMountedRef.current) return
+        setErr((prev) => prev ?? skinsErr.message)
+        setLatestShopSets(sets)
+        setShopPreviewBySet({})
+        setShopLoading(false)
+        return
+      }
+
+      const previews: Record<string, ShopSkinPreview[]> = {}
+      for (const set of sets) previews[set.id] = []
+
+      for (const skin of (skinsData as ShopSkinPreview[] | null) ?? []) {
+        if (!previews[skin.set_id]) previews[skin.set_id] = []
+        previews[skin.set_id].push(skin)
+      }
+
+      if (!isMountedRef.current) return
+      setLatestShopSets(sets)
+      setShopPreviewBySet(previews)
+      setShopLoading(false)
+    })().catch((e: any) => {
+      if (!isMountedRef.current) return
+      setErr((prev) => prev ?? (e?.message ?? String(e)))
+      setLatestShopSets([])
+      setShopPreviewBySet({})
+      setShopLoading(false)
+    })
+  }, [])
+
   function rowElo(r: LeaderboardRow) {
     if (ladderFormat === "blitz") return r.elo_blitz
     if (ladderFormat === "rapid") return r.elo_rapid
     if (ladderFormat === "daily") return r.elo_daily
     return r.elo_standard
-  }
-
-  function rowGames(r: LeaderboardRow) {
-    if (ladderFormat === "blitz") return r.games_blitz
-    if (ladderFormat === "rapid") return r.games_rapid
-    if (ladderFormat === "daily") return r.games_daily
-    return r.games_standard
   }
 
   function rowWins(r: LeaderboardRow) {
@@ -727,7 +829,10 @@ export default function HomePage() {
   }
 
   async function onChallengeClick(r: LeaderboardRow) {
-    if (!userId) { setShowAuthModal(true); return }
+    if (!userId) {
+      setShowAuthModal(true)
+      return
+    }
     if (!canChallengeRow(userId, r)) return
     setChallenging((m) => ({ ...m, [r.user_id]: true }))
     try {
@@ -737,6 +842,7 @@ export default function HomePage() {
       setChallenging((m) => ({ ...m, [r.user_id]: false }))
     }
   }
+
   const myElo = safeInt(stats?.elo)
   const myWins = safeInt(stats?.wins_active)
   const myLosses = safeInt(stats?.losses_active)
@@ -905,6 +1011,145 @@ export default function HomePage() {
         .hp-lb-rating { width: 1%; white-space: nowrap; }
         .hp-lb-ch-short { display: none; }
         .hp-lb-mobile-sub { display: none; }
+
+        .shop-latest-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .shop-latest-card {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 10px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.08));
+          cursor: pointer;
+          transition: border-color 0.12s ease, transform 0.12s ease, background 0.12s ease;
+          min-width: 0;
+        }
+
+        .shop-latest-card:hover {
+          border-color: rgba(184,150,106,0.25);
+          transform: translateY(-1px);
+          background: linear-gradient(180deg, rgba(184,150,106,0.06), rgba(0,0,0,0.10));
+        }
+
+        .shop-latest-thumb {
+          width: 100%;
+          background: #0b0b10;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          overflow: hidden;
+        }
+
+        .shop-latest-thumb-set {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          padding: 8px;
+        }
+
+        .shop-latest-token {
+          height: 78px;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #101017;
+          border: 1px solid rgba(255,255,255,0.06);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .shop-latest-token img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+        }
+
+        .shop-latest-meta {
+          padding: 10px;
+          min-width: 0;
+        }
+
+        .shop-latest-category {
+          display: inline-flex;
+          align-items: center;
+          padding: 3px 7px;
+          border-radius: 999px;
+          border: 1px solid rgba(184,150,106,0.20);
+          background: rgba(184,150,106,0.08);
+          color: #b8966a;
+          font-family: 'Cinzel', serif;
+          font-size: 0.5rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          margin-bottom: 8px;
+          max-width: 100%;
+        }
+
+        .shop-latest-name {
+          font-family: 'Cinzel', serif;
+          font-size: 0.74rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #e8e4d8;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .shop-latest-description {
+          margin-top: 5px;
+          color: #8f897d;
+          font-size: 0.92rem;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          min-height: 2.55em;
+        }
+
+        .shop-latest-footer {
+          margin-top: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .shop-latest-price {
+          font-family: 'Cinzel', serif;
+          font-size: 0.82rem;
+          letter-spacing: 0.08em;
+          color: #d4af7a;
+          white-space: nowrap;
+        }
+
+        .shop-latest-cta {
+          font-family: 'Cinzel', serif;
+          font-size: 0.52rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: #b0aa9e;
+          white-space: nowrap;
+        }
+
+        .shop-latest-thumb-set {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          padding: 10px;
+        }
+
+        @media (max-width: 900px) {
+          .shop-latest-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         @media (max-width: 640px) {
           .hp-lb-title, .hp-lb-wl { display: none; }
           .hp-lb-challenge { width: 1%; white-space: nowrap; }
@@ -1252,6 +1497,113 @@ export default function HomePage() {
                         })}
                       </tbody>
                     </table>
+                  )}
+                </SurfaceCard>
+              </div>
+
+              <div>
+                <SectionLabel>Shop Latest</SectionLabel>
+                <SurfaceCard>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#b0aa9e",
+                        fontSize: "1rem",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Fresh additions from the shop.
+                    </div>
+
+                    <HomeButton variant="ghost" onClick={() => navigate("/marketplace")}>
+                      View Shop
+                    </HomeButton>
+                  </div>
+
+                  {shopLoading ? (
+                    <div
+                      style={{
+                        padding: "20px 0 6px",
+                        textAlign: "center",
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: "0.72rem",
+                        letterSpacing: "0.4em",
+                        textTransform: "uppercase",
+                        color: "#6b6558",
+                      }}
+                    >
+                      Loading...
+                    </div>
+                  ) : latestShopSets.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "8px 0",
+                        color: "#6b6558",
+                        fontStyle: "italic",
+                        fontSize: "1.05rem",
+                      }}
+                    >
+                      No shop listings yet.
+                    </div>
+                  ) : (
+                    <div className="shop-latest-grid">
+                      {latestShopSets.map((set) => {
+                        const previews = shopPreviewBySet[set.id] ?? []
+                        return (
+                          <div
+                            key={set.id}
+                            className="shop-latest-card"
+                            onClick={() => navigate("/marketplace")}
+                          >
+                            <div className="shop-latest-thumb shop-latest-thumb-set">
+                              {previews.slice(0, 2).map((preview) => (
+                                <div key={preview.id} className="shop-latest-token">
+                                  {preview.image_url ? (
+                                    <img src={preview.image_url} alt={preview.name} />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width: "72%",
+                                        aspectRatio: "1 / 1",
+                                        borderRadius: 8,
+                                        border: "1px solid rgba(255,255,255,0.06)",
+                                        ...buildSwatchStyle(preview.style),
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="shop-latest-meta">
+                              <div className="shop-latest-category">
+                                {set.category ?? "Skin Set"}
+                              </div>
+
+                              <div className="shop-latest-name">{set.name}</div>
+
+                              <div className="shop-latest-description">
+                                {set.description || "Cosmetic skin set for your collection."}
+                              </div>
+
+                              <div className="shop-latest-footer">
+                                <div className="shop-latest-price">{shopPriceLabel(set)}</div>
+                                <div className="shop-latest-cta">Open Shop</div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </SurfaceCard>
               </div>
