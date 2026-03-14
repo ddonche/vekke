@@ -1651,8 +1651,9 @@ if (wantsNewGame) {
                 overflowX: "hidden",
                 WebkitOverflowScrolling: "touch",
                 touchAction: "pan-y",
-                overscrollBehaviorY: "contain",
-                paddingBottom: !props.puzzleMode ? "2.5rem" : 0,
+                paddingBottom: !props.puzzleMode
+                  ? "calc(12rem + env(safe-area-inset-bottom, 0px))"
+                  : "6rem",
               }}
               className="hide-scrollbar"
             >
