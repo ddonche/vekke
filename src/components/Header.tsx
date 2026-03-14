@@ -647,6 +647,7 @@ export function Header(props: HeaderProps) {
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
             <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
             <NavItem label="Shop" active={activePage === "marketplace"} onClick={goShop} />
+            <NavItem label="Forum" active={activePage === "forum"} onClick={goForum} />
             <NavItem label="Rankings" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
@@ -773,6 +774,12 @@ export function Header(props: HeaderProps) {
           onClick={() => { goShop(); setMobileOpen(false) }}
         >
           Shop
+        </button>
+        <button
+          className={`vekke-mobile-nav-item${activePage === "forum" ? " active" : ""}`}
+          onClick={() => { goForum(); setMobileOpen(false) }}
+        >
+          Forum
         </button>
         <button
           className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}

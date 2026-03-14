@@ -3,9 +3,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
-import { createChallenge } from "../services/pvp"
+import { ChallengeButton } from "../components/ChallengeButton"
 import { AuthModal } from "../AuthModal"
-import { newGame } from "../engine/state"
 
 type TimeControl = "standard" | "rapid" | "blitz" | "daily"
 type Format = "all" | TimeControl
@@ -271,9 +270,6 @@ export function LeaderboardPage() {
 
   const [showAuthModal, setShowAuthModal] = useState(false)
 
-  const [challenging, setChallenging] = useState<Record<string, boolean>>({})
-  const [challenged, setChallenged] = useState<Record<string, boolean>>({})
-
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return
@@ -515,50 +511,6 @@ export function LeaderboardPage() {
     daily: "Daily",
   }
 
-  function canChallengeRow(r: LeaderboardRow) {
-    if (r.user_id === userId) return false
-    if (r.is_ai) return false
-    if (challenged[r.user_id]) return false
-    if (challenging[r.user_id]) return false
-    return true
-  }
-
-  async function onChallengeClick(e: React.MouseEvent, r: LeaderboardRow) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!userId) {
-      setShowAuthModal(true)
-      return
-    }
-
-    if (r.user_id === userId) return
-    if (r.is_ai) return
-    if (challenged[r.user_id]) return
-
-    const invitedUserId = r.user_id
-    const challengeFormat: TimeControl = format === "all" ? "standard" : format
-
-    setErr(null)
-    setChallenging((m) => ({ ...m, [invitedUserId]: true }))
-
-    try {
-      const initialState = newGame()
-
-      await createChallenge({
-        invitedUserId,
-        timeControlId: challengeFormat,
-        isRanked: true,
-        initialState,
-      })
-
-      setChallenged((m) => ({ ...m, [invitedUserId]: true }))
-    } catch (ex: any) {
-      setErr(ex?.message ?? String(ex))
-    } finally {
-      setChallenging((m) => ({ ...m, [invitedUserId]: false }))
-    }
-  }
-
   const victoryModel = useMemo(() => {
     const COLORS = {
       tip: "#c77a2c",
@@ -714,24 +666,6 @@ export function LeaderboardPage() {
           border-color: rgba(184,150,106,0.30);
         }
 
-        .challenge-btn {
-          font-family: 'Cinzel', serif;
-          background: rgba(184,150,106,0.10);
-          border: 1px solid rgba(184,150,106,0.35);
-          color: #d4af7a;
-          border-radius: 4px;
-          padding: 8px 12px;
-          font-size: 0.55rem;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .challenge-btn:disabled {
-          opacity: 0.35;
-          cursor: default;
-        }
         @media (max-width: 640px) {
           .challenge-btn {
             padding: 6px 8px;
@@ -909,9 +843,6 @@ export function LeaderboardPage() {
                       const losses = rowLosses(r)
                       const wr = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null
                       const isMe = r.user_id === userId
-                      const isChallenged = !!challenged[r.user_id]
-                      const isChallenging = !!challenging[r.user_id]
-                      const canChallenge = canChallengeRow(r)
                       const challengeFormat: TimeControl = format === "all" ? "standard" : format
 
                       return (
@@ -1083,41 +1014,17 @@ export function LeaderboardPage() {
                           </td>
 
                           <td className="lb-td">
-                            <button
+                            <ChallengeButton
+                              viewerId={userId}
+                              opponentId={r.user_id}
+                              opponentIsAi={r.is_ai}
+                              timeControlId={challengeFormat}
                               className="challenge-btn"
-                              disabled={!canChallenge}
-                              onClick={(e) => onChallengeClick(e, r)}
-                              title={
-                                !userId
-                                  ? "Sign in to challenge"
-                                  : r.is_ai
-                                    ? "AI cannot be challenged"
-                                    : r.user_id === userId
-                                      ? "You cannot challenge yourself"
-                                      : isChallenged
-                                        ? "Challenge sent"
-                                        : isChallenging
-                                          ? "Sending..."
-                                          : `Challenge (${FORMAT_LABELS[challengeFormat]})`
-                              }
-                            >
-                              {isChallenged ? (
-                                <>
-                                  <span className="lb-challenge-full">Challenged</span>
-                                  <span className="lb-challenge-short">✓</span>
-                                </>
-                              ) : isChallenging ? (
-                                <>
-                                  <span className="lb-challenge-full">Sending...</span>
-                                  <span className="lb-challenge-short">...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="lb-challenge-full">Challenge</span>
-                                  <span className="lb-challenge-short">vs</span>
-                                </>
-                              )}
-                            </button>
+                              fullLabelClassName="lb-challenge-full"
+                              shortLabelClassName="lb-challenge-short"
+                              onRequireAuth={() => setShowAuthModal(true)}
+                              onError={setErr}
+                            />
                           </td>
                         </tr>
                       )

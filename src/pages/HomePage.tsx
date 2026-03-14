@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
-import { createChallenge } from "../services/pvp"
+import { ChallengeButton } from "../components/ChallengeButton"
 import { AuthModal } from "../AuthModal"
 import { OnboardingModal } from "../OnboardingModal"
 
@@ -493,8 +493,6 @@ export default function HomePage() {
   const [topRows, setTopRows] = useState<LeaderboardRow[]>([])
   const [ladderLoading, setLadderLoading] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const [challenged, setChallenged] = useState<Record<string, boolean>>({})
-  const [challenging, setChallenging] = useState<Record<string, boolean>>({})
   const [pvpToast, setPvpToast] = useState(false)
 
   const [latestShopSets, setLatestShopSets] = useState<ShopSet[]>([])
@@ -820,29 +818,6 @@ export default function HomePage() {
 
   const isPro = me?.account_tier === "pro"
 
-  function canChallengeRow(userId_: string | null, r: LeaderboardRow) {
-    if (r.user_id === userId_) return false
-    if (r.is_ai) return false
-    if (challenged[r.user_id]) return false
-    if (challenging[r.user_id]) return false
-    return true
-  }
-
-  async function onChallengeClick(r: LeaderboardRow) {
-    if (!userId) {
-      setShowAuthModal(true)
-      return
-    }
-    if (!canChallengeRow(userId, r)) return
-    setChallenging((m) => ({ ...m, [r.user_id]: true }))
-    try {
-      await createChallenge({ invitedUserId: r.user_id, timeControlId: "standard" })
-      setChallenged((m) => ({ ...m, [r.user_id]: true }))
-    } finally {
-      setChallenging((m) => ({ ...m, [r.user_id]: false }))
-    }
-  }
-
   const myElo = safeInt(stats?.elo)
   const myWins = safeInt(stats?.wins_active)
   const myLosses = safeInt(stats?.losses_active)
@@ -1159,24 +1134,6 @@ export default function HomePage() {
           .hp-lb-td, .hp-lb-th { padding: 10px 8px; }
         }
 
-        .challenge-btn {
-          font-family: 'Cinzel', serif;
-          background: rgba(184,150,106,0.10);
-          border: 1px solid rgba(184,150,106,0.35);
-          color: #d4af7a;
-          border-radius: 4px;
-          padding: 6px 10px;
-          font-size: 0.55rem;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .challenge-btn:disabled {
-          opacity: 0.35;
-          cursor: default;
-        }
         @media (max-width: 600px) {
           .challenge-btn {
             padding: 6px 8px;
@@ -1398,8 +1355,6 @@ export default function HomePage() {
                           const losses = rowLosses(r)
                           const wr = winRate(wins, losses)
                           const isMe = r.user_id === userId
-                          const isChallenged = !!challenged[r.user_id]
-                          const isChallenging = !!challenging[r.user_id]
 
                           return (
                             <tr
@@ -1483,14 +1438,17 @@ export default function HomePage() {
                               </td>
 
                               <td className="hp-lb-td hp-lb-challenge">
-                                <button
+                                <ChallengeButton
+                                  viewerId={userId}
+                                  opponentId={r.user_id}
+                                  opponentIsAi={r.is_ai}
+                                  timeControlId="standard"
                                   className="challenge-btn"
-                                  disabled={r.is_ai || r.user_id === userId || isChallenged || isChallenging}
-                                  onClick={(e) => { e.stopPropagation(); onChallengeClick(r) }}
-                                >
-                                  <span className="hp-lb-ch-full">{isChallenged ? "Challenged" : isChallenging ? "Sending..." : "Challenge"}</span>
-                                  <span className="hp-lb-ch-short">{isChallenged ? "✓" : isChallenging ? "..." : "vs"}</span>
-                                </button>
+                                  fullLabelClassName="hp-lb-ch-full"
+                                  shortLabelClassName="hp-lb-ch-short"
+                                  onRequireAuth={() => setShowAuthModal(true)}
+                                  onError={setErr}
+                                />
                               </td>
                             </tr>
                           )

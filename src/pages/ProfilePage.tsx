@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
-import { createChallenge, type TimeControlId } from "../services/pvp"
+import { type TimeControlId } from "../services/pvp"
+import { ChallengeButton } from "../components/ChallengeButton"
 import { AuthModal } from "../AuthModal"
-import { newGame } from "../engine/state"
 import { RouteDomino } from "../RouteDomino"
 
 type ProfileRow = {
@@ -384,8 +384,6 @@ export default function ProfilePage() {
   const [achievements, setAchievements] = useState<any[]>([])
   const [achLoading, setAchLoading] = useState(false)
   const [rewardSkins, setRewardSkins] = useState<Record<string, any[]>>({})
-  const [challenging, setChallenging] = useState(false)
-  const [challenged, setChallenged] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   useEffect(() => {
@@ -402,8 +400,6 @@ export default function ProfilePage() {
     setStats(null)
     setOrder(null)
     setOrderJoinedAt(null)
-    setChallenged(false)
-    setChallenging(false)
 
     const { data: sess, error: sessErr } = await supabase.auth.getSession()
     if (sessErr) setErr(sessErr.message)
@@ -670,51 +666,6 @@ export default function ProfilePage() {
     return { items, grand, gradient }
   }, [derived])
 
-  function canChallengeTarget() {
-    if (!profile) return false
-    if (profile.id === userId) return false
-    if (profile.is_ai) return false
-    if (challenged) return false
-    if (challenging) return false
-    return true
-  }
-
-  async function onChallengeClick(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!userId) { setShowAuthModal(true); return }
-
-    if (!profile) return
-
-    if (!userId) {
-      const rt = encodeURIComponent(`/u/${encodeURIComponent(targetUsername)}`)
-      window.location.assign(`/?openAuth=1&returnTo=${rt}`)
-      return
-    }
-
-    if (!canChallengeTarget()) return
-
-    setErr(null)
-    setChallenging(true)
-
-    try {
-      const initialState = newGame()
-
-      await createChallenge({
-        invitedUserId: profile.id,
-        timeControlId: challengeTc,
-        isRanked: true,
-        initialState,
-      })
-
-      setChallenged(true)
-    } catch (ex: any) {
-      setErr(ex?.message ?? String(ex))
-    } finally {
-      setChallenging(false)
-    }
-  }
-
   const isPro = profile?.account_tier === "pro"
 
   const proLinks = useMemo(() => {
@@ -878,26 +829,6 @@ export default function ProfilePage() {
         }
 
         /* DO NOT TOUCH THESE SIZES */
-        .challenge-btn {
-          font-family: 'Cinzel', serif;
-          background: rgba(184,150,106,0.10);
-          border: 1px solid rgba(184,150,106,0.35);
-          color: #d4af7a;
-          border-radius: 4px;
-          padding: 8px 12px;
-          font-size: 0.55rem;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          width: 100%;
-          min-width: 0;
-        }
-        .challenge-btn:disabled {
-          opacity: 0.35;
-          cursor: default;
-        }
 
         .follow-btn {
           font-family: 'Cinzel', serif;
@@ -1234,28 +1165,21 @@ export default function ProfilePage() {
                       Follow
                     </button>
 
-                    <button
-                      className="challenge-btn"
-                      disabled={!canChallengeTarget()}
-                      onClick={onChallengeClick}
-                      title={
-                        !userId
-                          ? "Sign in to challenge"
-                          : !profile
-                            ? "Loading..."
-                            : profile.is_ai
-                              ? "AI cannot be challenged"
-                              : profile.id === userId
-                                ? "You cannot challenge yourself"
-                                : challenged
-                                  ? "Challenge sent"
-                                  : challenging
-                                    ? "Sending..."
-                                    : `Challenge (${FORMAT_LABELS[challengeTc]})`
-                      }
-                    >
-                      {challenged ? "Challenged" : challenging ? "Sending..." : "Challenge"}
-                    </button>
+                    {profile ? (
+                      <ChallengeButton
+                        viewerId={userId}
+                        opponentId={profile.id}
+                        opponentIsAi={profile.is_ai}
+                        timeControlId={challengeTc}
+                        className="challenge-btn"
+                        onRequireAuth={() => setShowAuthModal(true)}
+                        onError={setErr}
+                      />
+                    ) : (
+                      <button className="challenge-btn" disabled>
+                        Loading...
+                      </button>
+                    )}
                   </div>
 
                   <div

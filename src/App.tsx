@@ -23,6 +23,7 @@ import { PuzzlesListPage } from "./pages/PuzzlesListPage"
 import MarketplacePage from "./pages/MarketplacePage"
 import { ReplayPage } from "./pages/ReplayPage"
 import ProPage from "./pages/ProPage"
+import { ForumPage } from "./pages/ForumPage"
 
 function RulesRedirect() {
   window.location.replace("https://rules.vekke.net")
@@ -71,6 +72,7 @@ function App() {
       <Route path="/marketplace" element={<MarketplacePage />} />
       <Route path="/replay/:gameId" element={<ReplayPage />} />
       <Route path="/pro" element={<ProPage />} />
+      <Route path="/forum" element={<ForumPage />} />
     </Routes>
   )
 }
