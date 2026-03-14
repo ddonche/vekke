@@ -80,7 +80,7 @@ function checkWinConditions(g: GameState, conditions: string[]): boolean {
         for (const t of g.tokens.filter(t => t.in === "BOARD" && t.owner === "W")) {
           const dirs = [[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]]
           const enemyNeighbors = dirs.filter(
-            ([dx, dy]) => boardMap.get(`${t.pos.x+dx},${t.pos.y+dy}`)?.owner === "B"
+            ([dx, dy]) => boardMap.get(`${t.pos.x + dx},${t.pos.y + dy}`)?.owner === "B"
           ).length
           if (enemyNeighbors >= 4) sieged++
         }
@@ -106,11 +106,11 @@ const DIFF_LABELS: Record<string, string> = {
 }
 
 const WIN_LABELS: Record<string, string> = {
-  elimination:  "Achieve Elimination",
-  siegemate:    "Achieve Siegemate",
-  collapse:     "Cause Collapse",
+  elimination: "Achieve Elimination",
+  siegemate: "Achieve Siegemate",
+  collapse: "Cause Collapse",
   double_siege: "Achieve Double Siege",
-  draft:        "Achieve a Draft",
+  draft: "Achieve a Draft",
   survive_turn: "Survive the Turn",
 }
 
@@ -123,20 +123,28 @@ function PuzzleInfoBanner({
   onBack: () => void
   isPreview?: boolean
 }) {
-  const diffColor  = DIFF_COLOR[puzzle.difficulty] ?? "#b8966a"
+  const diffColor = DIFF_COLOR[puzzle.difficulty] ?? "#b8966a"
   const objectives = (puzzle.win_conditions ?? []).map(w => WIN_LABELS[w] ?? w).join(" or ")
-  const objective  = puzzle.description
+  const objective = puzzle.description
     ? puzzle.description
     : `${objectives} in ${puzzle.move_budget} ${puzzle.move_budget === 1 ? "move" : "moves"}.`
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 700
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 700 : false
+  )
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 700)
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
 
   return (
     <div
       style={{
         background: "#0d0d10",
         borderBottom: "1px solid rgba(184,150,106,0.18)",
-        padding: isMobile ? "12px 20px" : "10px 20px",
+        padding: isMobile ? "10px 16px" : "10px 20px",
         display: "flex",
         flexDirection: isMobile ? "column" : "row",
         alignItems: "center",
@@ -145,6 +153,7 @@ function PuzzleInfoBanner({
         gap: isMobile ? 6 : 14,
         position: "relative",
         minHeight: isMobile ? undefined : 48,
+        flexShrink: 0,
       }}
     >
       <button
@@ -158,8 +167,8 @@ function PuzzleInfoBanner({
           fontSize: 22,
           lineHeight: 1,
           position: isMobile ? "absolute" : "static",
-          left: isMobile ? 20 : undefined,
-          top: isMobile ? 12 : undefined,
+          left: isMobile ? 16 : undefined,
+          top: isMobile ? 10 : undefined,
           flexShrink: 0,
         }}
       >
@@ -168,7 +177,7 @@ function PuzzleInfoBanner({
 
       {isMobile ? (
         <>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", paddingInline: 28 }}>
             {isPreview && (
               <span
                 style={{
@@ -205,11 +214,12 @@ function PuzzleInfoBanner({
           <div
             style={{
               fontFamily: "'Cinzel', serif",
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 700,
               color: "#e8e4d8",
               letterSpacing: "0.04em",
               maxWidth: 640,
+              paddingInline: 20,
             }}
           >
             {puzzle.title}
@@ -218,11 +228,15 @@ function PuzzleInfoBanner({
           <div
             style={{
               fontFamily: "'EB Garamond', serif",
-              fontSize: 16,
+              fontSize: 15,
               color: "#9a9488",
               fontStyle: "italic",
               maxWidth: 640,
-              lineHeight: 1.45,
+              lineHeight: 1.35,
+              maxHeight: 72,
+              overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
+              paddingInline: 20,
             }}
           >
             {objective}
@@ -357,21 +371,30 @@ export function PuzzlePage() {
 
   const isPreview = searchParams.get("preview") === "1"
 
-  const [puzzle, setPuzzle]               = useState<PuzzleRow | null>(null)
-  const [loading, setLoading]             = useState(true)
-  const [error, setError]                 = useState<string | null>(null)
-  const [initialState, setInitialState]   = useState<GameState | null>(null)
-  const [resetKey, setResetKey]           = useState(0)
-  const [movesLeft, setMovesLeft]         = useState(0)
-  const [movesUsed, setMovesUsed]         = useState(0)
-  const [result, setResult]               = useState<PuzzleResult>(null)
+  const [puzzle, setPuzzle] = useState<PuzzleRow | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [initialState, setInitialState] = useState<GameState | null>(null)
+  const [resetKey, setResetKey] = useState(0)
+  const [movesLeft, setMovesLeft] = useState(0)
+  const [movesUsed, setMovesUsed] = useState(0)
+  const [result, setResult] = useState<PuzzleResult>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 700 : false
+  )
 
-  const resultRef     = useRef<PuzzleResult>(null)
-  const movesLeftRef  = useRef(0)
-  const puzzleRef     = useRef<PuzzleRow | null>(null)
-  const recordRef     = useRef<((solved: boolean, moves: number) => Promise<void>) | null>(null)
+  const resultRef = useRef<PuzzleResult>(null)
+  const movesLeftRef = useRef(0)
+  const puzzleRef = useRef<PuzzleRow | null>(null)
+  const recordRef = useRef<((solved: boolean, moves: number) => Promise<void>) | null>(null)
   const moveFireCount = useRef(0)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 700)
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
@@ -470,16 +493,16 @@ export function PuzzlePage() {
       if (puzzleRef.current.is_tutorial) return
 
       const { data: pts } = await supabase.rpc("record_puzzle_completion", {
-        p_player_id:  currentUserId,
-        p_puzzle_id:  puzzleRef.current.id,
-        p_solved:     solved,
+        p_player_id: currentUserId,
+        p_puzzle_id: puzzleRef.current.id,
+        p_solved: solved,
         p_moves_used: moves,
       })
       if (solved && pts && pts > 0) {
         await supabase.from("player_points").insert({
           player_id: currentUserId,
-          amount:    pts,
-          source:    "puzzle",
+          amount: pts,
+          source: "puzzle",
           source_id: puzzleRef.current.id,
         })
       }
@@ -586,7 +609,17 @@ export function PuzzlePage() {
   }
 
   return (
-    <div style={{ position: "relative" }}>
+    <div
+      style={{
+        position: "relative",
+        minHeight: isMobile ? "100dvh" : undefined,
+        height: isMobile ? "100dvh" : undefined,
+        overflowY: isMobile ? "auto" : undefined,
+        overflowX: "hidden",
+        WebkitOverflowScrolling: "touch",
+        background: "#0a0a0c",
+      }}
+    >
       <GamePage
         key={resetKey}
         opponentType="ai"

@@ -15,7 +15,6 @@ import { LeaderboardPage } from "./pages/LeaderboardPage"
 import { BoardEditorPage } from "./pages/BoardEditorPage"
 import { TutorialPage } from "./pages/TutorialPage"
 import HomePage from "./pages/HomePage"
-import { AnnouncementsPage } from "./pages/AnnouncementsPage"
 import { AdminPage } from "./pages/AdminPage"
 import { PuzzleEditorPage } from "./pages/PuzzleEditorPage"
 import { PuzzlePage } from "./pages/PuzzlePage"
@@ -65,7 +64,6 @@ function App() {
       <Route path="/board-editor" element={<BoardEditorPage />} />
       <Route path="/rules/*" element={<RulesRedirect />} />
       <Route path="/tutorial" element={<TutorialWrapper />} />
-      <Route path="/announcements" element={<AnnouncementsPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/puzzle-editor" element={<PuzzleEditorPage />} />
       <Route path="/puzzles" element={<PuzzlesListPage />} />

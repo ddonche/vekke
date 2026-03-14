@@ -424,7 +424,7 @@ function PostCard({
             {peakElo}
           </span>
         )}
-        {author.account_tier && author.account_tier !== "free" && (
+        {author.account_tier === "pro" && (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             padding: "3px 8px", borderRadius: 999,

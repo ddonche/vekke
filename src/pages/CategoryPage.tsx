@@ -362,7 +362,7 @@ function PostMeta({ author, peakElo, timestamp }: { author: TopicAuthor; peakElo
       {peakElo !== null && (
         <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#666" }}>{peakElo}</span>
       )}
-      {author.account_tier && author.account_tier !== "free" && (
+      {author.account_tier === "pro" && (
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 5,
           padding: "3px 7px", borderRadius: 999,
