@@ -44,6 +44,7 @@ type Section =
   | "puzzles"
   | "users"
   | "gear"
+  | "forum"
   | "analytics"
   | "reports"
   | "gamelogs"
@@ -54,6 +55,7 @@ const NAV_SECTIONS: { id: Section; label: string; description: string }[] = [
   { id: "puzzles",       label: "Puzzles",        description: "Create and manage puzzles" },
   { id: "users",         label: "Users",          description: "Player moderation and management" },
   { id: "gear",          label: "Gear",           description: "Route sets, tokens, routes, boards" },
+  { id: "forum",         label: "Forum",          description: "Manage categories and moderate posts" },
   { id: "analytics",     label: "Analytics",      description: "Usage stats and player activity" },
   { id: "reports",       label: "Reports",        description: "Review player-submitted reports" },
   { id: "gamelogs",      label: "Game Logs",      description: "Look up any game by ID" },
@@ -985,6 +987,402 @@ function GearPanel() {
   )
 }
 
+// ─── Forum panel ──────────────────────────────────────────────────────────────
+// Drop this into AdminPage.tsx, just above the // ─── Main AdminPage ─── line
+// Also add "forum" to the Section type and NAV_SECTIONS (see bottom of this file)
+
+interface ForumCategory {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  display_order: number
+  color: string
+  section: string
+}
+
+const FORUM_SECTIONS = ["Strategy & Play", "Community", "Meta"]
+
+function ForumPanel() {
+  const [categories, setCategories] = useState<ForumCategory[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // New category form
+  const [newName, setNewName] = useState("")
+  const [newDesc, setNewDesc] = useState("")
+  const [newColor, setNewColor] = useState("#b8966a")
+  const [newSection, setNewSection] = useState("General")
+  const [adding, setAdding] = useState(false)
+
+  // Edit state
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editDesc, setEditDesc] = useState("")
+  const [editColor, setEditColor] = useState("#b8966a")
+  const [editSection, setEditSection] = useState("General")
+  const [savingId, setSavingId] = useState<number | null>(null)
+
+  // Delete state
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  const [error, setError] = useState<string | null>(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from("forum_categories")
+      .select("*")
+      .order("display_order", { ascending: true })
+    setCategories((data ?? []) as ForumCategory[])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function handleAdd() {
+    if (!newName.trim()) return
+    setAdding(true); setError(null)
+    const slug = newName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    const { error: err } = await supabase.from("forum_categories").insert({
+      name: newName.trim(),
+      slug,
+      description: newDesc.trim() || null,
+      color: newColor,
+      section: newSection,
+      display_order: categories.length,
+    })
+    if (err) { setError(err.message); setAdding(false); return }
+    setNewName(""); setNewDesc(""); setNewColor("#b8966a"); setNewSection("General")
+    setAdding(false)
+    load()
+  }
+
+  async function handleSaveEdit(cat: ForumCategory) {
+    if (!editName.trim()) return
+    setSavingId(cat.id); setError(null)
+    const { error: err } = await supabase
+      .from("forum_categories")
+      .update({ name: editName.trim(), description: editDesc.trim() || null, color: editColor, section: editSection })
+      .eq("id", cat.id)
+    if (err) { setError(err.message); setSavingId(null); return }
+    setSavingId(null); setEditingId(null)
+    load()
+  }
+
+  function openEdit(cat: ForumCategory) {
+    setEditingId(cat.id)
+    setEditName(cat.name)
+    setEditDesc(cat.description ?? "")
+    setEditColor(cat.color ?? "#b8966a")
+    setEditSection(cat.section ?? "General")
+  }
+
+  async function handleDelete(cat: ForumCategory) {
+    if (!window.confirm(`Delete "${cat.name}"? All topics and replies in this category will also be deleted.`)) return
+    setDeletingId(cat.id); setError(null)
+    const { error: err } = await supabase.from("forum_categories").delete().eq("id", cat.id)
+    if (err) { setError(err.message); setDeletingId(null); return }
+    setDeletingId(null)
+    load()
+  }
+
+  async function handleReorder(cat: ForumCategory, dir: -1 | 1) {
+    const idx = categories.findIndex(c => c.id === cat.id)
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= categories.length) return
+    const swap = categories[swapIdx]
+    await Promise.all([
+      supabase.from("forum_categories").update({ display_order: swap.display_order }).eq("id", cat.id),
+      supabase.from("forum_categories").update({ display_order: cat.display_order }).eq("id", swap.id),
+    ])
+    load()
+  }
+
+  return (
+    <div>
+      {error && (
+        <div style={{
+          marginBottom: 16, padding: "10px 14px", borderRadius: 6,
+          background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.3)",
+          color: "#f87171", fontFamily: "'EB Garamond', serif", fontSize: 14,
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── Add new category ── */}
+      <div style={{
+        marginBottom: 28, padding: "18px 20px", borderRadius: 10,
+        border: "1px solid rgba(93,232,247,0.15)", background: "rgba(93,232,247,0.03)",
+      }}>
+        <div style={{
+          fontFamily: "'Cinzel', serif", fontSize: 10, letterSpacing: "0.2em",
+          textTransform: "uppercase", color: "#5de8f7", marginBottom: 14,
+        }}>
+          New Category
+        </div>
+
+        <input
+          type="text" placeholder="Name" value={newName} maxLength={60}
+          onChange={e => setNewName(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 10 }}
+        />
+        <input
+          type="text" placeholder="Description (optional)" value={newDesc} maxLength={160}
+          onChange={e => setNewDesc(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 12 }}
+        />
+
+        {/* Color picker */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <input
+            type="color" value={newColor}
+            onChange={e => setNewColor(e.target.value)}
+            style={colorInputStyle}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: `${newColor}20`, border: `1px solid ${newColor}60`, display: "grid", placeItems: "center" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={newColor} strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <span style={{ fontFamily: "monospace", fontSize: 11, color: "#b0aa9e", letterSpacing: "0.06em" }}>
+              {newColor}
+            </span>
+          </div>
+        </div>
+
+        {/* Section dropdown */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6b6558", marginBottom: 6 }}>
+            Section
+          </div>
+          <select
+            value={newSection}
+            onChange={e => setNewSection(e.target.value)}
+            style={selectStyle}
+          >
+            {FORUM_SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="General">General</option>
+          </select>
+        </div>
+
+        <button
+          onClick={handleAdd}
+          disabled={adding || !newName.trim()}
+          style={{
+            padding: "8px 18px", borderRadius: 8,
+            border: "1px solid rgba(93,232,247,0.35)",
+            background: "rgba(93,232,247,0.08)",
+            fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700,
+            letterSpacing: "0.12em", textTransform: "uppercase" as const,
+            color: "#5de8f7", cursor: adding || !newName.trim() ? "default" : "pointer",
+            opacity: adding || !newName.trim() ? 0.5 : 1,
+          }}
+        >
+          {adding ? "Adding…" : "+ Add Category"}
+        </button>
+      </div>
+
+      {/* ── Category list ── */}
+      <div style={{
+        fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.2em",
+        textTransform: "uppercase", color: "#6b6558", marginBottom: 12,
+      }}>
+        {categories.length} {categories.length === 1 ? "category" : "categories"}
+      </div>
+
+      {loading ? (
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: "#6b6558", textAlign: "center", padding: "40px 0" }}>
+          Loading…
+        </div>
+      ) : categories.length === 0 ? (
+        <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 15, color: "#6b6558", textAlign: "center", padding: "40px 0" }}>
+          No categories yet.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {categories.map((cat, idx) => {
+            const isEditing = editingId === cat.id
+            const isDeleting = deletingId === cat.id
+            const isSaving = savingId === cat.id
+            const color = cat.color ?? "#b8966a"
+
+            return (
+              <div key={cat.id} style={{
+                borderRadius: 10,
+                border: `1px solid ${isEditing ? `${color}40` : "rgba(184,150,106,0.12)"}`,
+                background: isEditing ? `${color}08` : "rgba(184,150,106,0.02)",
+                overflow: "hidden",
+              }}>
+                {/* Color bar */}
+                <div style={{ height: 3, background: color, opacity: 0.6 }} />
+
+                <div style={{ padding: "14px 18px" }}>
+                  {isEditing ? (
+                    // ── Edit form ──
+                    <div>
+                      <input
+                        type="text" value={editName} maxLength={60}
+                        onChange={e => setEditName(e.target.value)}
+                        style={{ ...inputStyle, marginBottom: 10 }}
+                      />
+                      <input
+                        type="text" value={editDesc} maxLength={160}
+                        onChange={e => setEditDesc(e.target.value)}
+                        style={{ ...inputStyle, marginBottom: 12 }}
+                        placeholder="Description (optional)"
+                      />
+
+                      {/* Color picker */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                        <input
+                          type="color" value={editColor}
+                          onChange={e => setEditColor(e.target.value)}
+                          style={colorInputStyle}
+                        />
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 6, background: `${editColor}20`, border: `1px solid ${editColor}60`, display: "grid", placeItems: "center" }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={editColor} strokeWidth="1.5">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                          </div>
+                          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#b0aa9e", letterSpacing: "0.06em" }}>
+                            {editColor}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Section dropdown */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6b6558", marginBottom: 6 }}>
+                          Section
+                        </div>
+                        <select
+                          value={editSection}
+                          onChange={e => setEditSection(e.target.value)}
+                          style={selectStyle}
+                        >
+                          {FORUM_SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                          <option value="General">General</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleSaveEdit(cat)}
+                          disabled={isSaving || !editName.trim()}
+                          style={{ ...fPanelSmallBtnStyle, borderColor: `${color}60`, color, opacity: isSaving || !editName.trim() ? 0.5 : 1 }}
+                        >
+                          {isSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          style={{ ...fPanelSmallBtnStyle, borderColor: "rgba(255,255,255,0.1)", color: "#b0aa9e" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // ── Display row ──
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+
+                      {/* Reorder */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0, paddingTop: 2 }}>
+                        <button
+                          onClick={() => handleReorder(cat, -1)}
+                          disabled={idx === 0}
+                          style={{ ...fPanelArrowBtnStyle, opacity: idx === 0 ? 0.2 : 1 }}
+                        >▲</button>
+                        <button
+                          onClick={() => handleReorder(cat, 1)}
+                          disabled={idx === categories.length - 1}
+                          style={{ ...fPanelArrowBtnStyle, opacity: idx === categories.length - 1 ? 0.2 : 1 }}
+                        >▼</button>
+                      </div>
+
+                      {/* Color swatch */}
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 6, flexShrink: 0,
+                        background: `${color}18`, border: `1px solid ${color}40`,
+                        display: "grid", placeItems: "center",
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, color: "#e8e4d8", marginBottom: 3 }}>
+                          {cat.name}
+                        </div>
+                        <div style={{ fontFamily: "monospace", fontSize: 10, color: "#4a4540", marginBottom: cat.description ? 4 : 0 }}>
+                          /{cat.slug}
+                          <span style={{ marginLeft: 10, color }}>{color}</span>
+                          <span style={{ marginLeft: 10, color: "#6b6558" }}>{cat.section}</span>
+                        </div>
+                        {cat.description && (
+                          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 13, color: "#9a9488" }}>
+                            {cat.description}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => openEdit(cat)}
+                          style={{ ...fPanelSmallBtnStyle, borderColor: "rgba(184,150,106,0.25)", color: "#b8966a" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cat)}
+                          disabled={isDeleting}
+                          style={{ ...fPanelSmallBtnStyle, borderColor: "rgba(238,72,76,0.3)", color: isDeleting ? "#6b6558" : "#ee484c" }}
+                        >
+                          {isDeleting ? "…" : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const selectStyle: React.CSSProperties = {
+  width: "100%", background: "rgba(184,150,106,0.06)",
+  border: "1px solid rgba(184,150,106,0.25)", borderRadius: 8,
+  padding: "10px 14px", color: "#e8e4d8",
+  fontFamily: "'Cinzel', serif", fontSize: 11,
+  letterSpacing: "0.06em", outline: "none",
+  boxSizing: "border-box" as const, cursor: "pointer",
+}
+
+const colorInputStyle: React.CSSProperties = {
+  width: 44, height: 36, padding: 2,
+  border: "1px solid rgba(184,150,106,0.25)", borderRadius: 6,
+  background: "transparent", cursor: "pointer",
+}
+
+const fPanelSmallBtnStyle: React.CSSProperties = {
+  padding: "5px 12px", borderRadius: 6, background: "transparent",
+  fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.12em",
+  textTransform: "uppercase" as const, cursor: "pointer", border: "1px solid",
+}
+
+const fPanelArrowBtnStyle: React.CSSProperties = {
+  background: "transparent", border: "none", color: "#4a4540",
+  cursor: "pointer", fontSize: 9, padding: "1px 3px", lineHeight: 1,
+}
+
 // ─── Announcements panel ──────────────────────────────────────────────────────
 
 function AnnouncementsPanel({ userId }: { userId: string }) {
@@ -1411,6 +1809,7 @@ export function AdminPage() {
             {activeSection === "puzzles"       && <PuzzlesPanel />}
             {activeSection === "users"         && <PlaceholderPanel label="Users" description="Player moderation and management" />}
             {activeSection === "gear"          && <GearPanel />}
+            {activeSection === "forum"         && <ForumPanel />}
             {activeSection === "analytics"     && <PlaceholderPanel label="Analytics" description="Usage stats and player activity" />}
             {activeSection === "reports"       && <PlaceholderPanel label="Reports" description="Review player-submitted reports" />}
             {activeSection === "gamelogs"      && <PlaceholderPanel label="Game Logs" description="Look up any game by ID" />}
