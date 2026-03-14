@@ -530,7 +530,7 @@ export function Header(props: HeaderProps) {
   const goTutorial    = props.onTutorial    ?? (() => navigate("/tutorial"))
   const goPuzzles     = props.onPuzzles     ?? (() => navigate("/puzzles"))
   const goShop        = props.onShop        ?? (() => navigate("/marketplace"))
-  const goForum = props.onForum ?? (() => { window.location.href = "https://forum.vekke.net" })
+  const goForum       = props.onForum       ?? (() => navigate("/forum"))
   const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
   const goChallenges  = props.onChallenges  ?? (() => navigate("/challenges"))
 
@@ -647,7 +647,6 @@ export function Header(props: HeaderProps) {
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
             <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
             <NavItem label="Shop" active={activePage === "marketplace"} onClick={goShop} />
-            <NavItem label="Forum" active={activePage === "forum"} onClick={goForum} />
             <NavItem label="Rankings" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
@@ -774,12 +773,6 @@ export function Header(props: HeaderProps) {
           onClick={() => { goShop(); setMobileOpen(false) }}
         >
           Shop
-        </button>
-        <button
-          className={`vekke-mobile-nav-item${activePage === "forum" ? " active" : ""}`}
-          onClick={() => { goForum(); setMobileOpen(false) }}
-        >
-          Forum
         </button>
         <button
           className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}

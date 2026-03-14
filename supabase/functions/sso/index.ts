@@ -21,6 +21,7 @@ async function computeHmacSha256(secret: string, message: string): Promise<strin
 }
 
 Deno.serve(async (req) => {
+  try {
   const url = new URL(req.url)
 
   // ── Step 1: Discourse sends sso + sig query params ──────────────────────────
@@ -33,8 +34,11 @@ Deno.serve(async (req) => {
 
   // ── Step 2: Verify the signature from Discourse ──────────────────────────────
   const expectedSig = await computeHmacSha256(DISCOURSE_SECRET, rawSso)
+  console.log("expected:", expectedSig)
+  console.log("received:", sig)
+  console.log("secret present:", !!DISCOURSE_SECRET)
   if (expectedSig !== sig) {
-    return new Response("Invalid signature", { status: 403 })
+    return new Response(`Invalid signature — expected: ${expectedSig} got: ${sig}`, { status: 403 })
   }
 
   // ── Step 3: Decode the nonce ─────────────────────────────────────────────────
@@ -95,4 +99,8 @@ Deno.serve(async (req) => {
   redirectUrl.searchParams.set("sig", responseSig)
 
   return Response.redirect(redirectUrl.toString(), 302)
+  } catch (e) {
+    console.error("SSO error:", e)
+    return new Response(`SSO Error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 })
+  }
 })
