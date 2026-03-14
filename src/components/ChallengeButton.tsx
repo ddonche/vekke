@@ -276,7 +276,7 @@ export function ChallengeButton({
       onError?.(null)
 
       if (state.type === "game") {
-        navigate(`/game/${state.gameId}`)
+        navigate(`/pvp/${state.gameId}`)
         return
       }
 
@@ -288,7 +288,7 @@ export function ChallengeButton({
 
       if (state.type === "accept") {
         const { gameId } = await acceptInvite(state.inviteToken)
-        navigate(`/game/${gameId}`)
+        navigate(`/pvp/${gameId}`)
         return
       }
 
