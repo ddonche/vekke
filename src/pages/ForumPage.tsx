@@ -27,9 +27,9 @@ interface Category {
   section: string
 }
 
-interface LatestTopic {
-  id: string
-  title: string
+interface LatestActivity {
+  topic_id: string
+  topic_title: string
   created_at: string
   author_username: string | null
   author_avatar: string | null
@@ -37,7 +37,7 @@ interface LatestTopic {
 
 interface CategoryStats {
   topic_count: number
-  latest: LatestTopic | null
+  latest: LatestActivity | null
 }
 
 const SECTION_ORDER = ["Strategy & Play", "Community", "Meta"]
@@ -76,31 +76,64 @@ export function ForumPage() {
     if (!cats) { setLoading(false); return }
     setCategories(cats)
 
-    // Fetch all non-deleted topics with author profile (ordered latest first)
+    const map = new Map<number, CategoryStats>()
+    for (const cat of cats) {
+      map.set(cat.id, { topic_count: 0, latest: null })
+    }
+
+    // Step 1: topics for counts + fallback latest
     const { data: topics } = await supabase
       .from("forum_topics")
       .select(`id, title, created_at, category_id, author:profiles!author_id(username, avatar_url)`)
       .eq("is_deleted", false)
       .order("created_at", { ascending: false })
 
-    const map = new Map<number, CategoryStats>()
-    for (const cat of cats) {
-      map.set(cat.id, { topic_count: 0, latest: null })
-    }
-
     if (topics) {
       for (const t of topics as any[]) {
         const entry = map.get(t.category_id)
         if (!entry) continue
         entry.topic_count++
+        // Store as fallback latest — replies will override this below
         if (!entry.latest) {
           entry.latest = {
-            id: t.id,
-            title: t.title,
+            topic_id: t.id,
+            topic_title: t.title,
             created_at: t.created_at,
             author_username: t.author?.username ?? null,
             author_avatar: t.author?.avatar_url ?? null,
           }
+        }
+      }
+    }
+
+    // Step 2: latest replies per category (overrides topic fallback)
+    const { data: replies } = await supabase
+      .from("forum_replies")
+      .select(`
+        id, created_at,
+        topic:forum_topics!topic_id(id, title, category_id),
+        author:profiles!author_id(username, avatar_url)
+      `)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false })
+      .limit(100)
+
+    if (replies) {
+      // Track which categories we've already set from replies
+      const repliedCats = new Set<number>()
+      for (const r of replies as any[]) {
+        const categoryId = r.topic?.category_id
+        if (!categoryId) continue
+        const entry = map.get(categoryId)
+        if (!entry) continue
+        if (repliedCats.has(categoryId)) continue
+        repliedCats.add(categoryId)
+        entry.latest = {
+          topic_id: r.topic.id,
+          topic_title: r.topic.title,
+          created_at: r.created_at,
+          author_username: r.author?.username ?? null,
+          author_avatar: r.author?.avatar_url ?? null,
         }
       }
     }
@@ -244,7 +277,7 @@ export function ForumPage() {
                     </div>
                   </div>
 
-                  {/* Category rows grouped in a bordered block */}
+                  {/* Category rows */}
                   <div style={{
                     borderRadius: 8,
                     border: "1px solid rgba(184,150,106,0.12)",
@@ -302,7 +335,7 @@ export function ForumPage() {
                             </span>
                           </div>
 
-                          {/* Latest */}
+                          {/* Latest activity */}
                           <div className="fcr-latest">
                             {latest ? (
                               <>
@@ -321,7 +354,7 @@ export function ForumPage() {
                                   color: "#7a7468", overflow: "hidden",
                                   textOverflow: "ellipsis", whiteSpace: "nowrap",
                                 }}>
-                                  {latest.title}
+                                  {latest.topic_title}
                                 </div>
                                 <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 13, color: "#4a4540" }}>
                                   {timeAgo(latest.created_at)}
