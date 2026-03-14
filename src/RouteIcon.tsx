@@ -3,7 +3,7 @@ import type { CSSProperties } from "react"
 import { RouteDomino } from "./RouteDomino"
 import type { DominoStyle } from "../services/skinService"
 
-const DIR_TO_STRING: Record<1|2|3|4|5|6|7|8, string> = {
+const DIR_TO_STRING: Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, string> = {
   1: "N", 2: "NE", 3: "E", 4: "SE",
   5: "S", 6: "SW", 7: "W", 8: "NW",
 }
@@ -41,16 +41,24 @@ export function RouteIcon({
   return (
     <div
       onClick={onClick}
+      onContextMenu={(e) => e.preventDefault()}
+      onPointerDown={(e) => {
+        if (e.pointerType === "touch") e.preventDefault()
+      }}
       style={{
         width: style?.width,
         flexShrink: 0,
         cursor: style?.cursor ?? "default",
         opacity: style?.opacity ?? 1,
         display: "inline-block",
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+        touchAction: "manipulation",
       }}
     >
       <RouteDomino
-        dir={DIR_TO_STRING[route.dir as 1|2|3|4|5|6|7|8] ?? "N"}
+        dir={DIR_TO_STRING[route.dir as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8] ?? "N"}
         dist={route.dist}
         selected={selected}
         size={size}
