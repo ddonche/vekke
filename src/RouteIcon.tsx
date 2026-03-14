@@ -41,20 +41,15 @@ export function RouteIcon({
   return (
     <div
       onClick={onClick}
-      onContextMenu={(e) => e.preventDefault()}
-      onPointerDown={(e) => {
-        if (e.pointerType === "touch") e.preventDefault()
-      }}
       style={{
         width: style?.width,
         flexShrink: 0,
         cursor: style?.cursor ?? "default",
         opacity: style?.opacity ?? 1,
         display: "inline-block",
-        WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
         userSelect: "none",
-        touchAction: "manipulation",
+        touchAction: "pan-y",
       }}
     >
       <RouteDomino

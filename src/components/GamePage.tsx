@@ -1646,7 +1646,12 @@ if (wantsNewGame) {
               style={{
                 flex: 1,
                 minWidth: 0,
+                minHeight: 0,
                 overflowY: "auto",
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+                overscrollBehaviorY: "contain",
                 paddingBottom: !props.puzzleMode ? "2.5rem" : 0,
               }}
               className="hide-scrollbar"

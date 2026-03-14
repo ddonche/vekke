@@ -617,6 +617,7 @@ export function PuzzlePage() {
         overflowY: isMobile ? "auto" : undefined,
         overflowX: "hidden",
         WebkitOverflowScrolling: "touch",
+        touchAction: "pan-y",
         background: "#0a0a0c",
       }}
     >
