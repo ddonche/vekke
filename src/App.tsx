@@ -22,12 +22,13 @@ import { PuzzlePage } from "./pages/PuzzlePage"
 import { PuzzlesListPage } from "./pages/PuzzlesListPage"
 import MarketplacePage from "./pages/MarketplacePage"
 import { ReplayPage } from "./pages/ReplayPage"
+import ProPage from "./pages/ProPage"
+import { ForumSSO } from "./pages/ForumSSO"
 
 function RulesRedirect() {
   window.location.replace("https://rules.vekke.net")
   return null
 }
-
 function TutorialWrapper() {
   const navigate = useNavigate()
   return (
@@ -36,7 +37,6 @@ function TutorialWrapper() {
     />
   )
 }
-
 function App() {
   return (
     <Routes>
@@ -71,9 +71,9 @@ function App() {
       <Route path="/play" element={<GamePage />} />
       <Route path="/marketplace" element={<MarketplacePage />} />
       <Route path="/replay/:gameId" element={<ReplayPage />} />
-
+      <Route path="/pro" element={<ProPage />} />
+      <Route path="/forum-sso" element={<ForumSSO />} />
     </Routes>
   )
 }
-
 export default App

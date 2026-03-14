@@ -23,10 +23,6 @@ function fmtRoute(dir: number, dist: number) {
   return `${dir}/${dist}`
 }
 
-function isSquare(v: string): boolean {
-  return /^[A-F][1-6]$/.test(v)
-}
-
 function other(p: Player): Player {
   return p === "W" ? "B" : "W"
 }
@@ -48,15 +44,22 @@ export class VgnRecorder {
   private gameStartPerfMs: number
   private lastNonMetaT = 0
 
-  private roundN = 1
+  // Round semantics:
+  // - opening placement is NOT a round
+  // - Round 1 starts when wake begins the first real action phase
+  // - each new round starts when turn returns to wake
+  private roundN = 0
+  private actionRoundsStarted = false
   private lastTurnPlayer: Player | null = null
 
   constructor(args: {
     gameId: string
     ruleset: string
     version?: number
-    whiteId: string
-    blueId: string
+    wakeId?: string
+    brakeId?: string
+    whiteId?: string
+    blueId?: string
     tokensW: number
     tokensB: number
     tc: { id: TimeControlId; baseMs: number; incMs: number }
@@ -65,11 +68,13 @@ export class VgnRecorder {
     this.gameStartPerfMs = args.gameStartPerfMs
 
     const v = args.version ?? 1
+    const wakeId = args.wakeId ?? args.whiteId ?? ""
+    const brakeId = args.brakeId ?? args.blueId ?? ""
+
     this.lines.push(`META|GAME|id=${args.gameId}|ruleset=${args.ruleset}|version=${v}`)
-    this.lines.push(`META|PLAYERS|W=${args.whiteId}|B=${args.blueId}`)
+    this.lines.push(`META|PLAYERS|W=${wakeId}|B=${brakeId}`)
     this.lines.push(`META|TOKENS|W=${args.tokensW}|B=${args.tokensB}`)
     this.lines.push(`META|TC|mode=${args.tc.id}|base=${args.tc.baseMs}|inc=${args.tc.incMs}`)
-    this.lines.push(this.mkLine(0, `ROUND|n=1`))
   }
 
   private nowT(perfNow: number): number {
@@ -80,6 +85,52 @@ export class VgnRecorder {
     const dt = this.lastNonMetaT === 0 ? null : Math.max(0, t - this.lastNonMetaT)
     this.lastNonMetaT = t
     return dt != null ? `t=${t}|dt=${dt}|${body}` : `t=${t}|${body}`
+  }
+
+  private emitRoundStart(t: number) {
+    this.roundN += 1
+    this.lines.push(this.mkLine(t, `ROUND|n=${this.roundN}`))
+    this.actionRoundsStarted = true
+  }
+
+  private maybeStartFirstRound(
+    t: number,
+    prev: GameState,
+    next: GameState,
+    lastPlayedRoute?: { by: Player; routeId: string } | null
+  ) {
+    if (this.actionRoundsStarted) return
+
+    const prevPhase = (prev as any)?.phase
+    const nextPhase = (next as any)?.phase
+
+    // Strongest signal: engine phase explicitly enters ACTION.
+    const enteredActionPhase = prevPhase !== nextPhase && nextPhase === "ACTION"
+
+    // Fallback signal: any board-to-board move happened, which means real play has started.
+    let hasBoardMove = false
+    const prevById = new Map<string, Token>()
+    for (const tok of prev.tokens) prevById.set(tokenKey(tok), tok)
+
+    for (const tok of next.tokens) {
+      const old = prevById.get(tokenKey(tok))
+      if (!old) continue
+      if (old.in === "BOARD" && tok.in === "BOARD") {
+        const from = sq(old.pos.x, old.pos.y)
+        const to = sq(tok.pos.x, tok.pos.y)
+        if (from !== to) {
+          hasBoardMove = true
+          break
+        }
+      }
+    }
+
+    // Additional fallback: if a played route is being reported, we are definitely in action play.
+    const hasPlayedRoute = !!lastPlayedRoute
+
+    if (enteredActionPhase || hasBoardMove || hasPlayedRoute) {
+      this.emitRoundStart(t)
+    }
   }
 
   note(perfNow: number, text: string) {
@@ -95,10 +146,15 @@ export class VgnRecorder {
       this.lastTurnPlayer = nextPlayer
       return
     }
+
     if (this.lastTurnPlayer === nextPlayer) return
 
-    this.roundN += 1
-    this.lines.push(this.mkLine(t, `ROUND|n=${this.roundN}`))
+    // Opening placement should not create rounds.
+    // After action rounds have started, a new round begins when turn returns to wake.
+    if (this.actionRoundsStarted && nextPlayer === "W") {
+      this.emitRoundStart(t)
+    }
+
     this.lastTurnPlayer = nextPlayer
   }
 
@@ -112,6 +168,9 @@ export class VgnRecorder {
   ) {
     const t = this.nowT(perfNow)
 
+    // Do this before emitting move lines so Round 1 appears at the start of wake's first real turn.
+    this.maybeStartFirstRound(t, prev, next, lastPlayedRoute)
+
     const prevById = new Map<string, Token>()
     const nextById = new Map<string, Token>()
     for (const tok of prev.tokens) prevById.set(tokenKey(tok), tok)
@@ -121,15 +180,14 @@ export class VgnRecorder {
     const boardToReserveCount: Record<Player, number> = { W: 0, B: 0 }
     const boardCaptureCount: Record<Player, number> = { W: 0, B: 0 }
 
-    const lmPrev = (prev as any).lastMove
-    const lmNext = (next as any).lastMove
-    const lastMoveChanged =
-      lmNext && (!lmPrev || lmPrev.moveNumber !== lmNext.moveNumber)
-
     const routeById = (by: Player, routeId: string) => {
       return (
         next.routes?.[by]?.find((rr: any) => rr.id === routeId) ??
         prev.routes?.[by]?.find((rr: any) => rr.id === routeId) ??
+        ((next as any).queue ?? []).find((rr: any) => rr.id === routeId) ??
+        ((prev as any).queue ?? []).find((rr: any) => rr.id === routeId) ??
+        ((next as any).deck ?? []).find((rr: any) => rr.id === routeId) ??
+        ((prev as any).deck ?? []).find((rr: any) => rr.id === routeId) ??
         null
       )
     }
@@ -157,14 +215,14 @@ export class VgnRecorder {
       if (oldIn === "BOARD" && newIn === "BOARD") {
         const from = sq(old.pos.x, old.pos.y)
         const to = sq(tok.pos.x, tok.pos.y)
+
         if (from !== to) {
           let routeStr: string | null = null
-          if (
-            lastMoveChanged &&
-            lmNext?.tokenId === tok.id &&
-            lastPlayedRoute &&
-            lastPlayedRoute.by === lmNext.by
-          ) {
+
+          // If the caller tells us which route was just played, attach it to every
+          // board movement for that same player in this transition. This makes wake
+          // and brake both record routes consistently for AI and human turns.
+          if (lastPlayedRoute && lastPlayedRoute.by === tok.owner) {
             const r = routeById(lastPlayedRoute.by, lastPlayedRoute.routeId)
             if (r) routeStr = fmtRoute(r.dir, r.dist)
           }
@@ -261,6 +319,10 @@ export class VgnRecorder {
       if (captiveGainedFromVoid > 0) {
         this.lines.push(this.mkLine(t, `p=${p}|from=VOID|to=CAPTIVE|count=${captiveGainedFromVoid}`))
       }
+
+      // Keep lint / reasoning happy for pure delta handling.
+      void prevVoid
+      void nextVoid
     }
 
     // ---- ROUTE TRANSFERS ----

@@ -19,6 +19,8 @@ export type ActivePage =
   | "announcements"
   | "puzzles"
   | "marketplace"
+  | "forum"
+  | "pro"
   | null
 
 export interface HeaderProps {
@@ -47,6 +49,7 @@ export interface HeaderProps {
   onTutorial?: () => void
   onPuzzles?: () => void
   onShop?: () => void
+  onForum?: () => void
   onAnnouncements?: () => void
 
   // User callbacks
@@ -527,6 +530,7 @@ export function Header(props: HeaderProps) {
   const goTutorial    = props.onTutorial    ?? (() => navigate("/tutorial"))
   const goPuzzles     = props.onPuzzles     ?? (() => navigate("/puzzles"))
   const goShop        = props.onShop        ?? (() => navigate("/marketplace"))
+  const goForum = props.onForum ?? (() => { window.location.href = "https://forum.vekke.net" })
   const goAnnouncements = props.onAnnouncements ?? (() => navigate("/announcements"))
   const goChallenges  = props.onChallenges  ?? (() => navigate("/challenges"))
 
@@ -641,12 +645,10 @@ export function Header(props: HeaderProps) {
 
           <nav className="vekke-nav">
             <NavItem label="Play" active={activePage === "play"} onClick={goPlay} />
-            {isLoggedIn && (
-              <NavItem label="My Games" active={activePage === "mygames"} onClick={goMyGames} badge={turnCount} />
-            )}
             <NavItem label="Puzzles" active={activePage === "puzzles"} onClick={goPuzzles} />
             <NavItem label="Shop" active={activePage === "marketplace"} onClick={goShop} />
-            <NavItem label="Leaderboard" active={activePage === "leaderboard"} onClick={goLeaderboard} />
+            <NavItem label="Forum" active={activePage === "forum"} onClick={goForum} />
+            <NavItem label="Rankings" active={activePage === "leaderboard"} onClick={goLeaderboard} />
             <NavItem label="Orders" active={activePage === "orders"} onClick={goOrders} />
             <NavItem label="Rules" active={activePage === "rules"} onClick={goRules} />
             <NavItem label="Tutorial" active={activePage === "tutorial"} onClick={goTutorial} />
@@ -658,6 +660,55 @@ export function Header(props: HeaderProps) {
               <span style={{ width: "70%", alignSelf: "flex-end" }} />
               <span style={{ width: mobileOpen ? "100%" : "85%" }} />
             </button>
+
+            {isLoggedIn && (
+              <button
+                onClick={goMyGames}
+                aria-label="My Games"
+                title={turnCount > 0 ? `My Games — ${turnCount} awaiting your move` : "My Games"}
+                style={{
+                  position: "relative",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "6px 8px",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: activePage === "mygames" ? "#5de8f7" : "#b8966a",
+                  transition: "color 0.2s",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" fill="currentColor">
+                  <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
+                </svg>
+                {turnCount > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 999,
+                      background: "#ee484c",
+                      color: "#fff",
+                      fontSize: 9,
+                      fontWeight: 900,
+                      padding: "0 3px",
+                      lineHeight: 1,
+                      border: "1.5px solid #0a0a0c",
+                    }}
+                  >
+                    {turnCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Announcements icon — hidden on mobile (drawer has text link) */}
             <button
@@ -725,10 +776,16 @@ export function Header(props: HeaderProps) {
           Shop
         </button>
         <button
+          className={`vekke-mobile-nav-item${activePage === "forum" ? " active" : ""}`}
+          onClick={() => { goForum(); setMobileOpen(false) }}
+        >
+          Forum
+        </button>
+        <button
           className={`vekke-mobile-nav-item${activePage === "leaderboard" ? " active" : ""}`}
           onClick={() => { goLeaderboard(); setMobileOpen(false) }}
         >
-          Leaderboard
+          Rankings
         </button>
         <button
           className={`vekke-mobile-nav-item${activePage === "orders" ? " active" : ""}`}

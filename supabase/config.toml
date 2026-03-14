@@ -60,3 +60,18 @@ entrypoint = "./functions/create-checkout-session/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.create-subscription-session]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-subscription-session/index.ts"
+
+[functions.stripe-subscription-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/stripe-subscription-webhook/index.ts"
+
+[functions.sso]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/sso/index.ts"
