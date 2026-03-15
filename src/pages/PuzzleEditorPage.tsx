@@ -35,6 +35,8 @@ type WinCondition =
   | "draft"
   | "siege_break"
   | "survive_turn"
+  | "no_losses"
+
 type Difficulty = "easy" | "medium" | "hard" | "grandmaster"
 
 type PuzzleEditorState = {
@@ -89,6 +91,14 @@ const WIN_CONDITION_LABELS: Record<WinCondition, string> = {
   draft:        "Draft Triggered",
   siege_break:  "Break the Siege",
   survive_turn: "Survive the Turn",
+  no_losses:    "Lose No Tokens",
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function padToThree(arr: any[]): (any | null)[] {
+  const result = [...arr]
+  while (result.length < 3) result.push(null)
+  return result.slice(0, 3)
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -134,7 +144,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function RouteSlot({ route, onPick, onClear }: {
+function RouteSlot({
+  route,
+  onPick,
+  onClear,
+}: {
   route: Route | null
   onPick: () => void
   onClear: () => void
@@ -144,7 +158,11 @@ function RouteSlot({ route, onPick, onClear }: {
       <div style={{ position: "relative" }}>
         <RouteIcon
           route={route}
-          style={{ width: 36, cursor: "pointer" }}
+          style={{
+            width: 36,
+            cursor: "pointer",
+            borderRadius: 6,
+          }}
           onClick={onClear}
         />
         <div
@@ -195,7 +213,6 @@ function RoutePickerModal({ onSelect, onClose }: {
           Select Route
         </div>
 
-        {/* Group by direction */}
         {DIR_NAMES.map((dir, di) => {
           const dirNum = di + 1
           const isOrthogonal = [1, 3, 5, 7].includes(dirNum)
@@ -233,13 +250,6 @@ function RoutePickerModal({ onSelect, onClose }: {
   )
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function padToThree(arr: any[]): (any | null)[] {
-  const result = [...arr]
-  while (result.length < 3) result.push(null)
-  return result.slice(0, 3)
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function PuzzleEditorPage() {
@@ -275,18 +285,24 @@ export function PuzzleEditorPage() {
         .select("title, description, difficulty, move_budget, win_conditions, board_state, is_tutorial")
         .eq("id", editId)
         .single()
-      if (error || !data) { setSaveError("Failed to load puzzle."); setLoadingEdit(false); return }
+
+      if (error || !data) {
+        setSaveError("Failed to load puzzle.")
+        setLoadingEdit(false)
+        return
+      }
 
       const bs = data.board_state
       const board = new Map<string, any>((bs.board ?? []) as [string, any][])
+
       setPs({
         board,
-        reserves:   bs.reserves   ?? { W: 0, B: 0 },
-        captives:   bs.captives   ?? { W: 0, B: 0 },
-        voidCount:  bs.void       ?? { W: 0, B: 0 },
-        routesW:    padToThree(bs.routesW ?? []),
-        routesB:    padToThree(bs.routesB ?? []),
-        queue:      padToThree(bs.queue ?? []),
+        reserves: bs.reserves ?? { W: 0, B: 0 },
+        captives: bs.captives ?? { W: 0, B: 0 },
+        voidCount: bs.void ?? { W: 0, B: 0 },
+        routesW: padToThree(bs.routesW ?? []),
+        routesB: padToThree(bs.routesB ?? []),
+        queue: padToThree(bs.queue ?? []),
         startingPlayer: bs.startingPlayer ?? "B",
       })
       setTitle(data.title)
@@ -302,6 +318,7 @@ export function PuzzleEditorPage() {
   // ── Board interaction ──────────────────────────────────────────────────────
   const handleSquareClick = useCallback((x: number, y: number) => {
     const key = `${x},${y}`
+
     setPs(prev => {
       const next = new Map(prev.board)
       if (brush === "erase") {
@@ -316,7 +333,7 @@ export function PuzzleEditorPage() {
       }
       return { ...prev, board: next }
     })
-  }, [brush])
+  }, [brush, ps.board])
 
   // ── Zone helpers ───────────────────────────────────────────────────────────
   function setZone(
@@ -330,24 +347,36 @@ export function PuzzleEditorPage() {
   function assignRoute(zone: "W" | "B" | "Q", slot: number, route: Route) {
     setPs(prev => {
       if (zone === "W") {
-        const r = [...prev.routesW]; r[slot] = route; return { ...prev, routesW: r }
+        const r = [...prev.routesW]
+        r[slot] = route
+        return { ...prev, routesW: r }
       }
       if (zone === "B") {
-        const r = [...prev.routesB]; r[slot] = route; return { ...prev, routesB: r }
+        const r = [...prev.routesB]
+        r[slot] = route
+        return { ...prev, routesB: r }
       }
-      const r = [...prev.queue]; r[slot] = route; return { ...prev, queue: r }
+      const r = [...prev.queue]
+      r[slot] = route
+      return { ...prev, queue: r }
     })
   }
 
   function clearRoute(zone: "W" | "B" | "Q", slot: number) {
     setPs(prev => {
       if (zone === "W") {
-        const r = [...prev.routesW]; r[slot] = null; return { ...prev, routesW: r }
+        const r = [...prev.routesW]
+        r[slot] = null
+        return { ...prev, routesW: r }
       }
       if (zone === "B") {
-        const r = [...prev.routesB]; r[slot] = null; return { ...prev, routesB: r }
+        const r = [...prev.routesB]
+        r[slot] = null
+        return { ...prev, routesB: r }
       }
-      const r = [...prev.queue]; r[slot] = null; return { ...prev, queue: r }
+      const r = [...prev.queue]
+      r[slot] = null
+      return { ...prev, queue: r }
     })
   }
 
@@ -373,8 +402,14 @@ export function PuzzleEditorPage() {
 
   function handlePreview() {
     setSaveError(null)
-    if (!title.trim()) { setSaveError("Title is required to preview."); return }
-    if (winConditions.length === 0) { setSaveError("Select at least one win condition."); return }
+    if (!title.trim()) {
+      setSaveError("Title is required to preview.")
+      return
+    }
+    if (winConditions.length === 0) {
+      setSaveError("Select at least one win condition.")
+      return
+    }
 
     const previewPayload = {
       id: editId ?? "preview",
@@ -402,8 +437,15 @@ export function PuzzleEditorPage() {
   // ── Save (insert or update) ────────────────────────────────────────────────
   async function handlePublish() {
     setSaveError(null)
-    if (!title.trim()) { setSaveError("Title is required."); return }
-    if (winConditions.length === 0) { setSaveError("Select at least one win condition."); return }
+
+    if (!title.trim()) {
+      setSaveError("Title is required.")
+      return
+    }
+    if (winConditions.length === 0) {
+      setSaveError("Select at least one win condition.")
+      return
+    }
 
     setSaving(true)
     const payload = buildPayload(true)
@@ -568,7 +610,9 @@ export function PuzzleEditorPage() {
             <SectionLabel>Wake Hand</SectionLabel>
             <div style={{ display: "flex", gap: 8 }}>
               {ps.routesW.map((r, i) => (
-                <RouteSlot key={i} route={r}
+                <RouteSlot
+                  key={i}
+                  route={r}
                   onPick={() => setPickerTarget({ zone: "W", slot: i })}
                   onClear={() => clearRoute("W", i)}
                 />
@@ -581,7 +625,9 @@ export function PuzzleEditorPage() {
             <SectionLabel>Brake Hand</SectionLabel>
             <div style={{ display: "flex", gap: 8 }}>
               {ps.routesB.map((r, i) => (
-                <RouteSlot key={i} route={r}
+                <RouteSlot
+                  key={i}
+                  route={r}
                   onPick={() => setPickerTarget({ zone: "B", slot: i })}
                   onClear={() => clearRoute("B", i)}
                 />
@@ -602,7 +648,9 @@ export function PuzzleEditorPage() {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {ps.queue.map((r, i) => (
-                <RouteSlot key={i} route={r}
+                <RouteSlot
+                  key={i}
+                  route={r}
                   onPick={() => setPickerTarget({ zone: "Q", slot: i })}
                   onClear={() => clearRoute("Q", i)}
                 />
@@ -647,12 +695,14 @@ export function PuzzleEditorPage() {
             GHOST_MS={0}
           />
 
-          <button
-            onClick={() => setPs(prev => ({ ...prev, board: new Map() }))}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 6, border: "1px solid rgba(220,38,38,0.2)", background: "transparent", color: "#4a4540", cursor: "pointer" }}
-          >
-            Clear Board
-          </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={() => setPs(prev => ({ ...prev, board: new Map() }))}
+              style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 6, border: "1px solid rgba(220,38,38,0.2)", background: "transparent", color: "#4a4540", cursor: "pointer" }}
+            >
+              Clear Board
+            </button>
+          </div>
         </div>
 
         {/* ── Right settings ── */}

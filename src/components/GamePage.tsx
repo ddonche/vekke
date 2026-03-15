@@ -106,7 +106,7 @@ export function GamePage(props: GamePageProps = {}) {
   const [skinsOpen, setSkinsOpen] = useState(false)
   // Screenshot/tutorial helper: allow hiding the selection highlight without affecting gameplay.
   const [hideSelection, setHideSelection] = useState(false)
-  
+
   const {
     g,
     selectedTokenId,
@@ -251,6 +251,7 @@ export function GamePage(props: GamePageProps = {}) {
 
   // ── Puzzle mode: detect B→W turn transitions and call onMoveComplete ──
   const puzzlePrevPlayerRef = React.useRef<string | null>("B")
+
   useEffect(() => {
     if (!props.puzzleMode) return
     const prev = puzzlePrevPlayerRef.current

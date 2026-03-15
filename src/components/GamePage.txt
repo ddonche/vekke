@@ -99,6 +99,11 @@ type GamePageProps = {
   puzzleMovesLeft?: number
   /** Rendered as a banner strip directly below the Header in puzzle mode */
   puzzleBanner?: React.ReactNode
+  forcedLine?: {
+    player: "W" | "B"
+    token: { x: number; y: number }
+    routeId: string
+  }[]
 }
 
 export function GamePage(props: GamePageProps = {}) {
@@ -106,7 +111,10 @@ export function GamePage(props: GamePageProps = {}) {
   const [skinsOpen, setSkinsOpen] = useState(false)
   // Screenshot/tutorial helper: allow hiding the selection highlight without affecting gameplay.
   const [hideSelection, setHideSelection] = useState(false)
-  
+
+  // forded move for puzzles
+  const forcedIndexRef = useRef(0)
+
   const {
     g,
     selectedTokenId,
@@ -251,6 +259,34 @@ export function GamePage(props: GamePageProps = {}) {
 
   // ── Puzzle mode: detect B→W turn transitions and call onMoveComplete ──
   const puzzlePrevPlayerRef = React.useRef<string | null>("B")
+  useEffect(() => {
+    if (!props.puzzleMode) return
+    if (!props.forcedLine) return
+
+    const step = props.forcedLine[forcedIndexRef.current]
+    if (!step) return
+    if (g.player !== step.player) return
+
+    const token = g.tokens.find(
+      t =>
+        t.in === "BOARD" &&
+        t.owner === step.player &&
+        t.pos.x === step.token.x &&
+        t.pos.y === step.token.y
+    )
+    if (!token) return
+
+    const route = g.routes[step.player].find(
+      r => `${r.dir}/${r.dist}` === step.routeId
+    )
+    if (!route) return
+
+    actions.onSquareClick(step.token.x, step.token.y)
+    actions.playRoute(step.player, step.routeId)
+
+    forcedIndexRef.current += 1
+  }, [g.player, g.turn])
+  
   useEffect(() => {
     if (!props.puzzleMode) return
     const prev = puzzlePrevPlayerRef.current
@@ -1646,8 +1682,14 @@ if (wantsNewGame) {
               style={{
                 flex: 1,
                 minWidth: 0,
+                minHeight: 0,
                 overflowY: "auto",
-                paddingBottom: !props.puzzleMode ? "2.5rem" : 0,
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+                paddingBottom: !props.puzzleMode
+                  ? "calc(12rem + env(safe-area-inset-bottom, 0px))"
+                  : "6rem",
               }}
               className="hide-scrollbar"
             >

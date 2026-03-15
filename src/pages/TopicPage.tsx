@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { ForumImageUploader, ImageGrid } from "../components/ForumImageUploader"
 
 const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
 
@@ -22,6 +23,7 @@ interface PostAuthor {
   avatar_url: string | null
   country_code: string | null
   account_tier: string | null
+  forum_signature: string | null
 }
 
 interface PostStats {
@@ -37,11 +39,13 @@ interface Topic {
   author_id: string
   title: string
   body: string
+  images: string[]
   is_pinned: boolean
   is_locked: boolean
   reply_count: number
   upvote_count: number
   created_at: string
+  updated_at: string | null
   author: PostAuthor
   author_stats: PostStats | null
 }
@@ -50,8 +54,10 @@ interface Reply {
   id: string
   author_id: string
   body: string
+  images: string[]
   upvote_count: number
   created_at: string
+  updated_at: string | null
   author: PostAuthor
   author_stats: PostStats | null
 }
@@ -68,6 +74,7 @@ export function TopicPage() {
   const [loading, setLoading] = useState(true)
   const [categoryColor, setCategoryColor] = useState<string>("#b8966a")
   const [replyBody, setReplyBody] = useState("")
+  const [replyImages, setReplyImages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [replyError, setReplyError] = useState<string | null>(null)
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set())
@@ -96,17 +103,17 @@ export function TopicPage() {
       supabase
         .from("forum_topics")
         .select(`
-          id, category_id, author_id, title, body, is_pinned, is_locked,
-          reply_count, upvote_count, created_at,
-          author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier)
+          id, category_id, author_id, title, body, images, is_pinned, is_locked,
+          reply_count, upvote_count, created_at, updated_at,
+          author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("id", topicId)
         .single(),
       supabase
         .from("forum_replies")
         .select(`
-          id, author_id, body, upvote_count, created_at,
-          author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier)
+          id, author_id, body, images, upvote_count, created_at, updated_at,
+          author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("topic_id", topicId)
         .eq("is_deleted", false)
@@ -180,9 +187,12 @@ export function TopicPage() {
   async function handleSubmitReply() {
     if (!replyBody.trim() || !userId || !topicId) return
     setSubmitting(true); setReplyError(null)
-    const { error } = await supabase.from("forum_replies").insert({ topic_id: topicId, author_id: userId, body: replyBody.trim() })
+    const { error } = await supabase.from("forum_replies").insert({
+      topic_id: topicId, author_id: userId,
+      body: replyBody.trim(), images: replyImages,
+    })
     if (error) { setReplyError("Failed to post. Please try again."); setSubmitting(false); return }
-    setReplyBody(""); setSubmitting(false); loadData()
+    setReplyBody(""); setReplyImages([]); setSubmitting(false); loadData()
   }
 
   async function handlePin() {
@@ -206,6 +216,17 @@ export function TopicPage() {
   async function handleDeleteReply(reply: Reply) {
     if (!window.confirm("Delete this reply?")) return
     await supabase.from("forum_replies").update({ is_deleted: true }).eq("id", reply.id)
+    loadData()
+  }
+
+  async function handleEditTopic(newBody: string, newImages: string[]) {
+    if (!topic) return
+    await supabase.from("forum_topics").update({ body: newBody, images: newImages }).eq("id", topic.id)
+    loadData()
+  }
+
+  async function handleEditReply(replyId: string, newBody: string, newImages: string[]) {
+    await supabase.from("forum_replies").update({ body: newBody, images: newImages }).eq("id", replyId)
     loadData()
   }
 
@@ -286,15 +307,20 @@ export function TopicPage() {
 
               {/* Original post */}
               <PostCard
+                userId={userId}
                 authorId={topic.author_id}
                 author={topic.author}
                 peakElo={topicPeakElo}
                 body={topic.body}
+                images={topic.images ?? []}
                 createdAt={topic.created_at}
+                updatedAt={topic.updated_at ?? null}
                 upvoteCount={topic.upvote_count}
                 upvoted={upvotedIds.has(topic.id)}
                 canUpvote={!!userId && userId !== topic.author_id}
                 onUpvote={() => handleUpvote("topic", topic.id)}
+                canEdit={!!userId && (userId === topic.author_id || isAdmin)}
+                onSaveEdit={(body, images) => handleEditTopic(body, images)}
                 isFirst
               />
 
@@ -306,15 +332,20 @@ export function TopicPage() {
                 return (
                   <PostCard
                     key={reply.id}
+                    userId={userId}
                     authorId={reply.author_id}
                     author={reply.author}
                     peakElo={peakElo}
                     body={reply.body}
+                    images={reply.images ?? []}
                     createdAt={reply.created_at}
+                    updatedAt={reply.updated_at ?? null}
                     upvoteCount={reply.upvote_count}
                     upvoted={upvotedIds.has(reply.id)}
                     canUpvote={!!userId && userId !== reply.author_id}
                     onUpvote={() => handleUpvote("reply", reply.id)}
+                    canEdit={!!userId && (userId === reply.author_id || isAdmin)}
+                    onSaveEdit={(body, images) => handleEditReply(reply.id, body, images)}
                     canDelete={isAdmin || userId === reply.author_id}
                     onDelete={() => handleDeleteReply(reply)}
                   />
@@ -334,6 +365,11 @@ export function TopicPage() {
                     placeholder="Write your reply…" value={replyBody} rows={5}
                     onChange={(e) => setReplyBody(e.target.value)}
                     style={{ ...inputStyle, resize: "vertical" as const }}
+                  />
+                  <ForumImageUploader
+                    userId={userId}
+                    images={replyImages}
+                    onChange={setReplyImages}
                   />
                   {replyError && <p style={{ color: "#ee484c", fontFamily: "'EB Garamond', serif", fontSize: 14, margin: "8px 0 0" }}>{replyError}</p>}
                   <div style={{ marginTop: 12 }}>
@@ -380,22 +416,56 @@ export function TopicPage() {
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  author, peakElo, body, createdAt, upvoteCount, upvoted, canUpvote, onUpvote,
+  userId, author, peakElo, body, images, createdAt, updatedAt,
+  upvoteCount, upvoted, canUpvote, onUpvote,
+  canEdit, onSaveEdit,
   canDelete, onDelete, isFirst,
 }: {
+  userId?: string | null
   authorId: string
   author: PostAuthor
   peakElo: number | null
   body: string
+  images: string[]
   createdAt: string
+  updatedAt: string | null
   upvoteCount: number
   upvoted: boolean
   canUpvote: boolean
   onUpvote: () => void
+  canEdit?: boolean
+  onSaveEdit?: (body: string, images: string[]) => void
   canDelete?: boolean
   onDelete?: () => void
   isFirst?: boolean
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editBody, setEditBody] = useState(body)
+  const [editImages, setEditImages] = useState<string[]>(images)
+  const [saving, setSaving] = useState(false)
+
+  // Sync local edit state if parent refreshes the post
+  React.useEffect(() => {
+    if (!editing) {
+      setEditBody(body)
+      setEditImages(images)
+    }
+  }, [body, images, editing])
+
+  async function handleSave() {
+    if (!editBody.trim() || !onSaveEdit) return
+    setSaving(true)
+    await onSaveEdit(editBody.trim(), editImages)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  function handleCancel() {
+    setEditBody(body)
+    setEditImages(images)
+    setEditing(false)
+  }
+
   return (
     <div style={{
       background: "rgba(255,255,255,0.02)",
@@ -407,10 +477,14 @@ function PostCard({
         display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
         paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)", flexWrap: "wrap",
       }}>
-        <PostAvatar username={author.username} avatarUrl={author.avatar_url} size={36} />
-        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 700, color: "#d4af7a", letterSpacing: "0.04em" }}>
-          {author.username}
-        </span>
+        <a href={`/u/${author.username}`} style={{ display: "contents", textDecoration: "none" }}>
+          <PostAvatar username={author.username} avatarUrl={author.avatar_url} size={36} />
+        </a>
+        <a href={`/u/${author.username}`} style={{ textDecoration: "none" }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 700, color: "#d4af7a", letterSpacing: "0.04em", cursor: "pointer" }}>
+            {author.username}
+          </span>
+        </a>
         {author.country_code && (
           <img
             src={`https://flagicons.lipis.dev/flags/4x3/${author.country_code.toLowerCase()}.svg`}
@@ -420,7 +494,7 @@ function PostCard({
           />
         )}
         {peakElo !== null && (
-          <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 15, color: "#888" }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
             {peakElo}
           </span>
         )}
@@ -438,23 +512,86 @@ function PostCard({
             Pro
           </span>
         )}
-        <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555", marginLeft: "auto" }}>
-          {timeAgo(createdAt)}
-        </span>
+        <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+          <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555" }}>
+            {timeAgo(createdAt)}
+          </span>
+          {updatedAt && updatedAt !== createdAt && (
+            <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 12, color: "#3a3830", fontStyle: "italic" }}>
+              edited {timeAgo(updatedAt)}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Body */}
-      <div style={{
-        fontFamily: "'EB Garamond', serif", fontSize: 18, lineHeight: 1.75,
-        color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 16,
-      }}>
-        {body}
-      </div>
+      {/* Body — view or edit mode */}
+      {editing ? (
+        <div style={{ marginBottom: 14 }}>
+          <textarea
+            value={editBody}
+            rows={6}
+            onChange={e => setEditBody(e.target.value)}
+            style={{ ...inputStyle, resize: "vertical" as const }}
+          />
+          {userId && (
+            <ForumImageUploader
+              userId={userId}
+              images={editImages}
+              onChange={setEditImages}
+            />
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button
+              onClick={handleSave}
+              disabled={saving || !editBody.trim()}
+              style={{ ...primaryBtnStyle, opacity: saving || !editBody.trim() ? 0.5 : 1 }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button onClick={handleCancel} style={ghostBtnStyle}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{
+            fontFamily: "'EB Garamond', serif", fontSize: 18, lineHeight: 1.75,
+            color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word",
+            marginBottom: images.length > 0 ? 10 : 16,
+          }}>
+            {body}
+          </div>
+          <ImageGrid images={images} />
+        </>
+      )}
+
+      {/* Pro signature */}
+      {!editing && author.account_tier === "pro" && author.forum_signature && (
+        <div style={{ marginTop: 14, marginBottom: 6 }}>
+          <div style={{ height: 1, background: "rgba(184,150,106,0.12)", marginBottom: 10 }} />
+          <div style={{
+            fontFamily: "'EB Garamond', serif", fontSize: 15,
+            fontStyle: "italic", color: "rgba(212,175,122,0.55)",
+            letterSpacing: "0.01em",
+          }}>
+            {author.forum_signature}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <UpvoteButton count={upvoteCount} upvoted={upvoted} disabled={!canUpvote} onClick={onUpvote} />
-        {canDelete && onDelete && (
+        {canEdit && !editing && (
+          <button onClick={() => setEditing(true)} style={{
+            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.08em", textTransform: "uppercase" as const,
+            background: "transparent", border: "1px solid rgba(184,150,106,0.25)",
+            color: "#b8966a", borderRadius: 3, padding: "4px 10px", cursor: "pointer",
+          }}>
+            Edit
+          </button>
+        )}
+        {canDelete && onDelete && !editing && (
           <button onClick={onDelete} style={{
             fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
             letterSpacing: "0.08em", textTransform: "uppercase" as const,
@@ -536,6 +673,24 @@ function ModBtn({ onClick, label, color }: { onClick: () => void; label: string;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
+function eloColor(elo: number): string {
+  if (elo >= 2000) return "#D4AF37"
+  if (elo >= 1750) return "#7c2d12"
+  if (elo >= 1500) return "#16a34a"
+  if (elo >= 1200) return "#dc2626"
+  if (elo >= 900)  return "#2563eb"
+  return "#6b6558"
+}
+
+function eloTitle(elo: number): string {
+  if (elo >= 2000) return "Grandmaster"
+  if (elo >= 1750) return "Senior Master"
+  if (elo >= 1500) return "Master"
+  if (elo >= 1200) return "Expert"
+  if (elo >= 900)  return "Adept"
+  return "Novice"
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const m = Math.floor(diff / 60000)
@@ -564,6 +719,13 @@ const primaryBtnStyle: React.CSSProperties = {
   letterSpacing: "0.08em", textTransform: "uppercase" as const,
   background: "rgba(184,150,106,0.12)", border: "1px solid rgba(184,150,106,0.4)",
   color: "#d4af7a", borderRadius: 4, padding: "9px 18px", cursor: "pointer",
+}
+
+const ghostBtnStyle: React.CSSProperties = {
+  fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700,
+  letterSpacing: "0.08em", textTransform: "uppercase" as const,
+  background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+  color: "#b0aa9e", borderRadius: 4, padding: "9px 18px", cursor: "pointer",
 }
 
 const breadcrumbBtnStyle: React.CSSProperties = {

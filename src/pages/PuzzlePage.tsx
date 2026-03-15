@@ -95,6 +95,14 @@ function checkWinConditions(g: GameState, conditions: string[]): boolean {
   return false
 }
 
+function brakeHasLostAnyTokens(g: GameState, initialBCount: number): boolean {
+  const currentBCount = g.tokens.filter(
+    t => t.in === "BOARD" && t.owner === "B"
+  ).length
+
+  return currentBCount < initialBCount
+}
+
 // ── Difficulty colors ──────────────────────────────────────────────────────────
 
 const DIFF_COLOR: Record<string, string> = {
@@ -112,6 +120,7 @@ const WIN_LABELS: Record<string, string> = {
   double_siege: "Achieve Double Siege",
   draft: "Achieve a Draft",
   survive_turn: "Survive the Turn",
+  no_losses: "Lose No Tokens",
 }
 
 function PuzzleInfoBanner({
@@ -275,6 +284,7 @@ function PuzzleOverlay({
   onNext,
   isPreview,
   isTutorial,
+  loseMessage,
 }: {
   result: PuzzleResult
   puzzle: PuzzleRow
@@ -283,6 +293,7 @@ function PuzzleOverlay({
   onNext: () => void
   isPreview: boolean
   isTutorial: boolean
+  loseMessage: string | null
 }) {
   if (!result) return null
   const solved = result === "solved"
@@ -314,7 +325,7 @@ function PuzzleOverlay({
           letterSpacing: "0.08em",
           color: solved ? "#4ade80" : "#ee484c",
         }}>
-          {solved ? "Puzzle Solved" : "Out of Moves"}
+          {solved ? "Puzzle Solved" : "Puzzle Failed"}
         </div>
         <div style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: "#e8e4d8", letterSpacing: "0.04em" }}>
           {puzzle.title}
@@ -331,8 +342,8 @@ function PuzzleOverlay({
           </div>
         )}
         {!solved && (
-          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 15, color: "#5a5550", lineHeight: 1.6 }}>
-            Budget was {puzzle.move_budget} {puzzle.move_budget === 1 ? "move" : "moves"}.
+          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 15, color: "#9a9488", lineHeight: 1.6 }}>
+            {loseMessage ?? `Budget was ${puzzle.move_budget} ${puzzle.move_budget === 1 ? "move" : "moves"}.`}
           </div>
         )}
         <div style={{ display: "flex", gap: 10, marginTop: 8, justifyContent: "center" }}>
@@ -379,6 +390,7 @@ export function PuzzlePage() {
   const [movesLeft, setMovesLeft] = useState(0)
   const [movesUsed, setMovesUsed] = useState(0)
   const [result, setResult] = useState<PuzzleResult>(null)
+  const [loseMessage, setLoseMessage] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 700 : false
@@ -389,6 +401,7 @@ export function PuzzlePage() {
   const puzzleRef = useRef<PuzzleRow | null>(null)
   const recordRef = useRef<((solved: boolean, moves: number) => Promise<void>) | null>(null)
   const moveFireCount = useRef(0)
+  const initialBTokenCountRef = useRef(0)
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 700)
@@ -430,6 +443,9 @@ export function PuzzlePage() {
           movesLeftRef.current = p.move_budget
           setMovesLeft(p.move_budget)
           setInitialState(hydratePuzzleState(p.board_state))
+          initialBTokenCountRef.current = (p.board_state?.board ?? [])
+            .filter(([, t]: [string, any]) => t?.owner === "B")
+            .length
           setLoading(false)
           return
         } catch {
@@ -463,6 +479,9 @@ export function PuzzlePage() {
       movesLeftRef.current = p.move_budget
       setMovesLeft(p.move_budget)
       setInitialState(hydratePuzzleState(p.board_state))
+      initialBTokenCountRef.current = (p.board_state?.board ?? [])
+        .filter(([, t]: [string, any]) => t?.owner === "B")
+        .length
 
       // Only normal puzzles get locked after solve
       if (!p.is_tutorial) {
@@ -520,10 +539,22 @@ export function PuzzlePage() {
     const left = movesLeftRef.current - 1
     const used = p.move_budget - left
     const isSurvivePuzzle = p.win_conditions.includes("survive_turn")
+    const noLossesPuzzle = p.win_conditions.includes("no_losses")
+
+    if (noLossesPuzzle && brakeHasLostAnyTokens(g, initialBTokenCountRef.current)) {
+      resultRef.current = "failed"
+      setResult("failed")
+      setLoseMessage("Your unit got captured.")
+      setMovesUsed(used)
+      setMovesLeft(0)
+      recordRef.current?.(false, used)
+      return
+    }
 
     if (!isSurvivePuzzle && checkWinConditions(g, p.win_conditions)) {
       resultRef.current = "solved"
       setResult("solved")
+      setLoseMessage(null)
       setMovesUsed(used)
       setMovesLeft(0)
       recordRef.current?.(true, used)
@@ -533,6 +564,7 @@ export function PuzzlePage() {
     if (g.gameOver) {
       resultRef.current = "failed"
       setResult("failed")
+      setLoseMessage("You lost the position.")
       setMovesUsed(used)
       setMovesLeft(0)
       recordRef.current?.(false, used)
@@ -540,9 +572,10 @@ export function PuzzlePage() {
     }
 
     if (left <= 0) {
-      if (isSurvivePuzzle) {
+      if (isSurvivePuzzle || noLossesPuzzle) {
         resultRef.current = "solved"
         setResult("solved")
+        setLoseMessage(null)
         setMovesUsed(p.move_budget)
         setMovesLeft(0)
         recordRef.current?.(true, p.move_budget)
@@ -551,6 +584,7 @@ export function PuzzlePage() {
 
       resultRef.current = "failed"
       setResult("failed")
+      setLoseMessage(`Budget was ${p.move_budget} ${p.move_budget === 1 ? "move" : "moves"}.`)
       setMovesUsed(p.move_budget)
       setMovesLeft(0)
       recordRef.current?.(false, p.move_budget)
@@ -567,9 +601,13 @@ export function PuzzlePage() {
     moveFireCount.current = 0
     movesLeftRef.current = puzzle.move_budget
     setResult(null)
+    setLoseMessage(null)
     setMovesLeft(puzzle.move_budget)
     setMovesUsed(0)
     setInitialState(hydratePuzzleState(puzzle.board_state))
+    initialBTokenCountRef.current = (puzzle.board_state?.board ?? [])
+      .filter(([, t]: [string, any]) => t?.owner === "B")
+      .length
     setResetKey(k => k + 1)
   }
 
@@ -641,6 +679,7 @@ export function PuzzlePage() {
         onNext={handleBack}
         isPreview={isPreview}
         isTutorial={!!puzzle.is_tutorial}
+        loseMessage={loseMessage}
       />
     </div>
   )

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
+import { ForumImageUploader } from "../components/ForumImageUploader"
 
 const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
 
@@ -66,6 +67,7 @@ export function CategoryPage() {
   const [showForm, setShowForm] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newBody, setNewBody] = useState("")
+  const [newImages, setNewImages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -138,9 +140,10 @@ export function CategoryPage() {
     const { error } = await supabase.from("forum_topics").insert({
       category_id: category.id, author_id: userId,
       title: newTitle.trim(), slug, body: newBody.trim(),
+      images: newImages,
     })
     if (error) { setFormError("Failed to post. Please try again."); setSubmitting(false); return }
-    setNewTitle(""); setNewBody(""); setShowForm(false)
+    setNewTitle(""); setNewBody(""); setNewImages([]); setShowForm(false)
     setSubmitting(false)
     loadTopics()
   }
@@ -241,6 +244,13 @@ export function CategoryPage() {
                 onChange={(e) => setNewBody(e.target.value)}
                 style={{ ...inputStyle, resize: "vertical" as const, marginTop: 10 }}
               />
+              {userId && (
+                <ForumImageUploader
+                  userId={userId}
+                  images={newImages}
+                  onChange={setNewImages}
+                />
+              )}
               {formError && <p style={{ color: "#ee484c", fontFamily: "'EB Garamond', serif", fontSize: 14, margin: "8px 0 0" }}>{formError}</p>}
               <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
                 <button
@@ -250,7 +260,7 @@ export function CategoryPage() {
                 >
                   {submitting ? "Posting…" : "Post Topic"}
                 </button>
-                <button onClick={() => { setShowForm(false); setFormError(null) }} style={ghostBtnStyle}>Cancel</button>
+                <button onClick={() => { setShowForm(false); setFormError(null); setNewImages([]) }} style={ghostBtnStyle}>Cancel</button>
               </div>
             </div>
           )}
@@ -360,7 +370,9 @@ function PostMeta({ author, peakElo, timestamp }: { author: TopicAuthor; peakElo
         />
       )}
       {peakElo !== null && (
-        <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#666" }}>{peakElo}</span>
+        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
+          {peakElo}
+        </span>
       )}
       {author.account_tier === "pro" && (
         <span style={{
@@ -443,6 +455,24 @@ function LoadingRows({ count, height }: { count: number; height: number }) {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+
+function eloColor(elo: number): string {
+  if (elo >= 2000) return "#D4AF37"
+  if (elo >= 1750) return "#7c2d12"
+  if (elo >= 1500) return "#16a34a"
+  if (elo >= 1200) return "#dc2626"
+  if (elo >= 900)  return "#2563eb"
+  return "#6b6558"
+}
+
+function eloTitle(elo: number): string {
+  if (elo >= 2000) return "Grandmaster"
+  if (elo >= 1750) return "Senior Master"
+  if (elo >= 1500) return "Master"
+  if (elo >= 1200) return "Expert"
+  if (elo >= 900)  return "Adept"
+  return "Novice"
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()

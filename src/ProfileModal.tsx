@@ -251,6 +251,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
   // Pro-only profile extras
   const [bio, setBio] = useState("")
+  const [forumSignature, setForumSignature] = useState("")
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [xUrl, setXUrl] = useState("")
   const [youtubeUrl, setYoutubeUrl] = useState("")
@@ -285,7 +286,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       const { data: profile, error: err } = await supabase
         .from("profiles")
         .select(
-          "username, country_code, avatar_url, account_tier, bio, website_url, x_url, youtube_url, twitch_url, instagram_url, facebook_url"
+          "username, country_code, avatar_url, account_tier, bio, forum_signature, website_url, x_url, youtube_url, twitch_url, instagram_url, facebook_url"
         )
         .eq("id", userId)
         .single()
@@ -302,6 +303,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
         // Load extras (even if not Pro right now; we still gate rendering + saving)
         setBio(profile.bio || "")
+        setForumSignature(profile.forum_signature || "")
         setWebsiteUrl(profile.website_url || "")
         setXUrl(profile.x_url || "")
         setYoutubeUrl(profile.youtube_url || "")
@@ -375,6 +377,11 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       return
     }
 
+    if (isPro && forumSignature && forumSignature.length > 120) {
+      setError("Forum signature must be 120 characters or less")
+      return
+    }
+
     setSaving(true)
 
     // Update email/password if changed
@@ -415,6 +422,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     // Only Pro can write these fields.
     if (isPro) {
       updatePayload.bio = bio.trim() || null
+      updatePayload.forum_signature = forumSignature.trim() || null
       updatePayload.website_url = normalizeUrl(websiteUrl) || null
       updatePayload.x_url = normalizeUrl(xUrl) || null
       updatePayload.youtube_url = normalizeUrl(youtubeUrl) || null
@@ -626,6 +634,20 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
                   placeholder="140 characters max"
                 />
                 <div style={S.hint}>{bioRemaining} characters remaining</div>
+              </div>
+
+              <div style={S.field}>
+                <label style={S.label}>Forum Signature</label>
+                <input
+                  type="text"
+                  value={forumSignature}
+                  onChange={(e) => setForumSignature(e.target.value)}
+                  disabled={saving}
+                  maxLength={120}
+                  style={S.input}
+                  placeholder="A short motto or tagline — shown on every post"
+                />
+                <div style={S.hint}>{120 - forumSignature.length} characters remaining</div>
               </div>
 
               <div style={proGridStyle}>

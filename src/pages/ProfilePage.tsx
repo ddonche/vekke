@@ -357,6 +357,49 @@ function normalizeUrl(raw: string | null | undefined) {
   return `https://${s}`
 }
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d ago`
+  const mo = Math.floor(d / 30)
+  if (mo < 12) return `${mo}mo ago`
+  return `${Math.floor(mo / 12)}y ago`
+}
+
+function LockedAccordion({ locked, AchCard }: { locked: any[]; AchCard: React.FC<{ a: any; dim: boolean }> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%",
+          background: "transparent", border: "none", cursor: "pointer",
+          padding: "6px 0", marginBottom: open ? 10 : 0,
+        }}
+      >
+        <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", letterSpacing: "0.3em", textTransform: "uppercase", color: "#4a4540" }}>
+          Locked — {locked.length}
+        </span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a4540" strokeWidth="2"
+          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div className="achievements-grid">
+          {locked.map((a: any) => <AchCard key={a.id} a={a} dim={true} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProfilePage() {
   injectFonts()
 
@@ -385,6 +428,9 @@ export default function ProfilePage() {
   const [achLoading, setAchLoading] = useState(false)
   const [rewardSkins, setRewardSkins] = useState<Record<string, any[]>>({})
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [forumTopics, setForumTopics] = useState<any[]>([])
+  const [forumReplies, setForumReplies] = useState<any[]>([])
+  const [forumLoading, setForumLoading] = useState(false)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -513,6 +559,31 @@ export default function ProfilePage() {
 
     if (!isMountedRef.current) return
     setLoading(false)
+
+    // Fetch forum activity
+    setForumLoading(true)
+    const profileId = (p as any).id
+    const [{ data: fTopics }, { data: fReplies }] = await Promise.all([
+      supabase
+        .from("forum_topics")
+        .select(`id, title, created_at, category:forum_categories!category_id(name, slug, color)`)
+        .eq("author_id", profileId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("forum_replies")
+        .select(`id, body, created_at, topic:forum_topics!topic_id(id, title, category:forum_categories!category_id(name, slug, color))`)
+        .eq("author_id", profileId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ])
+    if (isMountedRef.current) {
+      setForumTopics(fTopics ?? [])
+      setForumReplies(fReplies ?? [])
+      setForumLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -932,7 +1003,7 @@ export default function ProfilePage() {
 
         .achievements-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
           gap: 8px;
           min-width: 0;
         }
@@ -1615,281 +1686,206 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ── Achievements ───────────────────────────────────────────────── */}
-          <div style={{ marginTop: 24, minWidth: 0 }}>
-            <div className="section-label">
-              Achievements <div className="rule" />
+          {/* ── Forum Activity + Achievements ──────────────────────────────── */}
+          <div style={{ marginTop: 24, minWidth: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
+
+            {/* LEFT: Forum Activity */}
+            <div style={{ minWidth: 0 }}>
+              <div className="section-label">
+                Forum Activity <div className="rule" />
+              </div>
+
+              {forumLoading ? (
+                <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>Loading…</div>
+              ) : forumTopics.length === 0 && forumReplies.length === 0 ? (
+                <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>No forum activity yet.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                  {/* Topics */}
+                  {forumTopics.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", letterSpacing: "0.3em", textTransform: "uppercase", color: "#6b6558", marginBottom: 8 }}>
+                        Topics — {forumTopics.length}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {forumTopics.map((t: any) => (
+                          <a key={t.id} href={`/forum/${t.category?.slug}/${t.id}`} style={{ textDecoration: "none" }}>
+                            <div style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.1)", background: "rgba(255,255,255,0.02)", transition: "background 0.1s" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                {t.category?.color && <div style={{ width: 3, height: 12, borderRadius: 2, background: t.category.color, flexShrink: 0 }} />}
+                                <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", color: "#6b6558", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                                  {t.category?.name ?? "Forum"}
+                                </span>
+                              </div>
+                              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: "1rem", color: "#e8e4d8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {t.title}
+                              </div>
+                              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: "0.8rem", color: "#555", marginTop: 2 }}>
+                                {timeAgo(t.created_at)}
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Replies */}
+                  {forumReplies.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", letterSpacing: "0.3em", textTransform: "uppercase", color: "#6b6558", marginBottom: 8 }}>
+                        Replies — {forumReplies.length}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {forumReplies.map((r: any) => (
+                          <a key={r.id} href={`/forum/${r.topic?.category?.slug}/${r.topic?.id}`} style={{ textDecoration: "none" }}>
+                            <div style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.1)", background: "rgba(255,255,255,0.02)", transition: "background 0.1s" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                {r.topic?.category?.color && <div style={{ width: 3, height: 12, borderRadius: 2, background: r.topic.category.color, flexShrink: 0 }} />}
+                                <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", color: "#6b6558", letterSpacing: "0.12em", textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {r.topic?.title ?? "Topic"}
+                                </span>
+                              </div>
+                              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: "0.95rem", color: "#b0aa9e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: "italic" }}>
+                                {(r.body ?? "").slice(0, 80)}{(r.body ?? "").length > 80 ? "…" : ""}
+                              </div>
+                              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: "0.8rem", color: "#555", marginTop: 2 }}>
+                                {timeAgo(r.created_at)}
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
             </div>
 
-            {achLoading ? (
-              <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>Loading achievements…</div>
-            ) : achievements.length === 0 ? (
-              <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>No achievements yet.</div>
-            ) : (() => {
-              const unlocked = achievements.filter(a => a.unlocked_at)
-              const locked = achievements.filter(a => !a.unlocked_at)
+            {/* RIGHT: Achievements */}
+            <div style={{ minWidth: 0 }}>
+              <div className="section-label">
+                Achievements <div className="rule" />
+              </div>
 
-              const tierColor = (tier: string | null) => {
-                if (tier === "gold") return "#f5c842"
-                if (tier === "silver") return "#b0b8c8"
-                if (tier === "bronze") return "#cd7f32"
-                return "#b8966a"
-              }
+              {achLoading ? (
+                <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>Loading achievements…</div>
+              ) : achievements.length === 0 ? (
+                <div style={{ color: "#6b6558", fontStyle: "italic", fontSize: "0.9rem" }}>No achievements yet.</div>
+              ) : (() => {
+                const unlocked = achievements.filter(a => a.unlocked_at)
+                const locked = achievements.filter(a => !a.unlocked_at)
 
-              const RewardPreview = ({ skins, dim }: { skins: any[]; dim: boolean }) => {
-                if (!skins || skins.length === 0) {
-                  return (
-                    <div className="ach-reward-preview">
-                      <span
-                        style={{
-                          fontFamily: "'Cinzel', serif",
-                          fontSize: "0.56rem",
-                          letterSpacing: "0.14em",
-                          textTransform: "uppercase",
-                          color: dim ? "#4a4640" : "#6b6558",
-                        }}
-                      >
-                        —
-                      </span>
-                    </div>
-                  )
+                const tierColor = (tier: string | null) => {
+                  if (tier === "gold") return "#f5c842"
+                  if (tier === "silver") return "#b0b8c8"
+                  if (tier === "bronze") return "#cd7f32"
+                  return "#b8966a"
                 }
 
-                const routeSkins = skins.filter((s) => s.type === "route")
-                if (routeSkins.length > 0) {
-                  const skin = routeSkins[0]
-                  return (
-                    <div className="ach-reward-preview" title={skin.name}>
-                      <div style={{ filter: dim ? "grayscale(20%) brightness(0.8)" : "none" }}>
-                        <RouteDomino
-                          dir="N"
-                          dist={2}
-                          size={34}
-                          skinStyle={skin.style ?? undefined}
-                        />
+                const RewardPreview = ({ skins, dim }: { skins: any[]; dim: boolean }) => {
+                  if (!skins || skins.length === 0) {
+                    return (
+                      <div className="ach-reward-preview">
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.56rem", letterSpacing: "0.14em", textTransform: "uppercase", color: dim ? "#4a4640" : "#6b6558" }}>—</span>
                       </div>
+                    )
+                  }
+                  const routeSkins = skins.filter((s) => s.type === "route")
+                  if (routeSkins.length > 0) {
+                    const skin = routeSkins[0]
+                    return (
+                      <div className="ach-reward-preview" title={skin.name}>
+                        <div style={{ filter: dim ? "grayscale(20%) brightness(0.8)" : "none" }}>
+                          <RouteDomino dir="N" dist={2} size={34} skinStyle={skin.style ?? undefined} />
+                        </div>
+                      </div>
+                    )
+                  }
+                  const visualSkins = skins.filter((s) => s.image_url)
+                  const shown = visualSkins.slice(0, 2)
+                  return (
+                    <div className="ach-reward-stack">
+                      {shown.map((skin: any) => (
+                        <img key={skin.id} src={skin.image_url} alt={skin.name} title={skin.name} className="ach-token-preview" style={{ filter: dim ? "grayscale(20%) brightness(0.8)" : "none" }} />
+                      ))}
+                      {visualSkins.length === 0 ? (
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.56rem", letterSpacing: "0.14em", textTransform: "uppercase", color: dim ? "#4a4640" : "#6b6558" }}>—</span>
+                      ) : null}
                     </div>
                   )
                 }
 
-                const visualSkins = skins.filter((s) => s.image_url)
-                const shown = visualSkins.slice(0, 2)
-
-                return (
-                  <div className="ach-reward-stack">
-                    {shown.map((skin: any) => (
-                      <img
-                        key={skin.id}
-                        src={skin.image_url}
-                        alt={skin.name}
-                        title={skin.name}
-                        className="ach-token-preview"
-                        style={{
-                          filter: dim ? "grayscale(20%) brightness(0.8)" : "none",
-                        }}
-                      />
-                    ))}
-                    {visualSkins.length === 0 ? (
-                      <span
-                        style={{
-                          fontFamily: "'Cinzel', serif",
-                          fontSize: "0.56rem",
-                          letterSpacing: "0.14em",
-                          textTransform: "uppercase",
-                          color: dim ? "#4a4640" : "#6b6558",
-                        }}
-                      >
-                        —
-                      </span>
-                    ) : null}
-                  </div>
-                )
-              }
-
-              const AchCard = ({ a, dim }: { a: any; dim: boolean }) => {
-                const color = tierColor(a.tier)
-                const progPct = a.threshold ? Math.min(100, Math.round((a.progress / a.threshold) * 100)) : 100
-                const skins = a.reward_id ? (rewardSkins[a.reward_id] ?? []) : []
-
-                return (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 8,
-                      border: `1px solid ${dim ? "rgba(255,255,255,0.07)" : "rgba(184,150,106,0.2)"}`,
-                      background: dim ? "rgba(255,255,255,0.03)" : "rgba(184,150,106,0.05)",
-                      opacity: dim ? 0.88 : 1,
-                      minWidth: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "minmax(0, 1fr) 92px",
-                        gap: 14,
-                        alignItems: "start",
-                        minWidth: 0,
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
-                          <div
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              flexShrink: 0,
-                              marginTop: 4,
-                              background: dim ? "#3a3830" : color,
-                              boxShadow: dim ? "none" : `0 0 5px ${color}88`,
-                            }}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                flexWrap: "wrap",
-                                minWidth: 0,
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontFamily: "'Cinzel', serif",
-                                  fontSize: "0.78rem",
-                                  fontWeight: 600,
-                                  color: dim ? "#6b6558" : "#e8e4d8",
-                                  letterSpacing: "0.04em",
-                                }}
-                              >
-                                {a.name}
-                              </span>
-
-                              {a.tier && (
-                                <span
-                                  style={{
-                                    fontSize: "0.58rem",
-                                    letterSpacing: "0.12em",
-                                    color: dim ? "#4a4640" : color,
-                                    textTransform: "uppercase",
-                                    fontFamily: "'Cinzel', serif",
-                                  }}
-                                >
-                                  {a.tier}
-                                </span>
+                const AchCard = ({ a, dim }: { a: any; dim: boolean }) => {
+                  const color = tierColor(a.tier)
+                  const progPct = a.threshold ? Math.min(100, Math.round((a.progress / a.threshold) * 100)) : 100
+                  const skins = a.reward_id ? (rewardSkins[a.reward_id] ?? []) : []
+                  return (
+                    <div style={{ padding: "12px 14px", borderRadius: 8, border: `1px solid ${dim ? "rgba(255,255,255,0.07)" : "rgba(184,150,106,0.2)"}`, background: dim ? "rgba(255,255,255,0.03)" : "rgba(184,150,106,0.05)", opacity: dim ? 0.88 : 1, minWidth: 0 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 92px", gap: 14, alignItems: "start", minWidth: 0 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, marginTop: 4, background: dim ? "#3a3830" : color, boxShadow: dim ? "none" : `0 0 5px ${color}88` }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                                <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.78rem", fontWeight: 600, color: dim ? "#6b6558" : "#e8e4d8", letterSpacing: "0.04em" }}>{a.name}</span>
+                                {a.tier && <span style={{ fontSize: "0.58rem", letterSpacing: "0.12em", color: dim ? "#4a4640" : color, textTransform: "uppercase", fontFamily: "'Cinzel', serif" }}>{a.tier}</span>}
+                              </div>
+                              <div style={{ fontFamily: "'EB Garamond', serif", fontSize: "0.78rem", color: dim ? "#4a4640" : "rgba(232,228,216,0.5)", marginTop: 2, lineHeight: 1.4 }}>{a.description}</div>
+                              {dim && a.threshold && (
+                                <div style={{ marginTop: 9 }}>
+                                  <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                    <div style={{ height: "100%", borderRadius: 2, width: `${progPct}%`, background: "rgba(184,150,106,0.4)", transition: "width 0.3s ease" }} />
+                                  </div>
+                                  <div style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#4a4640", marginTop: 3 }}>{a.progress} / {a.threshold}</div>
+                                </div>
                               )}
                             </div>
-
-                            <div
-                              style={{
-                                fontFamily: "'EB Garamond', serif",
-                                fontSize: "0.78rem",
-                                color: dim ? "#4a4640" : "rgba(232,228,216,0.5)",
-                                marginTop: 2,
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {a.description}
-                            </div>
-
-                            {dim && a.threshold && (
-                              <div style={{ marginTop: 9 }}>
-                                <div
-                                  style={{
-                                    height: 3,
-                                    borderRadius: 2,
-                                    background: "rgba(255,255,255,0.06)",
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      height: "100%",
-                                      borderRadius: 2,
-                                      width: `${progPct}%`,
-                                      background: "rgba(184,150,106,0.4)",
-                                      transition: "width 0.3s ease",
-                                    }}
-                                  />
-                                </div>
-                                <div
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.68rem",
-                                    color: "#4a4640",
-                                    marginTop: 3,
-                                  }}
-                                >
-                                  {a.progress} / {a.threshold}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="ach-reward-col">
-                        <div
-                          className="ach-reward-label"
-                          style={{ color: dim ? "#4a4640" : "#b8966a" }}
-                        >
-                          Reward
+                        <div className="ach-reward-col">
+                          <div className="ach-reward-label" style={{ color: dim ? "#4a4640" : "#b8966a" }}>Reward</div>
+                          <RewardPreview skins={skins} dim={dim} />
                         </div>
-                        <RewardPreview skins={skins} dim={dim} />
                       </div>
                     </div>
+                  )
+                }
+
+                return (
+                  <div style={{ minWidth: 0 }}>
+                    {/* Earned */}
+                    {unlocked.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.62rem", letterSpacing: "0.3em", textTransform: "uppercase", color: "#b8966a", marginBottom: 10 }}>
+                          Unlocked — {unlocked.length}
+                        </div>
+                        <div className="achievements-grid">
+                          {unlocked.map(a => <AchCard key={a.id} a={a} dim={false} />)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Locked — accordion */}
+                    {locked.length > 0 && (
+                      <LockedAccordion locked={locked} AchCard={AchCard} />
+                    )}
                   </div>
                 )
-              }
+              })()}
+            </div>
 
-              return (
-                <div style={{ minWidth: 0 }}>
-                  {unlocked.length > 0 && (
-                    <div style={{ marginBottom: 20 }}>
-                      <div
-                        style={{
-                          fontFamily: "'Cinzel', serif",
-                          fontSize: "0.62rem",
-                          letterSpacing: "0.3em",
-                          textTransform: "uppercase",
-                          color: "#b8966a",
-                          marginBottom: 10,
-                        }}
-                      >
-                        Unlocked — {unlocked.length}
-                      </div>
-                      <div className="achievements-grid">
-                        {unlocked.map(a => <AchCard key={a.id} a={a} dim={false} />)}
-                      </div>
-                    </div>
-                  )}
-
-                  {locked.length > 0 && (
-                    <div>
-                      <div
-                        style={{
-                          fontFamily: "'Cinzel', serif",
-                          fontSize: "0.62rem",
-                          letterSpacing: "0.3em",
-                          textTransform: "uppercase",
-                          color: "#4a4640",
-                          marginBottom: 10,
-                        }}
-                      >
-                        Locked — {locked.length}
-                      </div>
-                      <div className="achievements-grid">
-                        {locked.map(a => <AchCard key={a.id} a={a} dim={true} />)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
           </div>
 
-          <div style={{ height: 12 }} />
+          <div style={{ height: 24 }} />
         </div>
       </div>
 
