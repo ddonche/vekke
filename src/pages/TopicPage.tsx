@@ -116,7 +116,6 @@ export function TopicPage() {
           author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("topic_id", topicId)
-        .eq("is_deleted", false)
         .order("created_at", { ascending: true }),
     ])
 
@@ -209,13 +208,14 @@ export function TopicPage() {
 
   async function handleDeleteTopic() {
     if (!topic || !window.confirm("Delete this topic and all its replies?")) return
-    await supabase.from("forum_topics").update({ is_deleted: true }).eq("id", topic.id)
+    await supabase.from("forum_replies").delete().eq("topic_id", topic.id)
+    await supabase.from("forum_topics").delete().eq("id", topic.id)
     navigate(`/forum/${categorySlug}`)
   }
 
   async function handleDeleteReply(reply: Reply) {
     if (!window.confirm("Delete this reply?")) return
-    await supabase.from("forum_replies").update({ is_deleted: true }).eq("id", reply.id)
+    await supabase.from("forum_replies").delete().eq("id", reply.id)
     loadData()
   }
 
@@ -558,7 +558,7 @@ function PostCard({
             color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word",
             marginBottom: images.length > 0 ? 10 : 16,
           }}>
-            {body}
+            {linkify(body)}
           </div>
           <ImageGrid images={images} />
         </>
@@ -672,6 +672,25 @@ function ModBtn({ onClick, label, color }: { onClick: () => void; label: string;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+
+function linkify(text: string): React.ReactNode[] {
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts = text.split(urlRegex)
+  return parts.map((part, i) =>
+    urlRegex.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#5de8f7", textDecoration: "underline", textDecorationColor: "rgba(93,232,247,0.4)", wordBreak: "break-all" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : part
+  )
+}
 
 function eloColor(elo: number): string {
   if (elo >= 2000) return "#D4AF37"

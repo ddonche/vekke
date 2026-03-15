@@ -106,7 +106,6 @@ export function CategoryPage() {
         author:profiles!author_id(username, avatar_url, country_code, account_tier)
       `)
       .eq("category_id", cat.id)
-      .eq("is_deleted", false)
       .order("is_pinned", { ascending: false })
       .order("last_reply_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
@@ -160,7 +159,8 @@ export function CategoryPage() {
 
   async function handleDelete(topic: Topic) {
     if (!window.confirm("Delete this topic?")) return
-    await supabase.from("forum_topics").update({ is_deleted: true }).eq("id", topic.id)
+    await supabase.from("forum_replies").delete().eq("topic_id", topic.id)
+    await supabase.from("forum_topics").delete().eq("id", topic.id)
     loadTopics()
   }
 
