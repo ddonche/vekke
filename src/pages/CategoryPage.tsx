@@ -1,5 +1,5 @@
 // src/pages/CategoryPage.tsx
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { Header } from "../components/Header"
@@ -68,6 +68,12 @@ export function CategoryPage() {
   const [newTitle, setNewTitle] = useState("")
   const [newBody, setNewBody] = useState("")
   const [newImages, setNewImages] = useState<string[]>([])
+  const newImagesRef = useRef<string[]>([])
+
+  function updateNewImages(urls: string[]) {
+    newImagesRef.current = urls
+    setNewImages(urls)
+  }
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -139,10 +145,10 @@ export function CategoryPage() {
     const { error } = await supabase.from("forum_topics").insert({
       category_id: category.id, author_id: userId,
       title: newTitle.trim(), slug, body: newBody.trim(),
-      images: newImages,
+      images: newImagesRef.current,
     })
     if (error) { setFormError("Failed to post. Please try again."); setSubmitting(false); return }
-    setNewTitle(""); setNewBody(""); setNewImages([]); setShowForm(false)
+    setNewTitle(""); setNewBody(""); updateNewImages([]); setShowForm(false)
     setSubmitting(false)
     loadTopics()
   }
@@ -248,7 +254,7 @@ export function CategoryPage() {
                 <ForumImageUploader
                   userId={userId}
                   images={newImages}
-                  onChange={setNewImages}
+                  onChange={updateNewImages}
                 />
               )}
               {formError && <p style={{ color: "#ee484c", fontFamily: "'EB Garamond', serif", fontSize: 14, margin: "8px 0 0" }}>{formError}</p>}
@@ -260,7 +266,7 @@ export function CategoryPage() {
                 >
                   {submitting ? "Posting…" : "Post Topic"}
                 </button>
-                <button onClick={() => { setShowForm(false); setFormError(null); setNewImages([]) }} style={ghostBtnStyle}>Cancel</button>
+                <button onClick={() => { setShowForm(false); setFormError(null); updateNewImages([]) }} style={ghostBtnStyle}>Cancel</button>
               </div>
             </div>
           )}

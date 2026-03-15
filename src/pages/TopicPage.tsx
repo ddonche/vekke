@@ -116,6 +116,7 @@ export function TopicPage() {
           author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("topic_id", topicId)
+        .eq("is_deleted", false)
         .order("created_at", { ascending: true }),
     ])
 
@@ -188,10 +189,10 @@ export function TopicPage() {
     setSubmitting(true); setReplyError(null)
     const { error } = await supabase.from("forum_replies").insert({
       topic_id: topicId, author_id: userId,
-      body: replyBody.trim(), images: replyImages,
+      body: replyBody.trim(), images: replyImagesRef.current,
     })
     if (error) { setReplyError("Failed to post. Please try again."); setSubmitting(false); return }
-    setReplyBody(""); setReplyImages([]); setSubmitting(false); loadData()
+    setReplyBody(""); setReplyImages([]); replyImagesRef.current = []; setSubmitting(false); loadData()
   }
 
   async function handlePin() {
@@ -208,18 +209,18 @@ export function TopicPage() {
 
   async function handleDeleteTopic() {
     if (!topic || !window.confirm("Delete this topic and all its replies?")) return
-    await supabase.from("forum_replies").delete().eq("topic_id", topic.id)
-    await supabase.from("forum_topics").delete().eq("id", topic.id)
+    await supabase.from("forum_topics").update({ is_deleted: true }).eq("id", topic.id)
     navigate(`/forum/${categorySlug}`)
   }
 
   async function handleDeleteReply(reply: Reply) {
     if (!window.confirm("Delete this reply?")) return
-    await supabase.from("forum_replies").delete().eq("id", reply.id)
+    await supabase.from("forum_replies").update({ is_deleted: true }).eq("id", reply.id)
     loadData()
   }
 
   async function handleEditTopic(newBody: string, newImages: string[]) {
+    console.log("[handleEditTopic] called, body:", newBody.slice(0, 20), "images:", newImages)
     if (!topic) return
     await supabase.from("forum_topics").update({ body: newBody, images: newImages }).eq("id", topic.id)
     loadData()
@@ -369,7 +370,7 @@ export function TopicPage() {
                   <ForumImageUploader
                     userId={userId}
                     images={replyImages}
-                    onChange={setReplyImages}
+                    onChange={(urls) => { replyImagesRef.current = urls; setReplyImages(urls) }}
                   />
                   {replyError && <p style={{ color: "#ee484c", fontFamily: "'EB Garamond', serif", fontSize: 14, margin: "8px 0 0" }}>{replyError}</p>}
                   <div style={{ marginTop: 12 }}>
@@ -442,6 +443,7 @@ function PostCard({
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(body)
   const [editImages, setEditImages] = useState<string[]>(images)
+  const editImagesRef = React.useRef<string[]>(images)
   const [saving, setSaving] = useState(false)
 
   // Sync local edit state if parent refreshes the post
@@ -449,13 +451,15 @@ function PostCard({
     if (!editing) {
       setEditBody(body)
       setEditImages(images)
+      editImagesRef.current = images
     }
   }, [body, images, editing])
 
   async function handleSave() {
+    console.log("[PostCard.handleSave] called, body:", editBody.trim().slice(0, 20), "images:", editImagesRef.current, "onSaveEdit:", !!onSaveEdit)
     if (!editBody.trim() || !onSaveEdit) return
     setSaving(true)
-    await onSaveEdit(editBody.trim(), editImages)
+    await onSaveEdit(editBody.trim(), editImagesRef.current)
     setSaving(false)
     setEditing(false)
   }
@@ -463,6 +467,7 @@ function PostCard({
   function handleCancel() {
     setEditBody(body)
     setEditImages(images)
+    editImagesRef.current = images
     setEditing(false)
   }
 
@@ -537,7 +542,7 @@ function PostCard({
             <ForumImageUploader
               userId={userId}
               images={editImages}
-              onChange={setEditImages}
+              onChange={(urls) => { editImagesRef.current = urls; setEditImages(urls) }}
             />
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -558,7 +563,7 @@ function PostCard({
             color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word",
             marginBottom: images.length > 0 ? 10 : 16,
           }}>
-            {linkify(body)}
+            {body}
           </div>
           <ImageGrid images={images} />
         </>
@@ -672,25 +677,6 @@ function ModBtn({ onClick, label, color }: { onClick: () => void; label: string;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-
-function linkify(text: string): React.ReactNode[] {
-  const urlRegex = /(https?:\/\/[^\s]+)/g
-  const parts = text.split(urlRegex)
-  return parts.map((part, i) =>
-    urlRegex.test(part) ? (
-      <a
-        key={i}
-        href={part}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: "#5de8f7", textDecoration: "underline", textDecorationColor: "rgba(93,232,247,0.4)", wordBreak: "break-all" }}
-        onClick={e => e.stopPropagation()}
-      >
-        {part}
-      </a>
-    ) : part
-  )
-}
 
 function eloColor(elo: number): string {
   if (elo >= 2000) return "#D4AF37"

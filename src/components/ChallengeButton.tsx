@@ -46,13 +46,9 @@ function injectChallengeButtonStyles() {
       justify-content: center;
       box-sizing: border-box;
 
-      width: 140px;
-      min-width: 140px;
-      max-width: 140px;
-      height: 32px;
-
-      justify-self: start;
-      align-self: center;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
 
       border: 1px solid rgba(184,150,106,0.35);
       background: rgba(184,150,106,0.10);
@@ -107,18 +103,12 @@ function injectChallengeButtonStyles() {
 
     @media (max-width: 640px) {
       .vk-challenge-btn {
-        width: 72px;
-        min-width: 72px;
-        max-width: 72px;
-        padding: 6px 8px;
-        font-size: 0.5rem;
-        letter-spacing: 0.08em;
-      }
-
-      .vk-challenge-btn--pending {
         width: 100%;
         min-width: 0;
         max-width: none;
+        padding: 8px 12px;
+        font-size: 0.55rem;
+        letter-spacing: 0.15em;
       }
     }
   `
