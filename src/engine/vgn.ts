@@ -134,9 +134,14 @@ export class VgnRecorder {
   }
 
   note(perfNow: number, text: string) {
-    const t = this.nowT(perfNow)
     const safe = text.replace(/"/g, '\\"')
-    this.lines.push(this.mkLine(t, `NOTE|text="${safe}"`))
+    // Append inline to the last line rather than creating a new line.
+    if (this.lines.length > 0) {
+      this.lines[this.lines.length - 1] += `|NOTE|text="${safe}"`
+    } else {
+      const t = this.nowT(perfNow)
+      this.lines.push(this.mkLine(t, `NOTE|text="${safe}"`))
+    }
   }
 
   onTurnChange(perfNow: number, nextPlayer: Player) {
@@ -244,10 +249,8 @@ export class VgnRecorder {
       }
 
       if (oldIn === "BOARD" && newIn === "CAPTIVE") {
-        const from = sq(old.pos.x, old.pos.y)
-        const capturer = other(tok.owner)
-        this.lines.push(this.mkLine(t, `p=${capturer}|from=${from}|to=CAPTIVE`))
-        inc(boardCaptureCount, capturer)
+        // Capture is implicit in the attacker's movement line — no separate line needed.
+        inc(boardCaptureCount, other(tok.owner))
         continue
       }
 
@@ -446,6 +449,16 @@ export class VgnRecorder {
     const tag = type === "TIMEOUT" ? "LOSS" : "WIN"
 
     this.lines.push(this.mkLine(t, `${tag}|type=${type}|winner=${winner}|loser=${loser}`))
+  }
+
+  lineCount(): number {
+    return this.lines.length
+  }
+
+  // Returns the count of non-META lines only. This matches the step index
+  // used by replayFromVgn, which skips META lines when building its steps array.
+  nonMetaLineCount(): number {
+    return this.lines.filter(l => !l.startsWith("META|")).length
   }
 
   toString() {

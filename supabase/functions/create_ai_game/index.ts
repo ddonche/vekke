@@ -8,7 +8,6 @@ type CreateAiGameBody = {
   timeControl?: TimeControlId
   initialState: any
   vgnVersion?: string
-  // Optional: choose who the human is. Default "B" so human starts (since your games start with turn="B")
   humanSide?: "W" | "B"
 }
 
@@ -28,7 +27,6 @@ function json(status: number, body: unknown) {
   })
 }
 
-// Keep these in sync with ui_controller.ts
 const TIME_CONTROLS: Record<TimeControlId, { baseMs: number; incMs: number }> = {
   standard: { baseMs: 10 * 60_000, incMs: 5_000 },
   rapid: { baseMs: 5 * 60_000, incMs: 3_000 },
@@ -36,15 +34,14 @@ const TIME_CONTROLS: Record<TimeControlId, { baseMs: number; incMs: number }> = 
   daily: { baseMs: 24 * 60 * 60_000, incMs: 0 },
 }
 
-// Keep these in sync with ui_controller.ts
 const AI_UUID: Record<AiLevel, string> = {
-  rookie: "29b6ad2a-4bfc-4041-938d-9077c6743cc2", // Scarecrow
-  novice: "d90c1ec7-a586-4594-85ad-702beca6af45",        // Glen
-  adept: "9d6503a7-1b18-46d4-878d-09367d6ac833",         // Priya
-  expert: "69174323-2b15-4b83-b1d7-96a324bce0a4",        // Vladimir
-  master: "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe",        // Yui
-  senior_master: "92c903e8-aa7d-4571-9905-0611b4a07a1d", // Haoran
-  grandmaster: "492a8702-9470-4f43-85e0-d6b44ec5c562",   // Chioma
+  rookie: "29b6ad2a-4bfc-4041-938d-9077c6743cc2",
+  novice: "d90c1ec7-a586-4594-85ad-702beca6af45",
+  adept: "9d6503a7-1b18-46d4-878d-09367d6ac833",
+  expert: "69174323-2b15-4b83-b1d7-96a324bce0a4",
+  master: "bb5802a3-1f76-43f8-9bf3-2ac65d618cfe",
+  senior_master: "92c903e8-aa7d-4571-9905-0611b4a07a1d",
+  grandmaster: "492a8702-9470-4f43-85e0-d6b44ec5c562",
 }
 
 Deno.serve(async (req) => {
@@ -64,7 +61,6 @@ Deno.serve(async (req) => {
     const SRV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     if (!URL || !ANON || !SRV) return json(500, { error: "Missing Supabase env vars" })
 
-    // Verify caller (same pattern as your invite functions)
     const userClient = createClient(URL, ANON, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
     })
@@ -83,17 +79,24 @@ Deno.serve(async (req) => {
     const tc: TimeControlId = (body.timeControl ?? "standard") as TimeControlId
     const tcDef = TIME_CONTROLS[tc] ?? TIME_CONTROLS.standard
 
-    // Your DB 'turn' uses "W"/"B". Your existing PvP starts with turn="B".
-    // To make the human start by default, we default humanSide="B".
     const humanSide: "W" | "B" = body.humanSide ?? "B"
-
     const wakeId = humanSide === "W" ? userId : aiId
     const brakeId = humanSide === "B" ? userId : aiId
 
-    const nowIso = new Date().toISOString()
-
-    // Service role insert
     const admin = createClient(URL, SRV)
+
+    // Prevent duplicate active games against the same AI opponent
+    const { data: existing, error: dupErr } = await admin
+      .from("games")
+      .select("id")
+      .eq("status", "active")
+      .or(`and(wake_id.eq.${userId},brake_id.eq.${aiId}),and(wake_id.eq.${aiId},brake_id.eq.${userId})`)
+      .maybeSingle()
+
+    if (dupErr) return json(500, { error: dupErr.message })
+    if (existing) return json(200, { gameId: existing.id, alreadyExists: true })
+
+    const nowIso = new Date().toISOString()
 
     const { data: gameRow, error: gameErr } = await admin
       .from("games")
@@ -102,21 +105,15 @@ Deno.serve(async (req) => {
         wake_id: wakeId,
         brake_id: brakeId,
         status: "active",
-        turn: "B", // keep consistent with your PvP start
+        turn: "B",
         vgn_version: body.vgnVersion ?? "1",
         initial_state: body.initialState,
         current_state: body.initialState,
         format: tc,
         last_move_at: nowIso,
         turn_started_at: nowIso,
-
-        // AI flags (requires the columns we added)
         is_vs_ai: true,
         ai_level: body.aiLevel,
-        // retain_until will be auto-set by your trigger; ok to omit
-        // retain_until: null,
-
-        // clocks
         clocks_w_ms: tcDef.baseMs,
         clocks_b_ms: tcDef.baseMs,
       })

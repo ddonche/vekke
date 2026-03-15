@@ -541,7 +541,7 @@ export function PuzzlePage() {
     const isSurvivePuzzle = p.win_conditions.includes("survive_turn")
     const noLossesPuzzle = p.win_conditions.includes("no_losses")
 
-    if (noLossesPuzzle && brakeHasLostAnyTokens(g, initialBTokenCountRef.current)) {
+    if (noLossesPuzzle && g.captives.W > 0) {
       resultRef.current = "failed"
       setResult("failed")
       setLoseMessage("Your unit got captured.")

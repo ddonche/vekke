@@ -7,6 +7,7 @@ import { GamePage } from "../components/GamePage"
 import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 import type { Player, GameState } from "../engine/state"
 import type { TimeControlId } from "../engine/ui_controller"
+import { getPlayerFormatElo } from "../services/elo"
 
 // One helper for ALL edge-function calls.
 // getSession() refreshes the token if near-expiry before returning it.
@@ -122,17 +123,10 @@ export function PvPGameWrapper() {
           .eq("id", opponentId)
           .maybeSingle()
 
-        const { data: myStats } = await supabase
-          .from("player_stats")
-          .select("elo")
-          .eq("user_id", userId)
-          .maybeSingle()
-
-        const { data: oppStats } = await supabase
-          .from("player_stats")
-          .select("elo")
-          .eq("user_id", opponentId)
-          .maybeSingle()
+        const [myEloValue, oppEloValue] = await Promise.all([
+          getPlayerFormatElo(userId, (game as any).format ?? "daily"),
+          getPlayerFormatElo(opponentId, (game as any).format ?? "daily"),
+        ])
 
         if (!mounted) return
 
@@ -145,12 +139,12 @@ export function PvPGameWrapper() {
         setMyName(myProfile?.username || "You")
         setMyAvatarUrl((myProfile as any)?.avatar_url ?? null)
         setMyCountryCode((myProfile as any)?.country_code ?? null)
-        setMyElo(myStats?.elo || 1200)
+        setMyElo(myEloValue || 600)
 
         setOpponentName(oppProfile?.username || "Opponent")
         setOpponentAvatarUrl((oppProfile as any)?.avatar_url ?? null)
         setOpponentCountryCode((oppProfile as any)?.country_code ?? null)
-        setOpponentElo(oppStats?.elo || 1200)
+        setOpponentElo(oppEloValue || 600)
 
         setRematchFromName(oppProfile?.username || "Opponent")
 
@@ -293,7 +287,8 @@ export function PvPGameWrapper() {
     async (
       state: GameState,
       clocks: { W: number; B: number },
-      vgn?: string
+      vgn?: string,
+      enrichedLogs?: { text: string; step: number }[]
     ) => {
       if (!gameId) return
 
@@ -370,7 +365,7 @@ export function PvPGameWrapper() {
           winner: go.winner,
           reason: go.reason,
           vgn: typeof vgn === "string" ? vgn : null,
-          logs: Array.isArray((state as any).log) ? (state as any).log : [],
+          logs: enrichedLogs ?? [],
         }).catch((e) => console.error("finalize_game failed:", e))
 
         try {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Howler } from "howler"
 import { getCurrentUserId } from "../services/auth"
-import { reportVsAiEloAndStats } from "../services/player_stats"
 import type { Coord } from "./coords"
 import { newGame, type GameState, type Player, type Token } from "./state"
 import { VgnRecorder } from "./vgn"
@@ -259,6 +258,7 @@ export function useVekkeController(opts: {
   const vgnStartPerfRef = useRef<number>(0)
   const vgnEndedKeyRef = useRef<string | null>(null)
   const lastPlayedRouteRef = useRef<{ by: Player; routeId: string } | null>(null)
+  const enrichedLogsRef = useRef<{ text: string; step: number }[]>([])
 
   useEffect(() => {
     const externalGameData = (opts as any).externalGameData
@@ -794,6 +794,14 @@ export function useVekkeController(opts: {
         sounds.gameOver.play()
       } catch {}
       playedGameOverSound.current = true
+
+      // --- VGN TERMINAL MARKER (emit once) ---
+      const reportKey = `${g.gameOver.winner}:${g.gameOver.reason}:${g.log.length}`
+      if (vgnRef.current && vgnEndedKeyRef.current !== reportKey) {
+        vgnEndedKeyRef.current = reportKey
+        vgnRef.current.end(performance.now(), g.gameOver.winner, g.gameOver.reason)
+      }
+      // --- END VGN TERMINAL MARKER ---
     }
 
     if (!g.gameOver) {
@@ -814,6 +822,22 @@ export function useVekkeController(opts: {
       vgnRef.current.onTurnChange(now, g.player)
       vgnRef.current.captureDiff(now, prev, g, lastPlayedRouteRef.current)
       lastPlayedRouteRef.current = null
+
+      // Emit a NOTE for every new human log entry.
+      // game.ts uses unshift() so newest entries are at the front of g.log.
+      // Reverse the slice so notes are emitted oldest-first.
+      const newEntries = g.log.length - prev.log.length
+      if (newEntries > 0) {
+        const fresh = g.log.slice(0, newEntries).reverse()
+        for (const text of fresh) {
+          vgnRef.current.note(now, text)
+        }
+        // Also stamp enrichedLogs for the DB (kept until notes are verified)
+        const step = vgnRef.current.nonMetaLineCount()
+        for (const text of fresh) {
+          enrichedLogsRef.current.push({ text, step })
+        }
+      }
     }
     // --- END VGN DIFF CAPTURE ---
 
@@ -905,51 +929,6 @@ export function useVekkeController(opts: {
     }
   }, [g, started, audioReady, playSound, sounds])
 
-  // ------------------------------------------------------------
-  // Report result + apply Elo (AI fixed rating; human updates only)
-  // NOTE: We are NOT persisting games rows yet.
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!started) return
-    if (!g.gameOver) return
-
-    // De-dupe: same terminal state can re-render.
-    const reportKey = `${g.gameOver.winner}:${g.gameOver.reason}:${g.log.length}`
-    if (reportedResultRef.current === reportKey) return
-    reportedResultRef.current = reportKey
-
-    // --- VGN TERMINAL MARKER (emit once) ---
-    if (vgnRef.current && vgnEndedKeyRef.current !== reportKey) {
-      vgnEndedKeyRef.current = reportKey
-      vgnRef.current.end(performance.now(), g.gameOver.winner, g.gameOver.reason)
-    }
-    // --- END VGN TERMINAL MARKER ---
-
-    ;(async () => {
-      try {
-        const endedAt = new Date().toISOString()
-
-        const userId = await getCurrentUserId()
-        if (!userId) return
-
-        // PvP isn't wired yet. For now we treat all matches as vs AI.
-        if (!vsAi) return
-
-        await reportVsAiEloAndStats({
-          userId,
-          timeControlId,
-          aiRating: AI_RATING[aiDifficulty] ?? 600,
-          humanPlayer: human,
-          winner: g.gameOver.winner,
-          reason: g.gameOver.reason,
-          endedAt,
-        })
-      } catch (err) {
-        console.error("Result reporting / Elo failed:", err)
-      }
-    })()
-  }, [started, g.gameOver, g.log.length, vsAi, timeControlId, aiDifficulty, human])
-
   // Sync state to database after a real local state change.
   // IMPORTANT: do NOT include `clocks` in the deps – clocks tick every second
   // and would cause this to spam writes, overwriting the opponent's move.
@@ -980,7 +959,7 @@ export function useVekkeController(opts: {
     if (key === lastSyncedKeyRef.current) return
     lastSyncedKeyRef.current = key
 
-    onMoveComplete(g, clocks, vgnRef.current?.toString?.() ?? undefined)
+    onMoveComplete(g, clocks, vgnRef.current?.toString?.() ?? undefined, enrichedLogsRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, started, onMoveComplete])
   // Note: clocks intentionally omitted – clock values are included in the
@@ -1051,6 +1030,7 @@ export function useVekkeController(opts: {
           tc: { id: tc, baseMs: t.baseMs, incMs: t.incMs },
           gameStartPerfMs: perf0,
         })
+        enrichedLogsRef.current = []
         // --- END VGN INIT ---
 
         setSelectedTokenId(null)

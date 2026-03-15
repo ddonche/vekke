@@ -1447,8 +1447,9 @@ export default function ProfilePage() {
                           display: flex;
                           align-items: baseline;
                           justify-content: space-between;
-                          gap: 10px;
+                          gap: 6px;
                           min-height: 34px;
+                          flex-wrap: wrap;
                         }
 
                         @media (max-width: 1100px) {
@@ -1502,7 +1503,7 @@ export default function ProfilePage() {
                                 <div
                                   style={{
                                     fontFamily: "monospace",
-                                    fontSize: "1.28rem",
+                                    fontSize: "1.1rem",
                                     fontWeight: 900,
                                     color: "#e8e4d8",
                                     lineHeight: 1,
@@ -1514,7 +1515,7 @@ export default function ProfilePage() {
                                 <div
                                   style={{
                                     fontFamily: "monospace",
-                                    fontSize: "1.18rem",
+                                    fontSize: "1rem",
                                     fontWeight: 900,
                                     color: it.color,
                                     lineHeight: 1,

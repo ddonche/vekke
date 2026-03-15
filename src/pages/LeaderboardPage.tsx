@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
+import { getLeaderboardFull } from "../services/elo"
 import { Header } from "../components/Header"
 import { ChallengeButton } from "../components/ChallengeButton"
 import { AuthModal } from "../AuthModal"
@@ -288,44 +289,8 @@ export function LeaderboardPage() {
     setLoading(true)
     setErr(null)
 
-    const orderCol =
-      format === "blitz"
-        ? "elo_blitz"
-        : format === "rapid"
-          ? "elo_rapid"
-          : format === "daily"
-            ? "elo_daily"
-            : "elo_standard"
-
     ;(async () => {
-      const baseQuery = supabase
-        .from("player_stats")
-        .select(`
-          user_id,
-          elo, elo_standard, elo_rapid, elo_blitz, elo_daily,
-          games_played, games_standard, games_rapid, games_blitz, games_daily,
-          wins_standard, wins_rapid, wins_blitz, wins_daily,
-          losses_standard, losses_rapid, losses_blitz, losses_daily,
-          wins_siegemate, wins_elimination, wins_collapse,
-          losses_timeout, resignations, wins_by_opponent_resign,
-          wins_total, losses_total
-        `)
-
-      const statsQuery =
-        format === "all"
-          ? baseQuery.limit(500)
-          : baseQuery
-              .gt(orderCol, 0)
-              .order(orderCol, { ascending: false })
-              .limit(100)
-
-      const { data: statsData, error: statsErr } = await statsQuery
-
-      if (statsErr) {
-        setErr(statsErr.message)
-        setLoading(false)
-        return
-      }
+      const statsData = await getLeaderboardFull(200)
 
       if (!statsData?.length) {
         setRows([])
@@ -401,8 +366,8 @@ export function LeaderboardPage() {
             wins_collapse: safeInt(s.wins_collapse),
 
             losses_timeout: safeInt(s.losses_timeout),
-            resignations: safeInt(s.resignations),
-            wins_by_opponent_resign: safeInt(s.wins_by_opponent_resign),
+            resignations: safeInt(s.losses_resign),
+            wins_by_opponent_resign: safeInt(s.wins_resign),
 
             is_ai: !!p.is_ai,
             account_tier: (p.account_tier ?? null) as any,
@@ -424,6 +389,17 @@ export function LeaderboardPage() {
 
             return a.username.localeCompare(b.username)
           })
+          .slice(0, 100)
+      } else {
+        const eloCol: keyof LeaderboardRow =
+          format === "blitz" ? "elo_blitz"
+          : format === "rapid" ? "elo_rapid"
+          : format === "daily" ? "elo_daily"
+          : "elo_standard"
+
+        merged = merged
+          .filter((r) => (r[eloCol] as number) > 0)
+          .sort((a, b) => (b[eloCol] as number) - (a[eloCol] as number))
           .slice(0, 100)
       }
 

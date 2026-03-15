@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
+import { getPlayerEloStats, getLeaderboardFull } from "../services/elo"
 import { Header } from "../components/Header"
 import { ChallengeButton } from "../components/ChallengeButton"
 import { AuthModal } from "../AuthModal"
@@ -532,31 +533,13 @@ export default function HomePage() {
       const uid = viewer.id
       setUserId(uid)
 
-      const [{ data: p, error: pErr }, { data: s, error: sErr }] = await Promise.all([
+      const [{ data: p, error: pErr }, statsResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("id,username,avatar_url,account_tier")
           .eq("id", uid)
           .maybeSingle(),
-        supabase
-          .from("player_stats")
-          .select(`
-            user_id,
-            elo,
-            wins_active,
-            losses_active,
-            games_played,
-            elo_blitz,
-            elo_rapid,
-            elo_standard,
-            elo_daily,
-            games_blitz,
-            games_rapid,
-            games_standard,
-            games_daily
-          `)
-          .eq("user_id", uid)
-          .maybeSingle(),
+        getPlayerEloStats(uid),
       ])
 
       if (pErr) {
@@ -565,17 +548,11 @@ export default function HomePage() {
         return
       }
 
-      if (sErr) {
-        setErr(sErr.message)
-        setLoading(false)
-        return
-      }
-
       if (!isMountedRef.current) return
 
       const profile = (p as ViewerProfile | null) ?? null
       setMe(profile)
-      setStats((s as ViewerStats | null) ?? null)
+      setStats((statsResult as any) ?? null)
       if (profile && profile.username.startsWith("user_")) setShowOnboarding(true)
       setLoading(false)
     })().catch((e: any) => {
@@ -594,38 +571,10 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    const eloCol =
-      ladderFormat === "blitz"
-        ? "elo_blitz"
-        : ladderFormat === "rapid"
-          ? "elo_rapid"
-          : ladderFormat === "daily"
-            ? "elo_daily"
-            : "elo_standard"
-
     ;(async () => {
       setLadderLoading(true)
 
-      const { data: statsData, error: statsErr } = await supabase
-        .from("player_stats")
-        .select(`
-          user_id,
-          elo, elo_standard, elo_rapid, elo_blitz, elo_daily,
-          games_played, games_standard, games_rapid, games_blitz, games_daily,
-          wins_standard, wins_rapid, wins_blitz, wins_daily,
-          losses_standard, losses_rapid, losses_blitz, losses_daily
-        `)
-        .gt(eloCol, 0)
-        .order(eloCol, { ascending: false })
-        .limit(50)
-
-      if (statsErr) {
-        if (!isMountedRef.current) return
-        setErr((prev) => prev ?? statsErr.message)
-        setTopRows([])
-        setLadderLoading(false)
-        return
-      }
+      const statsData = await getLeaderboardFull(50)
 
       if (!statsData?.length) {
         if (!isMountedRef.current) return
@@ -702,8 +651,18 @@ export default function HomePage() {
           }
         })
 
+      const eloKey =
+        ladderFormat === "blitz" ? "elo_blitz"
+        : ladderFormat === "rapid" ? "elo_rapid"
+        : ladderFormat === "daily" ? "elo_daily"
+        : "elo_standard"
+
+      const sorted = merged
+        .filter((r: any) => (r[eloKey] ?? 0) > 0)
+        .sort((a: any, b: any) => (b[eloKey] ?? 0) - (a[eloKey] ?? 0))
+
       if (!isMountedRef.current) return
-      setTopRows(merged.slice(0, 6))
+      setTopRows(sorted.slice(0, 6))
       setLadderLoading(false)
     })().catch((e: any) => {
       if (!isMountedRef.current) return

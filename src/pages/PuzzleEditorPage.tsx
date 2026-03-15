@@ -26,7 +26,7 @@ const ALL_ROUTES: Route[] = DIR_NAMES.flatMap((name, i) => {
 const PUZZLE_PREVIEW_STORAGE_KEY = "puzzle_preview_payload"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Brush = "W" | "B" | "erase"
+type Brush = "W" | "B" | "ghostW" | "ghostB" | "erase"
 type WinCondition =
   | "elimination"
   | "siegemate"
@@ -63,9 +63,9 @@ function freshState(): PuzzleEditorState {
   }
 }
 
-function serializeBoardState(ps: PuzzleEditorState) {
+function serializeBoardState(ps: PuzzleEditorState, includeGhosts = false) {
   return {
-    board: Array.from(ps.board.entries()),
+    board: Array.from(ps.board.entries()).filter(([, token]) => includeGhosts || !(token as any)?.isGhost),
     reserves: ps.reserves,
     captives: ps.captives,
     void: ps.voidCount,
@@ -293,7 +293,7 @@ export function PuzzleEditorPage() {
       }
 
       const bs = data.board_state
-      const board = new Map<string, any>((bs.board ?? []) as [string, any][])
+      const board = new Map<string, Token>((bs.board ?? []) as [string, Token][])
 
       setPs({
         board,
@@ -321,19 +321,42 @@ export function PuzzleEditorPage() {
 
     setPs(prev => {
       const next = new Map(prev.board)
+
       if (brush === "erase") {
         next.delete(key)
-      } else {
+        return { ...prev, board: next }
+      }
+
+      if (brush === "W" || brush === "B") {
         const existing = next.get(key)
-        if (existing?.owner === brush) {
+        const existingIsGhost = Boolean((existing as any)?.isGhost)
+
+        if (existing && existing.owner === brush && !existingIsGhost) {
           next.delete(key) // clicking same side erases
         } else {
-          next.set(key, { id: `tok_${brush}_${x}_${y}`, owner: brush })
+          next.set(key, { id: `tok_${brush}_${x}_${y}`, owner: brush } as Token)
         }
+
+        return { ...prev, board: next }
       }
+
+      const ghostOwner = brush === "ghostW" ? "W" : "B"
+      const existing = next.get(key)
+      const existingIsGhost = Boolean((existing as any)?.isGhost)
+
+      if (existing && existing.owner === ghostOwner && existingIsGhost) {
+        next.delete(key)
+      } else {
+        next.set(key, {
+          id: `ghost_${ghostOwner}_${x}_${y}`,
+          owner: ghostOwner,
+          isGhost: true,
+        } as Token)
+      }
+
       return { ...prev, board: next }
     })
-  }, [brush, ps.board])
+  }, [brush])
 
   // ── Zone helpers ───────────────────────────────────────────────────────────
   function setZone(
@@ -392,7 +415,7 @@ export function PuzzleEditorPage() {
       description: description.trim() || null,
       difficulty,
       point_value: isTutorial ? 0 : DIFFICULTY_POINTS[difficulty],
-      board_state: serializeBoardState(ps),
+      board_state: serializeBoardState(ps, !isPublished),
       win_conditions: winConditions,
       move_budget: moveBudget,
       is_published: isPublished,
@@ -419,7 +442,7 @@ export function PuzzleEditorPage() {
       point_value: 0,
       move_budget: moveBudget,
       win_conditions: winConditions,
-      board_state: serializeBoardState(ps),
+      board_state: serializeBoardState(ps, false),
       is_tutorial: isTutorial,
       is_preview: true,
     }
@@ -434,8 +457,7 @@ export function PuzzleEditorPage() {
     }
   }
 
-  // ── Save (insert or update) ────────────────────────────────────────────────
-  async function handlePublish() {
+  async function persistPuzzle(isPublished: boolean) {
     setSaveError(null)
 
     if (!title.trim()) {
@@ -448,7 +470,7 @@ export function PuzzleEditorPage() {
     }
 
     setSaving(true)
-    const payload = buildPayload(true)
+    const payload = buildPayload(isPublished)
 
     let error: any = null
 
@@ -466,7 +488,11 @@ export function PuzzleEditorPage() {
     if (error) {
       setSaveError(error.message)
     } else {
-      setSaveMsg(editId ? "Puzzle saved!" : "Puzzle published!")
+      setSaveMsg(
+        isPublished
+          ? (editId ? "Puzzle saved!" : "Puzzle published!")
+          : "Draft saved!"
+      )
       setTimeout(() => {
         setSaveMsg(null)
         if (!editId) {
@@ -481,6 +507,14 @@ export function PuzzleEditorPage() {
       }, 1500)
       if (editId) navigate("/admin?section=puzzles")
     }
+  }
+
+  async function handlePublish() {
+    await persistPuzzle(true)
+  }
+
+  async function handleSaveDraft() {
+    await persistPuzzle(false)
   }
 
   // ── Style helpers ──────────────────────────────────────────────────────────
@@ -547,6 +581,13 @@ export function PuzzleEditorPage() {
           {editId ? "Edit Puzzle" : "Puzzle Editor"}
         </div>
         <button
+          onClick={handleSaveDraft}
+          disabled={saving || previewing}
+          style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", padding: "8px 18px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.18)", background: (saving || previewing) ? "transparent" : "rgba(255,255,255,0.04)", color: (saving || previewing) ? "#5a5550" : "#d8d2c5", cursor: (saving || previewing) ? "default" : "pointer" }}
+        >
+          {saving ? "Saving…" : "Save Draft"}
+        </button>
+        <button
           onClick={handlePreview}
           disabled={saving || previewing}
           style={{ fontFamily: "'Cinzel', serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", padding: "8px 18px", borderRadius: 6, border: "1px solid rgba(93,232,247,0.35)", background: (saving || previewing) ? "transparent" : "rgba(93,232,247,0.08)", color: (saving || previewing) ? "#5a5550" : "#5de8f7", cursor: (saving || previewing) ? "default" : "pointer" }}
@@ -580,15 +621,20 @@ export function PuzzleEditorPage() {
           {/* Brush */}
           <div style={panelStyle}>
             <SectionLabel>Brush</SectionLabel>
-            <div style={{ display: "flex", gap: 6 }}>
-              {(["W", "B", "erase"] as Brush[]).map(b => (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {(["W", "B", "ghostW", "ghostB"] as Brush[]).map(b => (
                 <button key={b} onClick={() => setBrush(b)} style={chipBtn(brush === b)}>
-                  {b === "W" ? "Wake" : b === "B" ? "Brake" : "Erase"}
+                  {b === "W" ? "Wake" : b === "B" ? "Brake" : b === "ghostW" ? "Ghost Wake" : "Ghost Brake"}
                 </button>
               ))}
             </div>
+            <div style={{ marginTop: 6 }}>
+              <button key="erase" onClick={() => setBrush("erase")} style={chipBtn(brush === "erase")}>
+                Erase
+              </button>
+            </div>
             <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 12, color: "#3a3530", marginTop: 8, lineHeight: 1.4 }}>
-              Click a cell to place. Click occupied same-side to erase.
+              Ghost tokens save in drafts only. Preview and publish strip them out.
             </div>
           </div>
 
@@ -811,6 +857,27 @@ export function PuzzleEditorPage() {
 
           {/* Actions */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={handleSaveDraft}
+              disabled={saving || previewing}
+              style={{
+                padding: "13px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.04)",
+                fontFamily: "'Cinzel', serif",
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: (saving || previewing) ? "#5a5550" : "#d8d2c5",
+                cursor: (saving || previewing) ? "default" : "pointer",
+                opacity: (saving || previewing) ? 0.5 : 1,
+                transition: "all 0.12s",
+              }}
+            >
+              {saving ? "Saving…" : "Save Draft"}
+            </button>
+
             <button
               onClick={handlePreview}
               disabled={saving || previewing}

@@ -105,24 +105,38 @@ Deno.serve(async (req) => {
     const initialState = updated.initial_state
     if (!initialState) return json(500, { error: "Invite missing initial_state" })
 
-    // Create game using YOUR schema:
-    // wake plays first, so make inviter wake by default.
-    // If you want the opposite, swap these two.
+    // Prevent duplicate active games between these two players
+    const { data: existing, error: dupErr } = await admin
+      .from("games")
+      .select("id")
+      .eq("status", "active")
+      .or(`and(wake_id.eq.${inviterId},brake_id.eq.${inviteeId}),and(wake_id.eq.${inviteeId},brake_id.eq.${inviterId})`)
+      .maybeSingle()
+
+    if (dupErr) return json(500, { error: dupErr.message })
+    if (existing) {
+      // Return the existing game rather than creating a duplicate
+      const now = new Date().toISOString()
+      await admin
+        .from("game_invites")
+        .update({ status: "accepted", game_id: existing.id, accepted_at: now, accepted_by: userId })
+        .eq("id", body.inviteId)
+      return json(200, { status: "accepted", gameId: existing.id })
+    }
+
     const wakeId = inviterId
     const brakeId = inviteeId
 
-    // These are the only values this function should set. Anything else should be defaults in DB.
     const gameInsert: Record<string, any> = {
       created_by: inviterId,
       wake_id: wakeId,
       brake_id: brakeId,
-      format: "daily",
+      format: updated.time_control ?? "daily",
       status: "active",
       turn: "B",
       vgn_version: updated.vgn_version ?? "1",
       initial_state: initialState,
       current_state: initialState,
-      // clock gating: no clock runs until first move sets this
       turn_started_at: null,
       last_move_at: null,
     }
@@ -141,8 +155,8 @@ Deno.serve(async (req) => {
       .update({
         status: "accepted",
         game_id: game.id,
-        accepted_at: now,     // legacy fields kept for compatibility
-        accepted_by: userId,  // legacy fields kept for compatibility
+        accepted_at: now,
+        accepted_by: userId,
       })
       .eq("id", body.inviteId)
 

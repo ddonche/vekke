@@ -380,6 +380,7 @@ function UserDropdown(
 
           {[
             { label: "Edit Profile", action: onOpenProfileModal },
+            { label: "Game History", action: () => navigate("/history") },
             { label: "Gear", action: onOpenSkins },
             { label: copied ? "Invite Link Copied!" : "Copy Invite Link", action: copyInviteLink, disabled: !userId },
             { label: isPro ? "Manage Pro" : "Upgrade to Pro", action: onOpenPro },

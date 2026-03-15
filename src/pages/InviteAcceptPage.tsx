@@ -24,6 +24,10 @@ export function InviteAcceptPage() {
 
         const r = await acceptInvite(inviteToken)
         if (!alive) return
+        if (r.alreadyExists) {
+          window.location.assign(`/pvp/${r.gameId}?notice=already_active`)
+          return
+        }
         window.location.assign(`/pvp/${r.gameId}`)
       } catch (e: any) {
         if (!alive) return

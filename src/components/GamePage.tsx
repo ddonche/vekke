@@ -19,6 +19,7 @@ import { HelpModal } from "../HelpModal"
 import { MulliganHelpModal } from "../MulliganHelpModal"
 import { getCurrentUserId } from "../services/auth" //
 import { supabase } from "../services/supabase"
+import { getPlayerEloStats } from "../services/elo"
 import {
   getResolvedLoadout,
   getPlayerLoadout,
@@ -345,11 +346,17 @@ export function GamePage(props: GamePageProps = {}) {
     if (error) throw error
     if (!data?.gameId) throw new Error("create_ai_game did not return gameId")
 
+    if (data.alreadyExists) {
+      setNewGameMsg("You already have an active game with this opponent.")
+      navigate(`/ai/${data.gameId}`)
+      return
+    }
+
     // KEEP AI NAVIGATION: go to the AI game route.
     navigate(`/ai/${data.gameId}`)
   }
 
-  // Fetch player_stats for ratings display.
+  // Fetch player Elo for ratings display.
   useEffect(() => {
     let cancelled = false
 
@@ -358,49 +365,9 @@ export function GamePage(props: GamePageProps = {}) {
         setPlayerStats(null)
         return
       }
-
-      const sel = "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily"
-      const { data, error } = await supabase
-        .from("player_stats")
-        .select(sel)
-        .eq("user_id", currentUserId)
-        .maybeSingle()
-
+      const stats = await getPlayerEloStats(currentUserId)
       if (cancelled) return
-
-      if (error) {
-        console.error("Failed to load player_stats:", error)
-        setPlayerStats(null)
-        return
-      }
-
-      if (!data) {
-        // Create an initial row so the UI has something consistent to display.
-        const { data: ins, error: insErr } = await supabase
-          .from("player_stats")
-          .insert({
-            user_id: currentUserId,
-            elo: 600,
-            elo_blitz: 600,
-            elo_rapid: 600,
-            elo_standard: 600,
-            elo_daily: 600,
-          })
-          .select(sel)
-          .single()
-
-        if (cancelled) return
-        if (insErr) {
-          console.error("Failed to create initial player_stats:", insErr)
-          setPlayerStats(null)
-          return
-        }
-
-        setPlayerStats(ins as any)
-        return
-      }
-
-      setPlayerStats(data as any)
+      setPlayerStats(stats as any)
     }
 
     load()
@@ -538,19 +505,14 @@ export function GamePage(props: GamePageProps = {}) {
     return () => { cancelled = true }
   }, [currentUserId, props.opponentUserId])
 
-  // Refresh rating after a finished game (Elo is updated async in the controller).
+  // Refresh rating after a finished game.
   useEffect(() => {
     if (!currentUserId) return
     if (!g.gameOver) return
 
     const t = window.setTimeout(async () => {
-      const sel = "user_id, elo, elo_blitz, elo_rapid, elo_standard, elo_daily"
-      const { data } = await supabase
-        .from("player_stats")
-        .select(sel)
-        .eq("user_id", currentUserId)
-        .maybeSingle()
-      if (data) setPlayerStats(data as any)
+      const stats = await getPlayerEloStats(currentUserId)
+      if (stats) setPlayerStats(stats as any)
     }, 600)
 
     return () => window.clearTimeout(t)

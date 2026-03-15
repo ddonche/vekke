@@ -84,6 +84,7 @@ export function GridBoard({
         return Array.from({ length: SIZE }, (_, x) => {
           const key = `${x},${y}`
           const t = boardMap.get(key)
+          const isGhostToken = Boolean((t as any)?.isGhost)
           const isSelected = t && t.id === selectedTokenId
           const isRecoilSource = recoilSourcePos && x === recoilSourcePos.x && y === recoilSourcePos.y
           const isRecoilDest = recoilDestPos && x === recoilDestPos.x && y === recoilDestPos.y
@@ -291,6 +292,7 @@ export function GridBoard({
                         height: tokenSize,
                         borderRadius: "50%",
                         position: "relative",
+                        opacity: isGhostToken ? 0.5 : 1,
                       }}
                     />
                     

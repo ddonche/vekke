@@ -7,6 +7,7 @@ import { GamePage } from "../components/GamePage"
 import { MatchIntroOverlay } from "../components/MatchIntroOverlay"
 import type { Player, GameState } from "../engine/state"
 import { AI_RATING, type TimeControlId } from "../engine/ui_controller"
+import { getPlayerFormatElo } from "../services/elo"
 import type { AiLevel } from "../engine/ai"
 
 // Edge Functions: explicitly attach Authorization so finalize_game is reliably authed.
@@ -135,11 +136,7 @@ export function AiGameWrapper() {
           .eq("id", userId)
           .maybeSingle()
 
-        const { data: myStats } = await supabase
-          .from("player_stats")
-          .select("elo")
-          .eq("user_id", userId)
-          .maybeSingle()
+        const myEloValue = await getPlayerFormatElo(userId, (game as any).format ?? "standard")
 
         // Fetch AI player profile from DB (AI players now have profile rows)
         const { data: oppProfile } = await supabase
@@ -168,7 +165,7 @@ export function AiGameWrapper() {
         setMyName(myProfile?.username || "You")
         setMyAvatarUrl((myProfile as any)?.avatar_url ?? null)
         setMyCountryCode((myProfile as any)?.country_code ?? null)
-        setMyElo(myStats?.elo || 1200)
+        setMyElo(myEloValue || 600)
 
         setOpponentName(oppProfile?.username || fallbackName)
         setOpponentAvatarUrl((oppProfile as any)?.avatar_url ?? null)
@@ -210,7 +207,8 @@ export function AiGameWrapper() {
     async (
       state: GameState,
       clocks?: { W: number; B: number },
-      vgn?: string
+      vgn?: string,
+      enrichedLogs?: { text: string; step: number }[]
     ) => {
       if (!gameId) return
 
@@ -302,7 +300,7 @@ export function AiGameWrapper() {
             winner: go.winner,
             reason: go.reason,
             vgn: typeof vgn === "string" ? vgn : null,
-            logs: Array.isArray((state as any).log) ? (state as any).log : [],
+            logs: enrichedLogs ?? [],
           })
         } catch (e) {
           console.error("finalize_game failed (AI):", e)

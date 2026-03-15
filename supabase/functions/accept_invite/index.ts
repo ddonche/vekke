@@ -20,7 +20,6 @@ function json(status: number, body: unknown) {
 }
 
 Deno.serve(async (req) => {
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
@@ -40,7 +39,6 @@ Deno.serve(async (req) => {
     const SRV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     if (!URL || !ANON || !SRV) return json(500, { error: "Missing Supabase env vars" })
 
-    // Verify caller
     const userClient = createClient(URL, ANON, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
     })
@@ -72,13 +70,11 @@ Deno.serve(async (req) => {
     const inviteType = (inv.invite_type ?? "pvp") as string
 
     if (inviteType === "rematch") {
-      // Rematch invites are user-targeted, not email-targeted.
       if (!inv.invited_user_id) return json(500, { error: "Rematch invite missing invited_user_id" })
       if (String(inv.invited_user_id) !== String(userId)) {
         return json(403, { error: "This rematch invite is for a different user" })
       }
     } else {
-      // Legacy pvp/email invite behavior
       if (inv.invitee_email) {
         const required = String(inv.invitee_email).toLowerCase()
         if (!userEmail || userEmail !== required) {
@@ -89,7 +85,19 @@ Deno.serve(async (req) => {
 
     if (!inv.initial_state) return json(500, { error: "Invite missing initial_state" })
 
-    // Create the game ONLY upon accept
+    const inviterId = String(inv.created_by)
+
+    // Prevent duplicate active games between these two players
+    const { data: existing, error: dupErr } = await admin
+      .from("games")
+      .select("id")
+      .eq("status", "active")
+      .or(`and(wake_id.eq.${inviterId},brake_id.eq.${userId}),and(wake_id.eq.${userId},brake_id.eq.${inviterId})`)
+      .maybeSingle()
+
+    if (dupErr) return json(500, { error: dupErr.message })
+    if (existing) return json(200, { gameId: existing.id, alreadyExists: true })
+
     const { data: gameRow, error: gameErr } = await admin
       .from("games")
       .insert({
@@ -97,7 +105,7 @@ Deno.serve(async (req) => {
         wake_id: inv.created_by,
         brake_id: userId,
         status: "active",
-        turn: "B", // Brake places first
+        turn: "B",
         vgn_version: inv.vgn_version ?? "1",
         initial_state: inv.initial_state,
         current_state: inv.initial_state,
