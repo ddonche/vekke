@@ -663,7 +663,7 @@ export function PuzzlePage() {
         key={resetKey}
         opponentType="ai"
         mySide="B"
-        aiDifficulty="rookie"
+        aiDifficulty="expert"
         initialState={initialState}
         onMoveComplete={handleMoveComplete}
         puzzleMode
