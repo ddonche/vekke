@@ -305,8 +305,10 @@ export function ChallengesPage() {
 
     if (invErr) throw invErr
 
-    const invList = ((inv ?? []) as InviteRow[]).filter(r => r.invite_type === "pvp")
-    setInvites(invList)
+    const now = new Date().toISOString()
+    const invList = ((inv ?? []) as InviteRow[])
+      .filter(r => r.invite_type === "pvp")
+      .filter(r => !r.expires_at || r.expires_at > now)
 
     const profileIds = new Set<string>()
     profileIds.add(uid)
