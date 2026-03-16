@@ -103,7 +103,6 @@ export function CategoryPage() {
     if (!cat) { setLoading(false); return }
     setCategory(cat)
 
-    // Step 1: topics + profiles
     const { data: topicData } = await supabase
       .from("forum_topics")
       .select(`
@@ -118,14 +117,27 @@ export function CategoryPage() {
 
     if (!topicData) { setLoading(false); return }
 
-    // Step 2: player_stats by author IDs
     const authorIds = [...new Set((topicData as any[]).map((t: any) => t.author_id))]
-    const { data: statsData } = await supabase
-      .from("player_stats")
-      .select("user_id, elo_blitz, elo_rapid, elo_standard, elo_daily")
-      .in("user_id", authorIds)
 
-    const statsMap = new Map((statsData ?? []).map((s: any) => [s.user_id, s]))
+    // player_stats_agg is row-per-format — fetch all format rows then pivot
+    const { data: aggRows } = await supabase
+      .from("player_stats_agg")
+      .select("user_id, format, elo")
+      .in("user_id", authorIds)
+      .in("format", ["standard", "rapid", "blitz", "daily"])
+      .eq("scope", "season")
+
+    const statsMap = new Map<string, { elo_standard: number; elo_rapid: number; elo_blitz: number; elo_daily: number }>()
+    for (const row of (aggRows ?? []) as any[]) {
+      if (!statsMap.has(row.user_id)) {
+        statsMap.set(row.user_id, { elo_standard: 0, elo_rapid: 0, elo_blitz: 0, elo_daily: 0 })
+      }
+      const entry = statsMap.get(row.user_id)!
+      if (row.format === "standard") entry.elo_standard = row.elo ?? 0
+      else if (row.format === "rapid")    entry.elo_rapid   = row.elo ?? 0
+      else if (row.format === "blitz")    entry.elo_blitz   = row.elo ?? 0
+      else if (row.format === "daily")    entry.elo_daily   = row.elo ?? 0
+    }
 
     setTopics((topicData as any[]).map((t: any) => ({
       ...t,
@@ -182,7 +194,7 @@ export function CategoryPage() {
         body { margin: 0; background: #0a0a0c; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-        .forum-topic-row { transition: all 0.12s ease; }
+        .forum-topic-row { transition: background 0.12s ease; }
         .forum-topic-row:hover { background: rgba(184,150,106,0.05) !important; }
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
       `}</style>
@@ -273,7 +285,7 @@ export function CategoryPage() {
 
           {/* Topic list */}
           {loading ? (
-            <LoadingRows count={4} height={70} />
+            <LoadingRows count={4} height={58} />
           ) : topics.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <p style={{ fontFamily: "'EB Garamond', serif", fontSize: 18, color: "#b0aa9e" }}>
@@ -286,6 +298,8 @@ export function CategoryPage() {
                 const peakElo = topic.author_stats
                   ? Math.max(topic.author_stats.elo_blitz, topic.author_stats.elo_rapid, topic.author_stats.elo_standard, topic.author_stats.elo_daily)
                   : null
+                const activityTime = topic.last_reply_at ?? topic.created_at
+
                 return (
                   <div
                     key={topic.id}
@@ -299,49 +313,106 @@ export function CategoryPage() {
                     <button
                       onClick={() => navigate(`/forum/${categorySlug}/${topic.id}`)}
                       style={{
-                        display: "flex", alignItems: "flex-start", gap: 12, width: "100%",
-                        textAlign: "left", background: "transparent", border: "none",
-                        padding: "14px 16px", cursor: "pointer", color: "inherit",
+                        display: "flex", flexDirection: "column", gap: 6,
+                        width: "100%", textAlign: "left", background: "transparent",
+                        border: "none", padding: "11px 14px", cursor: "pointer", color: "inherit",
                       }}
                     >
-                      {/* Pin / lock icons */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingTop: 2, width: 14, flexShrink: 0 }}>
+                      {/* ── Row 1: title + pin/lock + stats ── */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", minWidth: 0 }}>
+
+                        {/* Pin / lock icons — inline, only when set */}
                         {topic.is_pinned && (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="#5de8f7" title="Pinned">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="#5de8f7" flexShrink="0" title="Pinned">
                             <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
                           </svg>
                         )}
                         {topic.is_locked && (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="#b8966a" title="Locked">
-                            <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <svg width="10" height="10" viewBox="0 0 24 24" title="Locked" style={{ flexShrink: 0 }}>
+                            <rect x="3" y="11" width="18" height="11" rx="2" fill="#b8966a" />
                             <path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="#b8966a" strokeWidth="2" />
                           </svg>
                         )}
-                      </div>
 
-                      {/* Title + meta */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 600, color: "#e8e4d8", letterSpacing: "0.03em", marginBottom: 7 }}>
+                        {/* Title — takes all remaining space, truncates */}
+                        <span style={{
+                          fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 600,
+                          color: "#e8e4d8", letterSpacing: "0.03em",
+                          flex: 1, minWidth: 0,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
                           {topic.title}
+                        </span>
+
+                        {/* Stats — right-aligned, never shrink */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                          <MiniStat icon="reply" value={topic.reply_count} />
+                          <MiniStat icon="upvote" value={topic.upvote_count} />
                         </div>
-                        <PostMeta author={topic.author} peakElo={peakElo} timestamp={topic.created_at} />
                       </div>
 
-                      {/* Stats */}
-                      <div style={{ display: "flex", gap: 14, flexShrink: 0, alignItems: "center" }}>
-                        <StatPill type="upvote" value={topic.upvote_count} />
-                        <StatPill type="reply" value={topic.reply_count} />
-                        {topic.last_reply_at && (
-                          <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555", minWidth: 52, textAlign: "right" }}>
-                            {timeAgo(topic.last_reply_at)}
-                          </div>
+                      {/* ── Row 2: author + badges + timeAgo ── */}
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        overflow: "hidden", flexWrap: "nowrap",
+                      }}>
+                        <PostAvatar username={topic.author.username} avatarUrl={topic.author.avatar_url} size={18} />
+                        <span style={{
+                          fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 600,
+                          color: "#b8966a", letterSpacing: "0.03em",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          maxWidth: 120, flexShrink: 1,
+                        }}>
+                          {topic.author.username}
+                        </span>
+
+                        {topic.author.country_code && (
+                          <img
+                            src={`https://flagicons.lipis.dev/flags/4x3/${topic.author.country_code.toLowerCase()}.svg`}
+                            width={14} height={10} alt={topic.author.country_code}
+                            style={{ borderRadius: 2, flexShrink: 0 }}
+                            onError={(e) => { e.currentTarget.style.display = "none" }}
+                          />
                         )}
+
+                        {peakElo !== null && (
+                          <span style={{
+                            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+                            color: eloColor(peakElo), flexShrink: 0,
+                          }} title={eloTitle(peakElo)}>
+                            {peakElo}
+                          </span>
+                        )}
+
+                        {topic.author.account_tier === "pro" && (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            padding: "1px 6px", borderRadius: 999,
+                            border: "1px solid rgba(212,175,122,0.3)",
+                            background: "rgba(212,175,122,0.07)",
+                            color: "#d4af7a", fontFamily: "'Cinzel', serif",
+                            fontSize: 9, letterSpacing: "0.16em",
+                            textTransform: "uppercase" as const, fontWeight: 700,
+                            whiteSpace: "nowrap", flexShrink: 0,
+                          }}>
+                            <span style={{ width: 5, height: 5, borderRadius: 999, background: "#d4af7a", flexShrink: 0 }} />
+                            Pro
+                          </span>
+                        )}
+
+                        <span style={{ color: "#2e2c28", fontSize: 12, flexShrink: 0 }}>·</span>
+                        <span style={{
+                          fontFamily: "'EB Garamond', serif", fontSize: 13,
+                          color: "#4a4540", whiteSpace: "nowrap", flexShrink: 0,
+                        }}>
+                          {timeAgo(activityTime)}
+                        </span>
                       </div>
                     </button>
 
                     {/* Mod controls */}
                     {isAdmin && (
-                      <div style={{ display: "flex", gap: 8, padding: "0 16px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 8 }}>
+                      <div style={{ display: "flex", gap: 8, padding: "6px 14px 10px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                         <ModBtn onClick={() => handlePin(topic)} label={topic.is_pinned ? "Unpin" : "Pin"} color="#5de8f7" />
                         <ModBtn onClick={() => handleLock(topic)} label={topic.is_locked ? "Unlock" : "Lock"} color="#b8966a" />
                         <ModBtn onClick={() => handleDelete(topic)} label="Delete" color="#ee484c" />
@@ -358,43 +429,26 @@ export function CategoryPage() {
   )
 }
 
-// ─── Shared sub-components ────────────────────────────────────────────────────
+// ─── Sub-components ────────────────────────────────────────────────────────────
 
-function PostMeta({ author, peakElo, timestamp }: { author: TopicAuthor; peakElo: number | null; timestamp: string }) {
+function MiniStat({ icon, value }: { icon: "reply" | "upvote"; value: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <PostAvatar username={author.username} avatarUrl={author.avatar_url} size={22} />
-      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 600, color: "#b8966a", letterSpacing: "0.04em" }}>
-        {author.username}
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {icon === "reply" ? (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="#555">
+          <path d="M576 304C576 436.5 461.4 544 320 544C282.9 544 247.7 536.6 215.9 523.3L97.5 574.1C88.1 578.1 77.3 575.8 70.4 568.3C63.5 560.8 62 549.8 66.8 540.8L115.6 448.6C83.2 408.3 64 358.3 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304z"/>
+        </svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="#555">
+          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM441 335C450.4 344.4 450.4 359.6 441 368.9C431.6 378.2 416.4 378.3 407.1 368.9L320.1 281.9L233.1 368.9C223.7 378.3 208.5 378.3 199.2 368.9C189.9 359.5 189.8 344.3 199.2 335L303 231C312.4 221.6 327.6 221.6 336.9 231L441 335z"/>
+        </svg>
+      )}
+      <span style={{
+        fontFamily: "'Cinzel', serif", fontSize: 12,
+        color: value > 0 ? "#666" : "#333", fontWeight: 600,
+      }}>
+        {value}
       </span>
-      {author.country_code && (
-        <img
-          src={`https://flagicons.lipis.dev/flags/4x3/${author.country_code.toLowerCase()}.svg`}
-          width={16} height={12} alt={author.country_code}
-          style={{ borderRadius: 2, display: "inline-block" }}
-          onError={(e) => { e.currentTarget.style.display = "none" }}
-        />
-      )}
-      {peakElo !== null && (
-        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
-          {peakElo}
-        </span>
-      )}
-      {author.account_tier === "pro" && (
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "3px 7px", borderRadius: 999,
-          border: "1px solid rgba(212,175,122,0.35)",
-          background: "rgba(212,175,122,0.08)",
-          color: "#d4af7a", fontFamily: "'Cinzel', serif",
-          fontSize: 10, letterSpacing: "0.18em",
-          textTransform: "uppercase" as const, fontWeight: 700, whiteSpace: "nowrap",
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: 999, background: "#d4af7a", boxShadow: "0 0 0 2px rgba(212,175,122,0.14)", flexShrink: 0 }} />
-          Pro
-        </span>
-      )}
-      <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555" }}>{timeAgo(timestamp)}</span>
     </div>
   )
 }
@@ -412,23 +466,6 @@ function PostAvatar({ username, avatarUrl, size = 24 }: { username: string; avat
         ? <img src={avatarUrl} alt={username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         : <span>{(username ?? "?")[0]?.toUpperCase()}</span>
       }
-    </div>
-  )
-}
-
-function StatPill({ type, value }: { type: "upvote" | "reply"; value: number }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-      {type === "upvote" ? (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#666">
-          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM441 335C450.4 344.4 450.4 359.6 441 368.9C431.6 378.2 416.4 378.3 407.1 368.9L320.1 281.9L233.1 368.9C223.7 378.3 208.5 378.3 199.2 368.9C189.9 359.5 189.8 344.3 199.2 335L303 231C312.4 221.6 327.6 221.6 336.9 231L441 335z"/>
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#666">
-          <path d="M576 304C576 436.5 461.4 544 320 544C282.9 544 247.7 536.6 215.9 523.3L97.5 574.1C88.1 578.1 77.3 575.8 70.4 568.3C63.5 560.8 62 549.8 66.8 540.8L115.6 448.6C83.2 408.3 64 358.3 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304z"/>
-        </svg>
-      )}
-      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, color: "#888", fontWeight: 600 }}>{value}</span>
     </div>
   )
 }

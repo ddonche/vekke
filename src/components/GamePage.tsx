@@ -2772,7 +2772,7 @@ if (wantsNewGame) {
 
               {/* Center: Timers + Board */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, flexShrink: 0 }}>
-                {props.puzzleMode && props.puzzleMovesLeft !== undefined ? (
+                {props.puzzleMode && props.puzzleMovesLeft !== undefined && (
                   <div
                     style={{
                       display: "flex",
@@ -2798,186 +2798,205 @@ if (wantsNewGame) {
                       {props.puzzleMovesLeft}
                     </span>
                   </div>
-                ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 20,
-                    alignItems: "center",
-                    padding: "12px 24px",
-                    backgroundColor: "rgba(184,150,106,0.18)",
-                    border: "1px solid rgba(184,150,106,0.30)",
-                    borderRadius: 12,
-                    boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 640 640" fill="#b0aa9e">
-                    <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
-                  </svg>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e8e4d8", opacity: g.player === "W" ? 1 : 0.6 }}>
-                      W {fmtClock(clocks.W)}
-                    </div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: "#e8e4d8", opacity: g.player === "B" ? 1 : 0.6 }}>
-                      B {fmtClock(clocks.B)}
-                    </div>
-                    <div style={{ fontSize: 18, color: "#b0aa9e", opacity: 0.75 }}>{timeControl.label}</div>
-                  </div>
-                </div>
                 )}
 
-                {/* Phase Banner OR Confirmation Buttons - between clock and board */}
-                <div style={{ width: "100%", maxWidth: 597, display: "flex", flexDirection: "column", gap: 6, marginBottom: 2 }}>
+                {/* Clock + Phase Banner — side-by-side row */}
+                <div style={{
+                  width: "100%",
+                  maxWidth: 597,
+                  display: "grid",
+                  gridTemplateColumns: (props.puzzleMode && props.puzzleMovesLeft !== undefined) ? "1fr" : "auto minmax(0, 1fr)",
+                  gap: 10,
+                  alignItems: "stretch",
+                  marginBottom: 2,
+                }}>
 
-                  {/* Confirmation buttons — replace the bar entirely when active */}
-                  {defectionArmed && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.cancelDefection()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Cancel Defection</button>
+                  {/* 3-row clock (omitted in puzzle mode) */}
+                  {!(props.puzzleMode && props.puzzleMovesLeft !== undefined) && (
+                    <div style={{
+                      backgroundColor: "rgba(184,150,106,0.18)",
+                      border: "1px solid rgba(184,150,106,0.30)",
+                      borderRadius: 12,
+                      padding: "10px 18px",
+                      display: "grid",
+                      gridTemplateRows: "1fr 1fr auto",
+                      alignContent: "center",
+                      justifyItems: "center",
+                      gap: 4,
+                      boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                      flexShrink: 0,
+                    }}>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "1.35rem", fontWeight: 900, color: "#e8e4d8", opacity: g.player === "W" ? 1 : 0.4, lineHeight: 1, whiteSpace: "nowrap" }}>
+                        W {fmtClock(clocks.W)}
+                      </div>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "1.35rem", fontWeight: 900, color: "#5de8f7", opacity: g.player === "B" ? 1 : 0.4, lineHeight: 1, whiteSpace: "nowrap" }}>
+                        B {fmtClock(clocks.B)}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 4, opacity: 0.75 }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 640 640" fill="#b0aa9e">
+                          <path d="M160 64C142.3 64 128 78.3 128 96C128 113.7 142.3 128 160 128L160 139C160 181.4 176.9 222.1 206.9 252.1L274.8 320L206.9 387.9C176.9 417.9 160 458.6 160 501L160 512C142.3 512 128 526.3 128 544C128 561.7 142.3 576 160 576L480 576C497.7 576 512 561.7 512 544C512 526.3 497.7 512 480 512L480 501C480 458.6 463.1 417.9 433.1 387.9L365.2 320L433.1 252.1C463.1 222.1 480 181.4 480 139L480 128C497.7 128 512 113.7 512 96C512 78.3 497.7 64 480 64L160 64zM224 139L224 128L416 128L416 139C416 158 410.4 176.4 400 192L240 192C229.7 176.4 224 158 224 139zM240 448C243.5 442.7 247.6 437.7 252.1 433.1L320 365.2L387.9 433.1C392.5 437.7 396.5 442.7 400.1 448L240 448z"/>
+                        </svg>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.6rem", letterSpacing: "0.12em", color: "#b0aa9e", lineHeight: 1, whiteSpace: "nowrap" }}>{timeControl.label}</span>
+                      </div>
                     </div>
                   )}
-                  {!defectionArmed && g.phase === "MULLIGAN" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {mulliganHelpOpen && (
-                        <MulliganHelpModal onClose={() => setMulliganHelpOpen(false)} />
-                      )}
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {(g as any).mulliganReady?.[human] ? (
-                          <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e" }}>Waiting for opponent...</div>
-                        ) : mulliganArmed ? (
-                          <>
-                            <div style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", textAlign: "center" }}>Select a token on the board</div>
-                            <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif" }}>Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
-                            <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Continue →</button>
-                            <button onClick={() => setMulliganHelpOpen(v => !v)} title="What is a Mulligan?" style={{ width: 38, borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: mulliganHelpOpen ? "#e8e4d8" : "#6b6558", fontFamily: "'Cinzel',serif", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>?</button>
-                          </>
+
+                  {/* Phase Banner OR Confirmation Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+
+                    {/* Confirmation buttons — replace the bar entirely when active */}
+                    {defectionArmed && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.cancelDefection()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Cancel Defection</button>
+                      </div>
+                    )}
+                    {!defectionArmed && g.phase === "MULLIGAN" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+                        {mulliganHelpOpen && (
+                          <MulliganHelpModal onClose={() => setMulliganHelpOpen(false)} />
+                        )}
+                        <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                          {(g as any).mulliganReady?.[human] ? (
+                            <div style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "rgba(255,255,255,0.03)", textAlign: "center", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.1em", color: "#b0aa9e", display: "flex", alignItems: "center", justifyContent: "center" }}>Waiting for opponent...</div>
+                          ) : mulliganArmed ? (
+                            <>
+                              <div style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "1px solid rgba(93,232,247,0.4)", background: "rgba(93,232,247,0.07)", fontFamily: "'Cinzel', serif", fontSize: 12, letterSpacing: "0.08em", color: "#5de8f7", display: "flex", alignItems: "center", justifyContent: "center" }}>Select a token on the board</div>
+                              <button onClick={() => (actions as any).cancelMulligan?.()} style={{ padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#b0aa9e", fontFamily: "'Cinzel', serif", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Cancel</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => (actions as any).armMulligan?.(human)} disabled={(g as any).mulliganCount?.[human] >= 2} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.50)", background: "rgba(184,150,106,0.12)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: (g as any).mulliganCount?.[human] >= 2 ? "default" : "pointer", color: (g as any).mulliganCount?.[human] >= 2 ? "#6b6558" : "#e8e4d8", opacity: (g as any).mulliganCount?.[human] >= 2 ? 0.4 : 1, animation: (g as any).mulliganCount?.[human] >= 2 ? "none" : "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Mulligan{(g as any).mulliganCount?.[human] > 0 ? ` (${(g as any).mulliganCount?.[human]}/2)` : ""}</button>
+                              <button onClick={() => (actions as any).passMulligan?.(human)} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Continue →</button>
+                              <button onClick={() => setMulliganHelpOpen(v => !v)} title="What is a Mulligan?" style={{ width: 38, borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", cursor: "pointer", color: mulliganHelpOpen ? "#e8e4d8" : "#6b6558", fontFamily: "'Cinzel',serif", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, alignSelf: "stretch" }}>?</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.advanceFromAction()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Finish actions and proceed to reinforcements</button>
+                      </div>
+                    )}
+                    {!recoilArmed && g.player === human && g.phase === "SWAP" && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.confirmSwapAndEndTurn()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Make route swap and confirm</button>
+                      </div>
+                    )}
+                    {!recoilArmed && g.player === human && g.phase === "ACTION" && earlySwapArmed && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.confirmEarlySwap()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Confirm Early Swap</button>
+                        <button onClick={() => actions.cancelEarlySwap()} style={{ padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Cancel</button>
+                      </div>
+                    )}
+                    {recoilArmed && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.confirmRecoil()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Select unit and grid space, confirm recoil</button>
+                        <button onClick={() => actions.cancelRecoil()} style={{ padding: "0 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>Cancel</button>
+                      </div>
+                    )}
+                    {forcedYieldAvailable && g.player === human && (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <button onClick={() => actions.yieldForced()} style={{ flex: 1, minWidth: 0, padding: "0 16px", borderRadius: 8, border: "2px solid #6b7280", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite", alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "center" }}>No usable routes — Yield {remainingRoutes.length} to Void</button>
+                      </div>
+                    )}
+
+                    {/* Phase bar — only shown when no confirmation is pending */}
+                    {!defectionArmed && g.phase !== "MULLIGAN" && !(allRoutesUsed && g.phase === "ACTION" && g.player === human && !recoilArmed && !defectionArmed) && !(g.phase === "SWAP" && g.player === human && !recoilArmed) && !(g.phase === "ACTION" && earlySwapArmed && g.player === human && !recoilArmed) && !recoilArmed && !(forcedYieldAvailable && g.player === human) && (
+                    <div
+                      style={{
+                        background: g.player === human
+                          ? (g.player === "W" ? "rgba(232,228,216,0.10)" : "rgba(93,232,247,0.10)")
+                          : "rgba(255,255,255,0.03)",
+                        border: g.player === human
+                          ? (g.player === "W" ? "1px solid rgba(232,228,216,0.25)" : "1px solid rgba(93,232,247,0.25)")
+                          : "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        display: "grid",
+                        gridTemplateRows: "auto auto",
+                        alignContent: "center",
+                        gap: 3,
+                        flex: 1,
+                      }}
+                    >
+                      <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.5rem", letterSpacing: "0.25em", textTransform: "uppercase", color: g.player === human ? (g.player === "W" ? "rgba(232,228,216,0.55)" : "rgba(93,232,247,0.55)") : "#3a3830", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {g.player === human ? `${g.player} · ${g.phase}` : "Opponent's Turn"}
+                      </div>
+                      <div style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558", lineHeight: 1.2, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                        {g.player !== human
+                          ? "Waiting for opponent..."
+                          : g.phase === "ACTION" ? "Make your moves"
+                          : g.phase === "REINFORCE"
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
+                                {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
+                                  <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 9, height: 9, borderRadius: "50%", position: "relative" }} />
+                                ))}
+                              </span>
+                          : "Place opening tokens"}
+                        {g.warning && (
+                          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: "#ef4444", letterSpacing: "0.15em", textTransform: "uppercase", marginLeft: 4 }}>
+                            {g.warning}
+                          </span>
                         )}
                       </div>
                     </div>
-                  )}
-                  {!recoilArmed && !defectionArmed && allRoutesUsed && g.phase === "ACTION" && g.player === human && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.advanceFromAction()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Finish actions and proceed to reinforcements</button>
-                    </div>
-                  )}
-                  {!recoilArmed && g.player === human && g.phase === "SWAP" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.confirmSwapAndEndTurn()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Make route swap and confirm</button>
-                    </div>
-                  )}
-                  {!recoilArmed && g.player === human && g.phase === "ACTION" && earlySwapArmed && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.confirmEarlySwap()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Confirm Early Swap</button>
-                      <button onClick={() => actions.cancelEarlySwap()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
-                    </div>
-                  )}
-                  {recoilArmed && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.confirmRecoil()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #3296ab", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>Select unit and grid space, confirm recoil</button>
-                      <button onClick={() => actions.cancelRecoil()} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(184,150,106,0.30)", background: "transparent", fontWeight: 700, fontSize: 12, cursor: "pointer", color: "#e8e4d8", fontFamily: "'Cinzel', serif" }}>Cancel</button>
-                    </div>
-                  )}
-                  {forcedYieldAvailable && g.player === human && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => actions.yieldForced()} style={{ flex: 1, minWidth: 0, padding: "6px 16px", borderRadius: 8, border: "2px solid #6b7280", background: "rgba(184,150,106,0.18)", fontWeight: 700, fontSize: 11, letterSpacing: "0.10em", fontFamily: "'Cinzel', serif", textTransform: "uppercase", cursor: "pointer", color: "#e8e4d8", animation: "confirm-pulse 1.4s ease-in-out infinite" }}>No usable routes — Yield {remainingRoutes.length} to Void</button>
-                    </div>
-                  )}
-
-                  {/* Phase bar — only shown when no confirmation is pending */}
-                  {!defectionArmed && g.phase !== "MULLIGAN" && !(allRoutesUsed && g.phase === "ACTION" && g.player === human && !recoilArmed && !defectionArmed) && !(g.phase === "SWAP" && g.player === human && !recoilArmed) && !(g.phase === "ACTION" && earlySwapArmed && g.player === human && !recoilArmed) && !recoilArmed && !(forcedYieldAvailable && g.player === human) && (
-                  <div
-                    style={{
-                      background: g.player === human
-                        ? (g.player === "W" ? "rgba(232,228,216,0.10)" : "rgba(93,232,247,0.10)")
-                        : "rgba(255,255,255,0.03)",
-                      border: g.player === human
-                        ? (g.player === "W" ? "1px solid rgba(232,228,216,0.25)" : "1px solid rgba(93,232,247,0.25)")
-                        : "1px solid rgba(255,255,255,0.06)",
-                      borderRadius: 8,
-                      padding: "6px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 10,
-                    }}
-                  >
-                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.52rem", letterSpacing: "0.35em", textTransform: "uppercase", color: g.player === human ? (g.player === "W" ? "rgba(232,228,216,0.55)" : "rgba(93,232,247,0.55)") : "#3a3830" }}>
-                      {g.player === human ? `${g.player} · ${g.phase}` : "Opponent's Turn"}
-                    </span>
-                    <span style={{ color: "rgba(184,150,106,0.4)", fontSize: 13 }}>—</span>
-                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: 600, fontSize: 13, letterSpacing: "0.04em", color: g.player === human ? (g.player === "W" ? "#e8e4d8" : "#5de8f7") : "#6b6558" }}>
-                      {g.player !== human
-                        ? "Waiting for opponent..."
-                        : g.phase === "ACTION" ? "Make your moves"
-                        : g.phase === "REINFORCE"
-                          ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              Place {g.reinforcementsToPlace} reinforcement{g.reinforcementsToPlace !== 1 ? "s" : ""}
-                              {Array.from({ length: g.reinforcementsToPlace }).map((_, i) => (
-                                <div key={i} className={tokenClass(g.player as "W" | "B")} style={{ width: 9, height: 9, borderRadius: "50%", position: "relative" }} />
-                              ))}
-                            </span>
-                        : "Place opening tokens"}
-                    </span>
-                    {g.warning && (
-                      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 11, color: "#ef4444", letterSpacing: "0.15em", textTransform: "uppercase", marginLeft: 4 }}>
-                        {g.warning}
-                      </span>
                     )}
+
                   </div>
-                  )}
+                </div>
 
-                  {/* Info Row - latest log and resign (won't move) */}
-                  <div
-                    style={{
-                      fontSize: 13,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      color: "#b0aa9e",
-                      paddingLeft: 8,
-                      paddingRight: 8,
-                    }}
-                  >
-                    {g.log.length === 0 ? (
-                      <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
-                        No moves yet
-                      </div>
-                    ) : (
-                      <div
-                        key={g.log[0]}
-                        style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}
-                      >
-                        {g.log[0].replace(/==/g, '').trim()}
-                      </div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      {/* Resign */}
-                      <button
-                        onClick={() => actions.resign()}
-                        disabled={!started || !!g.gameOver}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#ee484c",
-                          fontSize: 13,
-                          cursor: "pointer",
-                          padding: 0,
-                          fontWeight: 900,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          opacity: (!started || !!g.gameOver) ? 0.5 : 1,
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#ee484c">
-                          <path d="M480 208C480 128.5 408.4 64 320 64C231.6 64 160 128.5 160 208C160 255.1 185.1 296.9 224 323.2L224 352C224 369.7 238.3 384 256 384L384 384C401.7 384 416 369.7 416 352L416 323.2C454.9 296.9 480 255.1 480 208zM256 192C273.7 192 288 206.3 288 224C288 241.7 273.7 256 256 256C238.3 256 224 241.7 224 224C224 206.3 238.3 192 256 192zM352 224C352 206.3 366.3 192 384 192C401.7 192 416 206.3 416 224C416 241.7 401.7 256 384 256C366.3 256 352 241.7 352 224zM541.5 403.7C534.7 387.4 516 379.7 499.7 386.5L320 461.3L140.3 386.5C124 379.7 105.3 387.4 98.5 403.7C91.7 420 99.4 438.7 115.7 445.5L236.8 496L115.7 546.5C99.4 553.3 91.7 572 98.5 588.3C105.3 604.6 124 612.3 140.3 605.5L320 530.7L499.7 605.5C516 612.3 534.7 604.6 541.5 588.3C548.3 572 540.6 553.3 524.3 546.5L403.2 496L524.3 445.5C540.6 438.7 548.3 420 541.5 403.7z"/>
-                        </svg>
-                        <span>Resign</span>
-                      </button>
+                {/* Info Row - latest log and resign */}
+                <div
+                  style={{
+                    fontSize: 13,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    color: "#b0aa9e",
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    width: "100%",
+                    maxWidth: 597,
+                  }}
+                >
+                  {g.log.length === 0 ? (
+                    <div style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}>
+                      No moves yet
                     </div>
+                  ) : (
+                    <div
+                      key={g.log[0]}
+                      style={{ opacity: 0.7, fontFamily: "monospace", fontSize: 12 }}
+                    >
+                      {g.log[0].replace(/==/g, '').trim()}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    {/* Resign */}
+                    <button
+                      onClick={() => actions.resign()}
+                      disabled={!started || !!g.gameOver}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#ee484c",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        padding: 0,
+                        fontWeight: 900,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        opacity: (!started || !!g.gameOver) ? 0.5 : 1,
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 640" fill="#ee484c">
+                        <path d="M480 208C480 128.5 408.4 64 320 64C231.6 64 160 128.5 160 208C160 255.1 185.1 296.9 224 323.2L224 352C224 369.7 238.3 384 256 384L384 384C401.7 384 416 369.7 416 352L416 323.2C454.9 296.9 480 255.1 480 208zM256 192C273.7 192 288 206.3 288 224C288 241.7 273.7 256 256 256C238.3 256 224 241.7 224 224C224 206.3 238.3 192 256 192zM352 224C352 206.3 366.3 192 384 192C401.7 192 416 206.3 416 224C416 241.7 401.7 256 384 256C366.3 256 352 241.7 352 224zM541.5 403.7C534.7 387.4 516 379.7 499.7 386.5L320 461.3L140.3 386.5C124 379.7 105.3 387.4 98.5 403.7C91.7 420 99.4 438.7 115.7 445.5L236.8 496L115.7 546.5C99.4 553.3 91.7 572 98.5 588.3C105.3 604.6 124 612.3 140.3 605.5L320 530.7L499.7 605.5C516 612.3 534.7 604.6 541.5 588.3C548.3 572 540.6 553.3 524.3 546.5L403.2 496L524.3 445.5C540.6 438.7 548.3 420 541.5 403.7z"/>
+                      </svg>
+                      <span>Resign</span>
+                    </button>
                   </div>
                 </div>
 

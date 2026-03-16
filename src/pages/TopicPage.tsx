@@ -120,18 +120,30 @@ export function TopicPage() {
         .order("created_at", { ascending: true }),
     ])
 
-    // Step 2: fetch player_stats for all unique authors
+    // Step 2: fetch player_stats_agg for all unique authors (row-per-format — pivot needed)
     const authorIds = [...new Set([
       topicData ? (topicData as any).author_id : null,
       ...((replyData ?? []) as any[]).map((r: any) => r.author_id),
     ].filter(Boolean))]
 
-    const { data: statsData } = await supabase
-      .from("player_stats")
-      .select("user_id, elo_blitz, elo_rapid, elo_standard, elo_daily")
+    const { data: aggRows } = await supabase
+      .from("player_stats_agg")
+      .select("user_id, format, elo")
       .in("user_id", authorIds)
+      .in("format", ["standard", "rapid", "blitz", "daily"])
+      .eq("scope", "season")
 
-    const statsMap = new Map((statsData ?? []).map((s: any) => [s.user_id, s]))
+    const statsMap = new Map<string, { elo_standard: number; elo_rapid: number; elo_blitz: number; elo_daily: number }>()
+    for (const row of (aggRows ?? []) as any[]) {
+      if (!statsMap.has(row.user_id)) {
+        statsMap.set(row.user_id, { elo_standard: 0, elo_rapid: 0, elo_blitz: 0, elo_daily: 0 })
+      }
+      const entry = statsMap.get(row.user_id)!
+      if (row.format === "standard") entry.elo_standard = row.elo ?? 0
+      else if (row.format === "rapid")    entry.elo_rapid   = row.elo ?? 0
+      else if (row.format === "blitz")    entry.elo_blitz   = row.elo ?? 0
+      else if (row.format === "daily")    entry.elo_daily   = row.elo ?? 0
+    }
 
     if (topicData) {
       const td = topicData as any
@@ -563,7 +575,7 @@ function PostCard({
             color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word",
             marginBottom: images.length > 0 ? 10 : 16,
           }}>
-            {body}
+            {linkify(body)}
           </div>
           <ImageGrid images={images} />
         </>
@@ -694,6 +706,34 @@ function eloTitle(elo: number): string {
   if (elo >= 1200) return "Expert"
   if (elo >= 900)  return "Adept"
   return "Novice"
+}
+
+function linkify(text: string): React.ReactNode[] {
+  const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g
+  const parts = text.split(URL_RE)
+  return parts.map((part, i) => {
+    if (URL_RE.test(part)) {
+      const isInternal = part.startsWith("https://vekke.net") || part.startsWith("http://vekke.net")
+      return (
+        <a
+          key={i}
+          href={part}
+          target={isInternal ? "_self" : "_blank"}
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            color: "#5de8f7",
+            textDecoration: "underline",
+            textDecorationColor: "rgba(93,232,247,0.35)",
+            wordBreak: "break-all",
+          }}
+        >
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
 }
 
 function timeAgo(dateStr: string): string {
