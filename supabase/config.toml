@@ -80,3 +80,8 @@ entrypoint = "./functions/sso/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-push/index.ts"
+
+[functions.send_email]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send_email/index.ts"

@@ -151,7 +151,7 @@ export function useVekkeController(opts: {
   const [audioReady, setAudioReady] = useState(false)
 
   // NEW: time controls + clocks
-  const [timeControlId, setTimeControlId] = useState<TimeControlId>(opts.initialTimeControlId ?? "standard")
+  const [timeControlId, setTimeControlId] = useState<TimeControlId>(opts.initialTimeControlId ?? "daily")
   const timeControl = TIME_CONTROLS[timeControlId]
   const [clocks, setClocks] = useState<Clocks>(
     () => opts.initialClocks ?? { W: timeControl.baseMs, B: timeControl.baseMs }
@@ -265,7 +265,7 @@ export function useVekkeController(opts: {
     if (!externalGameData) return
     if (vgnRef.current) return
 
-    const tcId = opts.initialTimeControlId ?? "standard"
+    const tcId = opts.initialTimeControlId ?? "daily"
     const tc = TIME_CONTROLS[tcId]
     const perf0 = performance.now()
 

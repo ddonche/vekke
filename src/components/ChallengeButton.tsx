@@ -152,7 +152,7 @@ export function ChallengeButton({
   viewerId,
   opponentId,
   opponentIsAi = false,
-  timeControlId = "standard",
+  timeControlId = "daily",
   isRanked = true,
   className = "",
   fullLabelClassName,

@@ -98,7 +98,6 @@ const S = {
     borderRadius: 12,
     padding: "30px 30px",
 
-    // Width is set dynamically in render for mobile vs web
     width: "36rem",
     maxWidth: "96vw",
 
@@ -239,6 +238,27 @@ const S = {
   },
 }
 
+const checkboxCardStyle: React.CSSProperties = {
+  padding: "12px 14px",
+  borderRadius: 6,
+  border: "1px solid rgba(184,150,106,0.2)",
+  background: "#13131a",
+}
+
+const checkboxRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 10,
+  padding: "8px 0",
+}
+
+const checkboxLabelTextStyle: React.CSSProperties = {
+  fontFamily: "'EB Garamond', Georgia, serif",
+  fontSize: "1.0rem",
+  color: "#e8e4d8",
+  lineHeight: 1.3,
+}
+
 export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
@@ -260,6 +280,16 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
   const [instagramUrl, setInstagramUrl] = useState("")
   const [facebookUrl, setFacebookUrl] = useState("")
 
+  // Email preferences
+  const [emailPauseAll, setEmailPauseAll] = useState(false)
+  const [emailTurnNotifications, setEmailTurnNotifications] = useState(true)
+  const [emailChallengeReceived, setEmailChallengeReceived] = useState(true)
+  const [emailChallengeAccepted, setEmailChallengeAccepted] = useState(true)
+  const [emailTournamentUpdates, setEmailTournamentUpdates] = useState(true)
+  const [emailForumThreadReplies, setEmailForumThreadReplies] = useState(true)
+  const [emailFollowedThreadReplies, setEmailFollowedThreadReplies] = useState(false)
+  const [emailMajorAnnouncements, setEmailMajorAnnouncements] = useState(true)
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [checkingUsername, setCheckingUsername] = useState(false)
@@ -279,7 +309,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
   const isPro = accountTier === "pro"
 
-  // Load current profile
   useEffect(() => {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -288,12 +317,37 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       const { data: profile, error: err } = await supabase
         .from("profiles")
         .select(
-          "username, country_code, avatar_url, account_tier, bio, forum_signature, website_url, x_url, youtube_url, twitch_url, instagram_url, facebook_url"
+          [
+            "username",
+            "country_code",
+            "avatar_url",
+            "account_tier",
+            "bio",
+            "forum_signature",
+            "website_url",
+            "x_url",
+            "youtube_url",
+            "twitch_url",
+            "instagram_url",
+            "facebook_url",
+            "email_pause_all",
+            "email_turn_notifications",
+            "email_challenge_received",
+            "email_challenge_accepted",
+            "email_tournament_updates",
+            "email_forum_thread_replies",
+            "email_followed_thread_replies",
+            "email_major_announcements",
+          ].join(", ")
         )
         .eq("id", userId)
         .single()
 
-      if (err) { setError(err.message); setLoading(false); return }
+      if (err) {
+        setError(err.message)
+        setLoading(false)
+        return
+      }
 
       if (profile) {
         setUsername(profile.username)
@@ -303,7 +357,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
         setAccountTier(profile.account_tier ?? null)
 
-        // Load extras (even if not Pro right now; we still gate rendering + saving)
         setBio(profile.bio || "")
         setForumSignature(profile.forum_signature || "")
         setWebsiteUrl(profile.website_url || "")
@@ -312,27 +365,50 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
         setTwitchUrl(profile.twitch_url || "")
         setInstagramUrl(profile.instagram_url || "")
         setFacebookUrl(profile.facebook_url || "")
+
+        setEmailPauseAll(!!profile.email_pause_all)
+        setEmailTurnNotifications(profile.email_turn_notifications ?? true)
+        setEmailChallengeReceived(profile.email_challenge_received ?? true)
+        setEmailChallengeAccepted(profile.email_challenge_accepted ?? true)
+        setEmailTournamentUpdates(profile.email_tournament_updates ?? true)
+        setEmailForumThreadReplies(profile.email_forum_thread_replies ?? true)
+        setEmailFollowedThreadReplies(profile.email_followed_thread_replies ?? false)
+        setEmailMajorAnnouncements(profile.email_major_announcements ?? true)
       }
+
       setLoading(false)
     }
+
     loadProfile()
   }, [userId])
 
-  // Check username availability with debounce
   useEffect(() => {
     const checkUsername = async () => {
-      if (!username || username.length < 3) { setUsernameAvailable(null); return }
+      if (!username || username.length < 3) {
+        setUsernameAvailable(null)
+        return
+      }
+
       setCheckingUsername(true)
 
       const { data: profile } = await supabase
-        .from("profiles").select("id, username").eq("id", userId).single()
+        .from("profiles")
+        .select("id, username")
+        .eq("id", userId)
+        .single()
 
       if (profile?.username === username) {
-        setUsernameAvailable(true); setCheckingUsername(false); return
+        setUsernameAvailable(true)
+        setCheckingUsername(false)
+        return
       }
 
       const { data } = await supabase
-        .from("profiles").select("id").eq("username", username).single()
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .single()
+
       setUsernameAvailable(!data)
       setCheckingUsername(false)
     }
@@ -344,12 +420,21 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) { setError("Please select an image file"); return }
-    if (file.size > 5 * 1024 * 1024) { setError("Image must be less than 5MB"); return }
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be less than 5MB")
+      return
+    }
+
     setError(null)
+
     try {
       const resizedFile = await resizeImage(file)
       setAvatarFile(resizedFile)
+
       const reader = new FileReader()
       reader.onloadend = () => setAvatarPreview(reader.result as string)
       reader.readAsDataURL(resizedFile)
@@ -367,12 +452,25 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null); setMessage(null)
+    setError(null)
+    setMessage(null)
 
-    if (!username.trim()) { setError("Username is required"); return }
-    if (username.length < 3) { setError("Username must be at least 3 characters"); return }
-    if (usernameAvailable === false) { setError("Username is already taken"); return }
-    if (!countryCode) { setError("Please select a country"); return }
+    if (!username.trim()) {
+      setError("Username is required")
+      return
+    }
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters")
+      return
+    }
+    if (usernameAvailable === false) {
+      setError("Username is already taken")
+      return
+    }
+    if (!countryCode) {
+      setError("Please select a country")
+      return
+    }
 
     if (isPro && bio && bio.length > 140) {
       setError("Bio must be 140 characters or less")
@@ -386,17 +484,29 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
 
     setSaving(true)
 
-    // Update email/password if changed
     const { data: { user } } = await supabase.auth.getUser()
+
     if (email !== user?.email || newPassword) {
       const updates: { email?: string; password?: string } = {}
+
       if (email !== user?.email) updates.email = email
+
       if (newPassword) {
-        if (newPassword.length < 6) { setSaving(false); setError("Password must be at least 6 characters"); return }
+        if (newPassword.length < 6) {
+          setSaving(false)
+          setError("Password must be at least 6 characters")
+          return
+        }
         updates.password = newPassword
       }
+
       const { error: authError } = await supabase.auth.updateUser(updates)
-      if (authError) { setSaving(false); setError(authError.message); return }
+      if (authError) {
+        setSaving(false)
+        setError(authError.message)
+        return
+      }
+
       if (updates.email) setMessage("Email updated! Check your inbox to confirm.")
     }
 
@@ -406,9 +516,17 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     if (avatarFile) {
       const fileExt = avatarFile.name.split(".").pop()
       const fileName = `${userId}.${fileExt}`
+
       const { error: uploadError } = await supabase.storage
-        .from("avatars").upload(fileName, avatarFile, { cacheControl: "3600", upsert: true })
-      if (uploadError) { setSaving(false); setError(`Upload failed: ${uploadError.message}`); return }
+        .from("avatars")
+        .upload(fileName, avatarFile, { cacheControl: "3600", upsert: true })
+
+      if (uploadError) {
+        setSaving(false)
+        setError(`Upload failed: ${uploadError.message}`)
+        return
+      }
+
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(fileName)
       avatarUrl = urlData.publicUrl
     }
@@ -419,9 +537,17 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       country_name: country?.name || null,
       avatar_url: avatarUrl,
       updated_at: new Date().toISOString(),
+
+      email_pause_all: emailPauseAll,
+      email_turn_notifications: emailTurnNotifications,
+      email_challenge_received: emailChallengeReceived,
+      email_challenge_accepted: emailChallengeAccepted,
+      email_tournament_updates: emailTournamentUpdates,
+      email_forum_thread_replies: emailForumThreadReplies,
+      email_followed_thread_replies: emailFollowedThreadReplies,
+      email_major_announcements: emailMajorAnnouncements,
     }
 
-    // Only Pro can write these fields.
     if (isPro) {
       updatePayload.bio = bio.trim() || null
       updatePayload.forum_signature = forumSignature.trim() || null
@@ -439,6 +565,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       .eq("id", userId)
 
     setSaving(false)
+
     if (updateError) {
       setError(updateError.code === "23505" ? "Username already taken" : updateError.message)
       return
@@ -473,17 +600,27 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     )
   }
 
-  const unameColor = usernameAvailable === false ? "#fca5a5" : usernameAvailable === true ? "#6ee7b7" : "#6b6558"
-  const unameText = checkingUsername ? "Checking…"
-    : usernameAvailable === false ? "Username taken"
-    : usernameAvailable === true ? "Username available"
+  const unameColor =
+    usernameAvailable === false
+      ? "#fca5a5"
+      : usernameAvailable === true
+      ? "#6ee7b7"
+      : "#6b6558"
+
+  const unameText = checkingUsername
+    ? "Checking…"
+    : usernameAvailable === false
+    ? "Username taken"
+    : usernameAvailable === true
+    ? "Username available"
     : "3–20 characters · letters, numbers, _ and -"
 
-  const unameBorder = usernameAvailable === false
-    ? "1px solid rgba(239,68,68,0.4)"
-    : usernameAvailable === true
-    ? "1px solid rgba(52,211,153,0.35)"
-    : "1px solid rgba(184,150,106,0.2)"
+  const unameBorder =
+    usernameAvailable === false
+      ? "1px solid rgba(239,68,68,0.4)"
+      : usernameAvailable === true
+      ? "1px solid rgba(52,211,153,0.35)"
+      : "1px solid rgba(184,150,106,0.2)"
 
   const bioRemaining = 140 - bio.length
 
@@ -492,6 +629,8 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
     gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr",
     gap: 14,
   }
+
+  const emailOptionsDisabled = saving || emailPauseAll
 
   return (
     <div style={{ ...S.overlay, padding: isNarrow ? "10px" : "24px" }} onClick={onClose}>
@@ -510,7 +649,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
         {message && <div style={S.success}>{message}</div>}
 
         <form onSubmit={handleSubmit}>
-          {/* Avatar */}
           <div style={S.field}>
             <label style={S.label}>Avatar</label>
             <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
@@ -542,7 +680,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             </div>
           </div>
 
-          {/* Username */}
           <div style={S.field}>
             <label style={S.label}>Username</label>
             <input
@@ -560,7 +697,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             <div style={{ ...S.hint, color: unameColor }}>{unameText}</div>
           </div>
 
-          {/* Email */}
           <div style={S.field}>
             <label style={S.label}>Email</label>
             <input
@@ -574,7 +710,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             <div style={S.hint}>Changing email requires inbox confirmation</div>
           </div>
 
-          {/* New Password */}
           <div style={S.field}>
             <label style={S.label}>
               New Password{" "}
@@ -603,7 +738,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             <div style={S.hint}>Minimum 6 characters</div>
           </div>
 
-          {/* Country */}
           <div style={{ ...S.field, marginBottom: 22 }}>
             <label style={S.label}>Country</label>
             <select
@@ -620,7 +754,169 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             </select>
           </div>
 
-          {/* Pro-only extras */}
+          {typeof Notification !== "undefined" && (
+            <div style={{ ...S.field, marginBottom: 22 }}>
+              <label style={S.label}>Push Notifications</label>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  padding: "12px 14px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(184,150,106,0.2)",
+                  background: "#13131a",
+                }}
+              >
+                <span style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.0rem", color: "#e8e4d8" }}>
+                  {subscribed
+                    ? "Push notifications enabled."
+                    : "Get mobile & browser notifications for challenges, turns, and other activity without relying on email."}
+                </span>
+                <button
+                  type="button"
+                  onClick={subscribed ? unsubscribe : subscribe}
+                  disabled={pushLoading || permission === "denied"}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: 5,
+                    border: "1px solid rgba(184,150,106,0.4)",
+                    background: subscribed ? "rgba(239,68,68,0.12)" : "rgba(93,232,247,0.1)",
+                    color: subscribed ? "#ef4444" : "#5de8f7",
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.1em",
+                    cursor: pushLoading || permission === "denied" ? "not-allowed" : "pointer",
+                    opacity: pushLoading ? 0.6 : 1,
+                  }}
+                >
+                  {pushLoading ? "…" : subscribed ? "Disable" : "Enable"}
+                </button>
+              </div>
+              <div style={S.hint}>
+                For routine game activity, push notifications are usually better than email.
+              </div>
+              {permission === "denied" && (
+                <div style={{ ...S.hint, color: "#ef4444", marginTop: 8 }}>
+                  Notifications blocked in browser settings. Enable them there first.
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={S.proBox}>
+            <div style={S.proBoxTitle}>Email Preferences</div>
+
+            <div style={{ ...checkboxCardStyle, marginBottom: 14 }}>
+              <label style={checkboxRowStyle}>
+                <input
+                  type="checkbox"
+                  checked={emailPauseAll}
+                  onChange={(e) => setEmailPauseAll(e.target.checked)}
+                  disabled={saving}
+                  style={{ marginTop: 4 }}
+                />
+                <div>
+                  <div style={checkboxLabelTextStyle}>Pause all email notifications</div>
+                  <div style={S.hint}>Turns off gameplay, community, and announcement emails.</div>
+                </div>
+              </label>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ ...S.label, marginBottom: 10 }}>Gameplay Emails</div>
+              <div style={checkboxCardStyle}>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailTurnNotifications}
+                    onChange={(e) => setEmailTurnNotifications(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me when it’s my turn</div>
+                </label>
+
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailChallengeReceived}
+                    onChange={(e) => setEmailChallengeReceived(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me when I receive a challenge</div>
+                </label>
+
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailChallengeAccepted}
+                    onChange={(e) => setEmailChallengeAccepted(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me when my challenge is accepted</div>
+                </label>
+
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailTournamentUpdates}
+                    onChange={(e) => setEmailTournamentUpdates(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me about tournament activity</div>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ ...S.label, marginBottom: 10 }}>Community Emails</div>
+              <div style={checkboxCardStyle}>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailForumThreadReplies}
+                    onChange={(e) => setEmailForumThreadReplies(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me when someone replies to my forum thread or post</div>
+                </label>
+
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailFollowedThreadReplies}
+                    onChange={(e) => setEmailFollowedThreadReplies(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me when someone replies to a thread I follow</div>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ ...S.label, marginBottom: 10 }}>Announcement Emails</div>
+              <div style={checkboxCardStyle}>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={emailMajorAnnouncements}
+                    onChange={(e) => setEmailMajorAnnouncements(e.target.checked)}
+                    disabled={emailOptionsDisabled}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={checkboxLabelTextStyle}>Email me about major VEKKE news, launches, and updates</div>
+                </label>
+              </div>
+            </div>
+          </div>
+
           {isPro && (
             <div style={S.proBox}>
               <div style={S.proBoxTitle}>Pro Profile</div>
@@ -728,43 +1024,6 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
             </div>
           )}
 
-          {/* Push Notifications */}
-          {typeof Notification !== "undefined" && (
-            <div style={{ ...S.field, marginBottom: 22 }}>
-              <label style={S.label}>Notifications</label>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.2)", background: "#13131a" }}>
-                <span style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.0rem", color: "#e8e4d8" }}>
-                  {subscribed ? "Push notifications enabled" : "Get notified when someone wants to play you, when it's your turn, etc."}
-                </span>
-                <button
-                  type="button"
-                  onClick={subscribed ? unsubscribe : subscribe}
-                  disabled={pushLoading || permission === "denied"}
-                  style={{
-                    padding: "6px 16px",
-                    borderRadius: 5,
-                    border: "1px solid rgba(184,150,106,0.4)",
-                    background: subscribed ? "rgba(239,68,68,0.12)" : "rgba(93,232,247,0.1)",
-                    color: subscribed ? "#ef4444" : "#5de8f7",
-                    fontFamily: "'Cinzel', serif",
-                    fontSize: "0.75rem",
-                    letterSpacing: "0.1em",
-                    cursor: pushLoading || permission === "denied" ? "not-allowed" : "pointer",
-                    opacity: pushLoading ? 0.6 : 1,
-                  }}
-                >
-                  {pushLoading ? "…" : subscribed ? "Disable" : "Enable"}
-                </button>
-              </div>
-              {permission === "denied" && (
-                <div style={{ ...S.hint, color: "#ef4444", marginTop: 8 }}>
-                  Notifications blocked in browser settings. Enable them there first.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Buttons */}
           <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"

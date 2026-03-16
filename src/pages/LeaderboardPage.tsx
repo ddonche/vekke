@@ -819,7 +819,7 @@ export function LeaderboardPage() {
                       const losses = rowLosses(r)
                       const wr = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null
                       const isMe = r.user_id === userId
-                      const challengeFormat: TimeControl = format === "all" ? "standard" : format
+                      const challengeFormat: TimeControl = format === "all" ? "daily" : format
 
                       return (
                         <tr

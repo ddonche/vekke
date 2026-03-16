@@ -25,6 +25,19 @@ function isUuid(s: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
 }
 
+function timeControlLabel(tc: Body["timeControl"]) {
+  switch (tc) {
+    case "standard":
+      return "Standard"
+    case "rapid":
+      return "Rapid"
+    case "blitz":
+      return "Blitz"
+    case "daily":
+      return "Daily"
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
@@ -38,6 +51,8 @@ Deno.serve(async (req) => {
     const URL = Deno.env.get("SUPABASE_URL")!
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!
     const SRV = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    const SITE_URL = Deno.env.get("SITE_URL")?.trim() || "https://vekke.net"
+
     if (!URL || !ANON || !SRV) return json(500, { error: "Missing Supabase env vars" })
 
     // Verify caller (inviter)
@@ -120,6 +135,34 @@ Deno.serve(async (req) => {
       .single()
 
     if (insErr) return json(500, { error: insErr.message })
+
+    try {
+      const { data: inviterProfile, error: inviterProfileErr } = await admin
+        .from("profiles")
+        .select("username")
+        .eq("id", inviterId)
+        .single()
+
+      if (!inviterProfileErr) {
+        const challengerName = inviterProfile?.username?.trim() || "A VEKKE player"
+
+        await fetch(`${URL}/functions/v1/send_email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "challenge_received",
+            recipientUserId: invitedUserId,
+            challengerName,
+            challengeUrl: `${SITE_URL}/challenges`,
+            timeControlLabel: timeControlLabel(tc),
+          }),
+        })
+      }
+    } catch {
+      // Do not fail challenge creation if the email send fails.
+    }
 
     return json(200, {
       reused: false,
