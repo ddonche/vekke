@@ -1,8 +1,16 @@
-import { precacheAndRoute } from 'workbox-precaching'
+import { precacheAndRoute, NavigationRoute, createHandlerBoundToURL } from 'workbox-precaching'
+import { registerRoute, NavigationRoute as NavRoute } from 'workbox-routing'
+import { NetworkOnly } from 'workbox-strategies'
 
 declare let self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Never intercept Supabase requests
+registerRoute(
+  ({ url }) => url.hostname.includes('supabase.co'),
+  new NetworkOnly()
+)
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
