@@ -24,6 +24,7 @@ interface PostAuthor {
   country_code: string | null
   account_tier: string | null
   forum_signature: string | null
+  order_icon_url: string | null
 }
 
 interface PostStats {
@@ -145,9 +146,45 @@ export function TopicPage() {
       else if (row.format === "daily")    entry.elo_daily   = row.elo ?? 0
     }
 
+    // Step 3: fetch order icons for all authors
+    const { data: membershipData } = await supabase
+      .from("order_memberships")
+      .select("user_id, order_id, joined_at, left_at")
+      .in("user_id", authorIds)
+      .is("left_at", null)
+      .order("joined_at", { ascending: false })
+
+    const latestMembershipByUser = new Map<string, string>()
+    for (const m of (membershipData ?? []) as any[]) {
+      if (!latestMembershipByUser.has(m.user_id)) {
+        latestMembershipByUser.set(m.user_id, m.order_id)
+      }
+    }
+
+    const orderIds = Array.from(new Set(Array.from(latestMembershipByUser.values()).filter(Boolean)))
+    const orderIconMap = new Map<string, string | null>()
+    if (orderIds.length > 0) {
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("id, icon_url")
+        .in("id", orderIds)
+      for (const o of (orderData ?? []) as any[]) {
+        orderIconMap.set(o.id, o.icon_url ?? null)
+      }
+    }
+
+    function resolveOrderIcon(userId: string): string | null {
+      const orderId = latestMembershipByUser.get(userId)
+      return orderId ? (orderIconMap.get(orderId) ?? null) : null
+    }
+
     if (topicData) {
       const td = topicData as any
-      setTopic({ ...td, author_stats: statsMap.get(td.author_id) ?? null } as unknown as Topic)
+      setTopic({
+        ...td,
+        author: { ...td.author, order_icon_url: resolveOrderIcon(td.author_id) },
+        author_stats: statsMap.get(td.author_id) ?? null,
+      } as unknown as Topic)
       supabase.from("forum_categories").select("color").eq("id", td.category_id).single()
         .then(({ data: cat }) => { if (cat?.color) setCategoryColor(cat.color) })
     }
@@ -155,6 +192,7 @@ export function TopicPage() {
     if (replyData) {
       setReplies((replyData as any[]).map((r: any) => ({
         ...r,
+        author: { ...r.author, order_icon_url: resolveOrderIcon(r.author_id) },
         author_stats: statsMap.get(r.author_id) ?? null,
       })) as unknown as Reply[])
     }
@@ -491,7 +529,7 @@ function PostCard({
     }}>
       {/* Author header */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
+        display: "flex", alignItems: "center", gap: 6, marginBottom: 14,
         paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)", flexWrap: "wrap",
       }}>
         <a href={`/u/${author.username}`} style={{ display: "contents", textDecoration: "none" }}>
@@ -510,6 +548,7 @@ function PostCard({
             onError={(e) => { e.currentTarget.style.display = "none" }}
           />
         )}
+        <OrderIcon url={author.order_icon_url} alt="Order" size={24} />
         {peakElo !== null && (
           <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
             {peakElo}
@@ -643,6 +682,29 @@ function UpvoteButton({ count, upvoted, disabled, onClick }: { count: number; up
         {count}
       </span>
     </button>
+  )
+}
+
+function OrderIcon({ url, alt, size = 18 }: { url: string | null | undefined; alt: string; size?: number }) {
+  if (!url) return null
+  return (
+    <img
+      src={url}
+      alt={alt}
+      title={alt}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        display: "inline-block",
+        verticalAlign: "middle",
+        flexShrink: 0,
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+      }}
+      onError={(e) => { e.currentTarget.style.display = "none" }}
+    />
   )
 }
 

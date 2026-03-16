@@ -16,6 +16,8 @@ type LeaderboardRow = {
   avatar_url: string | null
   country_code: string | null
   account_tier: string | null
+  order_id: string | null
+  order_icon_url: string | null
 
   elo: number
   elo_standard: number
@@ -201,7 +203,7 @@ function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
         fontWeight: 700,
         whiteSpace: "nowrap",
         flexShrink: 0,
-        marginLeft: 8,
+        marginLeft: 6,
       }}
       title="Pro"
     >
@@ -216,6 +218,40 @@ function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
       />
       Pro
     </span>
+  )
+}
+
+function OrderIcon({
+  url,
+  alt,
+  size = 18,
+}: {
+  url: string | null | undefined
+  alt: string
+  size?: number
+}) {
+  if (!url) return null
+  return (
+    <img
+      src={url}
+      alt={alt}
+      title={alt}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        display: "inline-block",
+        verticalAlign: "middle",
+        marginLeft: 6,
+        flexShrink: 0,
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+      }}
+      onError={(e) => {
+        e.currentTarget.style.display = "none"
+      }}
+    />
   )
 }
 
@@ -316,10 +352,63 @@ export function LeaderboardPage() {
       const profileMap = new Map<string, any>()
       for (const p of profileData ?? []) profileMap.set(p.id, p)
 
+      const { data: membershipData, error: membershipErr } = await supabase
+        .from("order_memberships")
+        .select("user_id, order_id, joined_at, left_at")
+        .in("user_id", ids)
+        .is("left_at", null)
+        .order("joined_at", { ascending: false })
+
+      if (membershipErr) {
+        setErr(membershipErr.message)
+        setLoading(false)
+        return
+      }
+
+      const latestMembershipByUser = new Map<string, { order_id: string }>()
+      for (const m of membershipData ?? []) {
+        const userId = (m as any).user_id as string
+        if (!latestMembershipByUser.has(userId)) {
+          latestMembershipByUser.set(userId, {
+            order_id: (m as any).order_id,
+          })
+        }
+      }
+
+      const orderIds = Array.from(
+        new Set(
+          Array.from(latestMembershipByUser.values())
+            .map((m) => m.order_id)
+            .filter(Boolean)
+        )
+      )
+
+      const orderMap = new Map<string, { icon_url: string | null }>()
+      if (orderIds.length > 0) {
+        const { data: orderData, error: orderErr } = await supabase
+          .from("orders")
+          .select("id, icon_url")
+          .in("id", orderIds)
+
+        if (orderErr) {
+          setErr(orderErr.message)
+          setLoading(false)
+          return
+        }
+
+        for (const o of orderData ?? []) {
+          orderMap.set((o as any).id, {
+            icon_url: (o as any).icon_url ?? null,
+          })
+        }
+      }
+
       let merged: LeaderboardRow[] = statsData
         .filter((s: any) => profileMap.has(s.user_id))
         .map((s: any) => {
           const p = profileMap.get(s.user_id) ?? {}
+          const membership = latestMembershipByUser.get(s.user_id) ?? null
+          const order = membership?.order_id ? orderMap.get(membership.order_id) : null
 
           const winsStandard = safeInt(s.wins_standard)
           const winsRapid = safeInt(s.wins_rapid)
@@ -336,6 +425,9 @@ export function LeaderboardPage() {
             username: p.username ?? "Unknown",
             avatar_url: p.avatar_url ?? null,
             country_code: p.country_code ?? null,
+            account_tier: (p.account_tier ?? null) as any,
+            order_id: membership?.order_id ?? null,
+            order_icon_url: order?.icon_url ?? null,
 
             elo: safeInt(s.elo),
             elo_standard: safeInt(s.elo_standard),
@@ -370,7 +462,6 @@ export function LeaderboardPage() {
             wins_by_opponent_resign: safeInt(s.wins_resign),
 
             is_ai: !!p.is_ai,
-            account_tier: (p.account_tier ?? null) as any,
           }
         })
 
@@ -871,6 +962,10 @@ export function LeaderboardPage() {
                               <div>
                                 <div
                                   style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                    rowGap: 4,
                                     fontFamily: "'Cinzel', serif",
                                     fontSize: "0.88rem",
                                     fontWeight: 600,
@@ -878,8 +973,16 @@ export function LeaderboardPage() {
                                     color: isMe ? "#5de8f7" : "#e8e4d8",
                                   }}
                                 >
-                                  {r.username}
+                                  <span>{r.username}</span>
+
+                                  <OrderIcon
+                                    url={r.order_icon_url}
+                                    alt={r.order_id ? `Order: ${r.order_id}` : "Order"}
+                                    size={24}
+                                  />
+
                                   {r.account_tier === "pro" ? <ProFlair /> : null}
+
                                   {isMe && (
                                     <span
                                       style={{
@@ -887,13 +990,14 @@ export function LeaderboardPage() {
                                         fontSize: "0.5rem",
                                         letterSpacing: "0.2em",
                                         color: "#5de8f7",
-                                        marginLeft: 8,
+                                        marginLeft: 6,
                                         opacity: 0.7,
                                       }}
                                     >
                                       YOU
                                     </span>
                                   )}
+
                                   {r.is_ai && (
                                     <span
                                       style={{
@@ -901,7 +1005,7 @@ export function LeaderboardPage() {
                                         fontSize: "0.5rem",
                                         letterSpacing: "0.2em",
                                         color: "#b8966a",
-                                        marginLeft: 8,
+                                        marginLeft: 6,
                                         opacity: 0.7,
                                       }}
                                     >
@@ -910,7 +1014,7 @@ export function LeaderboardPage() {
                                   )}
                                 </div>
 
-                                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                                   {r.country_code && <FlagImg cc={r.country_code} size={13} />}
                                   <span
                                     className="lb-mobile-sub"

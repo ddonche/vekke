@@ -38,6 +38,8 @@ type LeaderboardRow = {
   avatar_url: string | null
   country_code: string | null
   account_tier: string | null
+  order_id: string | null
+  order_icon_url: string | null
   is_ai: boolean
 
   elo: number
@@ -198,6 +200,7 @@ function ProFlair({ accent = "#d4af7a" }: { accent?: string }) {
         fontWeight: 700,
         whiteSpace: "nowrap",
         flexShrink: 0,
+        marginLeft: 6,
       }}
       title="Pro"
     >
@@ -466,6 +469,40 @@ function RankBadge({ rank }: { rank: number }) {
   )
 }
 
+function OrderIcon({
+  url,
+  alt,
+  size = 18,
+}: {
+  url: string | null | undefined
+  alt: string
+  size?: number
+}) {
+  if (!url) return null
+  return (
+    <img
+      src={url}
+      alt={alt}
+      title={alt}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        display: "inline-block",
+        verticalAlign: "middle",
+        marginLeft: 6,
+        flexShrink: 0,
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+      }}
+      onError={(e) => {
+        e.currentTarget.style.display = "none"
+      }}
+    />
+  )
+}
+
 function buildSwatchStyle(style: Record<string, any> | null | undefined): React.CSSProperties {
   if (!style) return { background: "#2a2218" }
   const bg = style.background || style.backgroundColor || style.color || style.primary || "#2a2218"
@@ -602,6 +639,40 @@ export default function HomePage() {
       const profileMap = new Map<string, any>()
       for (const p of profileData ?? []) profileMap.set(p.id, p)
 
+      const { data: membershipData } = await supabase
+        .from("order_memberships")
+        .select("user_id, order_id, joined_at, left_at")
+        .in("user_id", ids)
+        .is("left_at", null)
+        .order("joined_at", { ascending: false })
+
+      const latestMembershipByUser = new Map<string, { order_id: string }>()
+      for (const m of membershipData ?? []) {
+        const uid = (m as any).user_id as string
+        if (!latestMembershipByUser.has(uid)) {
+          latestMembershipByUser.set(uid, { order_id: (m as any).order_id })
+        }
+      }
+
+      const orderIds = Array.from(
+        new Set(
+          Array.from(latestMembershipByUser.values())
+            .map((m) => m.order_id)
+            .filter(Boolean)
+        )
+      )
+
+      const orderMap = new Map<string, { icon_url: string | null }>()
+      if (orderIds.length > 0) {
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("id, icon_url")
+          .in("id", orderIds)
+        for (const o of orderData ?? []) {
+          orderMap.set((o as any).id, { icon_url: (o as any).icon_url ?? null })
+        }
+      }
+
       const merged: LeaderboardRow[] = statsData
         .filter((s: any) => profileMap.has(s.user_id))
         .map((s: any) => {
@@ -623,6 +694,11 @@ export default function HomePage() {
             avatar_url: p.avatar_url ?? null,
             country_code: p.country_code ?? null,
             account_tier: p.account_tier ?? null,
+            order_id: latestMembershipByUser.get(s.user_id)?.order_id ?? null,
+            order_icon_url: (() => {
+              const mid = latestMembershipByUser.get(s.user_id)?.order_id
+              return mid ? (orderMap.get(mid)?.icon_url ?? null) : null
+            })(),
             is_ai: !!p.is_ai,
 
             elo: safeInt(s.elo),
@@ -1329,16 +1405,9 @@ export default function HomePage() {
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                   <Avatar username={r.username} avatarUrl={r.avatar_url} size={32} />
                                   <div>
-                                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
-                                      <span style={{
-                                        fontFamily: "'Cinzel', serif",
-                                        fontSize: "0.88rem",
-                                        fontWeight: 600,
-                                        letterSpacing: "0.04em",
-                                        color: isMe ? "#5de8f7" : "#e8e4d8",
-                                      }}>
-                                        {r.username}
-                                      </span>
+                                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 4, fontFamily: "'Cinzel', serif", fontSize: "0.88rem", fontWeight: 600, letterSpacing: "0.04em", color: isMe ? "#5de8f7" : "#e8e4d8" }}>
+                                      <span>{r.username}</span>
+                                      <OrderIcon url={r.order_icon_url} alt={r.order_id ? `Order: ${r.order_id}` : "Order"} size={24} />
                                       {r.account_tier === "pro" ? <ProFlair /> : null}
                                       {isMe && (
                                         <span style={{
@@ -1346,12 +1415,12 @@ export default function HomePage() {
                                           fontSize: "0.5rem",
                                           letterSpacing: "0.2em",
                                           color: "#5de8f7",
-                                          marginLeft: 8,
+                                          marginLeft: 6,
                                           opacity: 0.7,
                                         }}>YOU</span>
                                       )}
                                     </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                                       {r.country_code && <FlagImg cc={r.country_code} size={13} />}
                                       <span className="hp-lb-mobile-sub" style={{
                                         fontFamily: "'Cinzel', serif",
