@@ -221,6 +221,7 @@ export function ChallengesPage() {
   const [statsById, setStatsById] = useState<Record<string, PlayerStatLite>>({})
   const [gamesById, setGamesById] = useState<Record<string, GameAny>>({})
   const [aiGames, setAiGames] = useState<GameAny[]>([])
+  const [pvpGames, setPvpGames] = useState<GameAny[]>([])
 
   // For keeping the header badge accurate without manual refresh:
   // we poll the games for the active game ids.
@@ -309,6 +310,7 @@ export function ChallengesPage() {
     const invList = ((inv ?? []) as InviteRow[])
       .filter(r => r.invite_type === "pvp")
       .filter(r => !r.expires_at || r.expires_at > now)
+    setInvites(invList)
 
     const profileIds = new Set<string>()
     profileIds.add(uid)
@@ -319,9 +321,17 @@ export function ChallengesPage() {
       if (r.accepted_by) profileIds.add(r.accepted_by)
     }
 
-    const gameIds = Array.from(
-      new Set(invList.map(r => r.game_id).filter((x): x is string => typeof x === "string" && x.length > 0))
-    )
+    // Fetch active PvP games directly — don't rely solely on invite rows
+    const { data: pvpGs } = await supabase
+      .from("games")
+      .select("*")
+      .eq("is_vs_ai", false)
+      .or(`wake_id.eq.${uid},brake_id.eq.${uid}`)
+      .is("ended_at", null)
+      .order("last_move_at", { ascending: false })
+
+    const pvpGameList = (pvpGs ?? []) as GameAny[]
+    setPvpGames(pvpGameList)
 
     // Fetch active AI games for this user
     const { data: aiGs } = await supabase
@@ -335,7 +345,23 @@ export function ChallengesPage() {
     const aiGameList = (aiGs ?? []) as GameAny[]
     setAiGames(aiGameList)
 
+    // Union game IDs from invites + directly fetched PvP games
+    const gameIds = Array.from(
+      new Set([
+        ...invList.map(r => r.game_id).filter((x): x is string => typeof x === "string" && x.length > 0),
+        ...pvpGameList.map((g: any) => g.id as string),
+      ])
+    )
+
     const aiGameIds = aiGameList.map((g: any) => g.id as string)
+
+    // Add PvP opponent profiles
+    for (const g of pvpGameList) {
+      const wake = g.wake_id as string | null
+      const brake = g.brake_id as string | null
+      if (wake && wake !== uid) profileIds.add(wake)
+      if (brake && brake !== uid) profileIds.add(brake)
+    }
 
     // Add AI opponent user IDs so their profiles/avatars/flags get fetched
     for (const g of aiGameList) {
@@ -480,25 +506,60 @@ export function ChallengesPage() {
 
     const uid = userId
     const items: ActiveGameItem[] = []
+    const seenGameIds = new Set<string>()
 
-    // PvP games from accepted invites
+    // PvP games fetched directly from games table
+    for (const g of pvpGames) {
+      const gameId = g.id as string
+      if (seenGameIds.has(gameId)) continue
+
+      const cs = safeJson(g?.current_state)
+      const isEnded = g.ended_at || g.winner_id ||
+        g.status === "finished" || g.status === "complete" ||
+        g.status === "completed" || g.status === "over" ||
+        cs?.gameOver != null
+      if (isEnded) continue
+
+      seenGameIds.add(gameId)
+
+      const live = gamesById[gameId] ?? g
+      const mySide = deriveMySide(live, uid)
+      const ti = deriveTurnInfo(live)
+      let status = "In progress"
+      if (ti.turnSide && mySide) {
+        status = ti.turnSide === mySide ? "Your turn" : "Waiting for opponent"
+      }
+
+      const wake = firstDefined<string>(live, ["wake_id", "wakeId"])
+      const brake = firstDefined<string>(live, ["brake_id", "brakeId"])
+      const opponentId = wake === uid ? brake : brake === uid ? wake : undefined
+
+      const matchingInvite = invites.find(i => i.game_id === gameId)
+      const format = matchingInvite?.time_control ?? live.format ?? null
+      const oppName = opponentId ? profiles[opponentId]?.username : undefined
+      const label = oppName
+        ? `vs ${oppName}${format ? ` (${formatTc(format)})` : ""}`
+        : `Game${format ? ` (${formatTc(format)})` : ""}`
+
+      items.push({ gameId, label, status, opponentId })
+    }
+
+    // PvP games from accepted invites not already included
     for (const inv of derived.acceptedWithGame) {
       const gameId = inv.game_id!
-      const g = gamesById[gameId]
+      if (seenGameIds.has(gameId)) continue
 
-      // Drop finished games — check both server columns and current_state.gameOver
-      // (some timed-out games may have gameOver set in state before server columns are written)
+      const g = gamesById[gameId]
       const cs = safeJson(g?.current_state)
       const isEnded = g && (
-        g.ended_at ||
-        g.winner_id ||
-        g.status === "finished" ||
-        g.status === "complete" ||
-        g.status === "completed" ||
-        g.status === "over" ||
+        g.ended_at || g.winner_id ||
+        g.status === "finished" || g.status === "complete" ||
+        g.status === "completed" || g.status === "over" ||
         cs?.gameOver != null
       )
       if (isEnded) continue
+
+      seenGameIds.add(gameId)
 
       let status = "In progress"
       let opponentId: string | undefined
@@ -528,6 +589,9 @@ export function ChallengesPage() {
     // AI games
     for (const g of aiGames) {
       const gameId = g.id as string
+      if (seenGameIds.has(gameId)) continue
+      seenGameIds.add(gameId)
+
       const live = gamesById[gameId] ?? g
 
       const mySide = deriveMySide(live, uid)
@@ -556,7 +620,7 @@ export function ChallengesPage() {
       return av - bv
     })
     return items
-  }, [derived.acceptedWithGame, gamesById, aiGames, profiles, userId])
+  }, [derived.acceptedWithGame, pvpGames, gamesById, aiGames, profiles, userId, invites])
 
   useEffect(() => {
     load().catch((e: any) => setErr(e?.message ?? String(e)))
@@ -603,6 +667,7 @@ export function ChallengesPage() {
         titleLabel="Daily"
         elo={undefined}
         activePage="mygames"
+        myGamesTurnCount={myTurnCount}
         onSignIn={() => {
           const rt = encodeURIComponent(`/challenges`)
           window.location.assign(`/?openAuth=1&returnTo=${rt}`)

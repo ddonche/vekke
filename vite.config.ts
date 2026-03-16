@@ -7,14 +7,12 @@ import { join } from 'path'
 export default defineConfig({
   plugins: [
     react(),
-
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-
       manifest: {
         name: 'Vekke',
         short_name: 'Vekke',
@@ -30,23 +28,25 @@ export default defineConfig({
           { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/rules/],
+        navigateFallbackDenylist: [/^\/rules/, /^\/rest\//, /^\/auth\//, /^\/functions\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => url.hostname.includes('supabase.co'),
+            handler: 'NetworkOnly' as const,
+          },
+        ],
       },
     }),
-
     {
       name: 'serve-rules-static',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           if (!req.url?.startsWith('/rules')) return next()
-
           const url = req.url.split('?')[0]
           const filePath = join(__dirname, 'public', url)
-
           if (existsSync(filePath) && !filePath.endsWith('/')) {
             const ext = url.split('.').pop()
             const contentType =
