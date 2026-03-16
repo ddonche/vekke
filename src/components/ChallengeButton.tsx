@@ -205,6 +205,7 @@ export function ChallengeButton({
         )
         .eq("status", "pending")
         .is("game_id", null)
+        .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false })
 
       if (inviteErr) throw inviteErr
