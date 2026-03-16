@@ -8,11 +8,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
+      registerType: 'prompt',
+      injectRegister: null,
+      selfDestroying: true,
       manifest: {
         name: 'Vekke',
         short_name: 'Vekke',
@@ -26,17 +24,6 @@ export default defineConfig({
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/rules/, /^\/rest\//, /^\/auth\//, /^\/functions\//],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }: { url: URL }) => url.hostname.includes('supabase.co'),
-            handler: 'NetworkOnly' as const,
-          },
         ],
       },
     }),
