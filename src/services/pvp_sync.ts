@@ -207,6 +207,7 @@ export async function saveMove(args: {
   prevState: GameState
   state: GameState
   userId: string
+  opponentId?: string
 }): Promise<void> {
   const ply = Number(args.moveNumber)
   if (!Number.isFinite(ply)) {
@@ -250,6 +251,22 @@ export async function saveMove(args: {
     .eq("id", args.gameId)
 
   if (gameError) throw new Error(`Failed to update game: ${gameError.message}`)
+
+  // Notify opponent it's their turn
+  if (args.opponentId) {
+    try {
+      await supabase.functions.invoke("send-push", {
+        body: {
+          user_id: args.opponentId,
+          title: "Your turn — Vekke",
+          body: `${args.player === "W" ? "Wake" : "Brake"} has moved. Your move.`,
+          url: `/mygames`,
+        },
+      })
+    } catch {
+      // Non-fatal — don't block the move save if push fails
+    }
+  }
 }
 
 /**

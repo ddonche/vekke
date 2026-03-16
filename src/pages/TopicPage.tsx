@@ -201,10 +201,10 @@ export function TopicPage() {
     setSubmitting(true); setReplyError(null)
     const { error } = await supabase.from("forum_replies").insert({
       topic_id: topicId, author_id: userId,
-      body: replyBody.trim(), images: replyImagesRef.current,
+      body: replyBody.trim(), images: replyImages,
     })
-    if (error) { setReplyError("Failed to post. Please try again."); setSubmitting(false); return }
-    setReplyBody(""); setReplyImages([]); replyImagesRef.current = []; setSubmitting(false); loadData()
+    if (error) { console.error("Insert error:", error); setReplyError("Failed to post: " + error.message); setSubmitting(false); return }
+    setReplyBody(""); setReplyImages([]); setSubmitting(false); loadData()
   }
 
   async function handlePin() {
@@ -382,7 +382,7 @@ export function TopicPage() {
                   <ForumImageUploader
                     userId={userId}
                     images={replyImages}
-                    onChange={(urls) => { replyImagesRef.current = urls; setReplyImages(urls) }}
+                    onChange={(urls) => setReplyImages(urls)}
                   />
                   {replyError && <p style={{ color: "#ee484c", fontFamily: "'EB Garamond', serif", fontSize: 14, margin: "8px 0 0" }}>{replyError}</p>}
                   <div style={{ marginTop: 12 }}>

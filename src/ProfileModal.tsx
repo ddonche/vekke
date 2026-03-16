@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { supabase } from "./services/supabase"
 import { resizeImage } from "./imageUtils"
+import { usePushNotifications } from "./hooks/usePushNotifications"
 
 type ProfileModalProps = {
   userId: string
@@ -265,6 +266,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const { permission, subscribed, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications()
 
   const [isNarrow, setIsNarrow] = useState(false)
 
@@ -723,6 +725,42 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Push Notifications */}
+          {typeof Notification !== "undefined" && (
+            <div style={{ ...S.field, marginBottom: 22 }}>
+              <label style={S.label}>Notifications</label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 6, border: "1px solid rgba(184,150,106,0.2)", background: "#13131a" }}>
+                <span style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.0rem", color: "#e8e4d8" }}>
+                  {subscribed ? "Push notifications enabled" : "Get notified when someone wants to play you, when it's your turn, etc."}
+                </span>
+                <button
+                  type="button"
+                  onClick={subscribed ? unsubscribe : subscribe}
+                  disabled={pushLoading || permission === "denied"}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: 5,
+                    border: "1px solid rgba(184,150,106,0.4)",
+                    background: subscribed ? "rgba(239,68,68,0.12)" : "rgba(93,232,247,0.1)",
+                    color: subscribed ? "#ef4444" : "#5de8f7",
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.1em",
+                    cursor: pushLoading || permission === "denied" ? "not-allowed" : "pointer",
+                    opacity: pushLoading ? 0.6 : 1,
+                  }}
+                >
+                  {pushLoading ? "…" : subscribed ? "Disable" : "Enable"}
+                </button>
+              </div>
+              {permission === "denied" && (
+                <div style={{ ...S.hint, color: "#ef4444", marginTop: 8 }}>
+                  Notifications blocked in browser settings. Enable them there first.
+                </div>
+              )}
             </div>
           )}
 

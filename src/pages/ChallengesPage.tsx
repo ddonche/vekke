@@ -237,7 +237,12 @@ export function ChallengesPage() {
 
   async function getAccessTokenOrRedirect(returnTo: string): Promise<string | null> {
     const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token ?? null
+    let token = data.session?.access_token ?? null
+    // If token is near expiry or missing, refresh it
+    if (!token || (data.session?.expires_at && data.session.expires_at * 1000 < Date.now() + 60_000)) {
+      const { data: refreshed } = await supabase.auth.refreshSession()
+      token = refreshed.session?.access_token ?? null
+    }
     if (!token) {
       const rt = encodeURIComponent(returnTo)
       window.location.assign(`/?openAuth=1&returnTo=${rt}`)

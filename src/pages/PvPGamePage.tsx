@@ -33,6 +33,7 @@ export function PvPGamePage() {
   const [mySide, setMySide] = useState<Player | null>(null)
   const [opponentName, setOpponentName] = useState<string>("Opponent")
   const lastSyncedStateRef = useRef<string | null>(null)
+  const opponentIdRef = useRef<string | null>(null)
 
   // Load game data on mount
   useEffect(() => {
@@ -80,6 +81,7 @@ export function PvPGamePage() {
         if (!mounted) return
 
         setMySide(side)
+        opponentIdRef.current = opponentId
         setGameData(game)
         if (oppProfile?.username) setOpponentName(oppProfile.username)
         setLoading(false)
@@ -121,6 +123,21 @@ export function PvPGamePage() {
           currentState: state,
           expectedTurn: mySide, // <- critical: prevents out-of-turn overwrites
         })
+
+        if (opponentIdRef.current && !state.gameOver) {
+          try {
+            await supabase.functions.invoke("send-push", {
+              body: {
+                user_id: opponentIdRef.current,
+                title: "Your turn — Vekke",
+                body: `${mySide === "W" ? "Wake" : "Brake"} has moved. Your move.`,
+                url: "/mygames",
+              },
+            })
+          } catch {
+            // Non-fatal
+          }
+        }
 
         // If game is over, call endGame
         if (state.gameOver) {

@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     const initialState = updated.initial_state
     if (!initialState) return json(500, { error: "Invite missing initial_state" })
 
-    // Prevent duplicate active games between these two players
+    // Check for existing active game between these two players
     const { data: existing, error: dupErr } = await admin
       .from("games")
       .select("id")
@@ -115,7 +115,6 @@ Deno.serve(async (req) => {
 
     if (dupErr) return json(500, { error: dupErr.message })
     if (existing) {
-      // Return the existing game rather than creating a duplicate
       const now = new Date().toISOString()
       await admin
         .from("game_invites")
@@ -124,13 +123,10 @@ Deno.serve(async (req) => {
       return json(200, { status: "accepted", gameId: existing.id })
     }
 
-    const wakeId = inviterId
-    const brakeId = inviteeId
-
     const gameInsert: Record<string, any> = {
       created_by: inviterId,
-      wake_id: wakeId,
-      brake_id: brakeId,
+      wake_id: inviterId,
+      brake_id: inviteeId,
       format: updated.time_control ?? "daily",
       status: "active",
       turn: "B",
