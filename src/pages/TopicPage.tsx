@@ -47,6 +47,7 @@ interface Topic {
   upvote_count: number
   created_at: string
   updated_at: string | null
+  mod_note: string | null
   author: PostAuthor
   author_stats: PostStats | null
 }
@@ -59,6 +60,7 @@ interface Reply {
   upvote_count: number
   created_at: string
   updated_at: string | null
+  mod_note: string | null
   author: PostAuthor
   author_stats: PostStats | null
 }
@@ -70,6 +72,7 @@ export function TopicPage() {
 
   const [userId, setUserId] = useState<string | null>(null)
   const [me, setMe] = useState<{ username: string; avatar_url: string | null } | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [topic, setTopic] = useState<Topic | null>(null)
   const [replies, setReplies] = useState<Reply[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,8 +82,10 @@ export function TopicPage() {
   const [submitting, setSubmitting] = useState(false)
   const [replyError, setReplyError] = useState<string | null>(null)
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set())
+  const [showMoveSelect, setShowMoveSelect] = useState(false)
+  const [allCategories, setAllCategories] = useState<{ id: number; name: string; slug: string }[]>([])
 
-  const isAdmin = userId === ADMIN_USER_ID
+  const isMod = role === 'admin' || role === 'mod'
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -89,10 +94,13 @@ export function TopicPage() {
       setUserId(uid)
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, avatar_url")
+        .select("username, avatar_url, role")
         .eq("id", uid)
         .single()
-      if (profile) setMe(profile as any)
+      if (profile) {
+        setMe(profile as any)
+        setRole((profile as any).role ?? null)
+      }
     })
   }, [])
 
@@ -105,7 +113,7 @@ export function TopicPage() {
         .from("forum_topics")
         .select(`
           id, category_id, author_id, title, body, images, is_pinned, is_locked,
-          reply_count, upvote_count, created_at, updated_at,
+          reply_count, upvote_count, created_at, updated_at, mod_note,
           author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("id", topicId)
@@ -113,7 +121,7 @@ export function TopicPage() {
       supabase
         .from("forum_replies")
         .select(`
-          id, author_id, body, images, upvote_count, created_at, updated_at,
+          id, author_id, body, images, upvote_count, created_at, updated_at, mod_note,
           author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
         `)
         .eq("topic_id", topicId)
@@ -242,11 +250,27 @@ export function TopicPage() {
       body: replyBody.trim(), images: replyImages,
     })
     if (error) { console.error("Insert error:", error); setReplyError("Failed to post: " + error.message); setSubmitting(false); return }
+    await supabase.from("forum_topics").update({ last_reply_at: new Date().toISOString(), reply_count: (topic?.reply_count ?? 0) + 1 }).eq("id", topicId)
     setReplyBody(""); setReplyImages([]); setSubmitting(false); loadData()
   }
 
-  async function handlePin() {
+  async function openMove() {
+    if (allCategories.length === 0) {
+      const { data } = await supabase.from("forum_categories").select("id, name, slug").order("display_order", { ascending: true })
+      setAllCategories((data as any[]) ?? [])
+    }
+    setShowMoveSelect(true)
+  }
+
+  async function handleMove(newCategoryId: number) {
     if (!topic) return
+    const newCat = allCategories.find(c => c.id === newCategoryId)
+    await supabase.from("forum_topics").update({ category_id: newCategoryId }).eq("id", topic.id)
+    setShowMoveSelect(false)
+    if (newCat) navigate(`/forum/${newCat.slug}/${topic.id}`)
+  }
+
+  async function handlePin() {
     await supabase.from("forum_topics").update({ is_pinned: !topic.is_pinned }).eq("id", topic.id)
     loadData()
   }
@@ -266,18 +290,19 @@ export function TopicPage() {
   async function handleDeleteReply(reply: Reply) {
     if (!window.confirm("Delete this reply?")) return
     await supabase.from("forum_replies").update({ is_deleted: true }).eq("id", reply.id)
+    await supabase.from("forum_topics").update({ reply_count: Math.max(0, (topic?.reply_count ?? 1) - 1) }).eq("id", topicId)
     loadData()
   }
 
-  async function handleEditTopic(newBody: string, newImages: string[]) {
+  async function handleEditTopic(newBody: string, newImages: string[], newModNote: string | null) {
     console.log("[handleEditTopic] called, body:", newBody.slice(0, 20), "images:", newImages)
     if (!topic) return
-    await supabase.from("forum_topics").update({ body: newBody, images: newImages }).eq("id", topic.id)
+    await supabase.from("forum_topics").update({ body: newBody, images: newImages, mod_note: newModNote }).eq("id", topic.id)
     loadData()
   }
 
-  async function handleEditReply(replyId: string, newBody: string, newImages: string[]) {
-    await supabase.from("forum_replies").update({ body: newBody, images: newImages }).eq("id", replyId)
+  async function handleEditReply(replyId: string, newBody: string, newImages: string[], newModNote: string | null) {
+    await supabase.from("forum_replies").update({ body: newBody, images: newImages, mod_note: newModNote }).eq("id", replyId)
     loadData()
   }
 
@@ -338,7 +363,7 @@ export function TopicPage() {
               {/* Title + badges */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
-                  <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 20, fontWeight: 700, color: "#e8e4d8", letterSpacing: "0.06em", margin: 0, flex: 1 }}>
+                  <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 26, fontWeight: 700, color: "#9c9581", letterSpacing: "0.06em", margin: 0, flex: 1 }}>
                     {topic.title}
                   </h1>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0, paddingTop: 4 }}>
@@ -346,11 +371,32 @@ export function TopicPage() {
                     {topic.is_locked && <Badge label="Locked" color="#b8966a" />}
                   </div>
                 </div>
-                {isAdmin && (
-                  <div style={{ display: "flex", gap: 8 }}>
+                {isMod && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <ModBtn onClick={handlePin} label={topic.is_pinned ? "Unpin" : "Pin"} color="#5de8f7" />
                     <ModBtn onClick={handleLock} label={topic.is_locked ? "Unlock" : "Lock"} color="#b8966a" />
                     <ModBtn onClick={handleDeleteTopic} label="Delete Topic" color="#ee484c" />
+                    {showMoveSelect ? (
+                      <select
+                        autoFocus
+                        defaultValue=""
+                        onChange={(e) => { if (e.target.value) handleMove(Number(e.target.value)) }}
+                        onBlur={() => setShowMoveSelect(false)}
+                        style={{
+                          fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+                          letterSpacing: "0.08em", background: "#13131a",
+                          border: "1px solid rgba(93,232,247,0.35)", color: "#5de8f7",
+                          borderRadius: 3, padding: "4px 8px", cursor: "pointer", outline: "none",
+                        }}
+                      >
+                        <option value="" disabled>Move to…</option>
+                        {allCategories.filter(c => c.slug !== categorySlug).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <ModBtn onClick={openMove} label="Move" color="#5de8f7" />
+                    )}
                   </div>
                 )}
                 <div style={{ height: 1, background: `${categoryColor}40`, marginTop: 14 }} />
@@ -370,8 +416,10 @@ export function TopicPage() {
                 upvoted={upvotedIds.has(topic.id)}
                 canUpvote={!!userId && userId !== topic.author_id}
                 onUpvote={() => handleUpvote("topic", topic.id)}
-                canEdit={!!userId && (userId === topic.author_id || isAdmin)}
-                onSaveEdit={(body, images) => handleEditTopic(body, images)}
+                canEdit={!!userId && (userId === topic.author_id || isMod)}
+                onSaveEdit={(body, images, modNote) => handleEditTopic(body, images, modNote)}
+                modNote={topic.mod_note}
+                isMod={isMod}
                 isFirst
               />
 
@@ -395,10 +443,12 @@ export function TopicPage() {
                     upvoted={upvotedIds.has(reply.id)}
                     canUpvote={!!userId && userId !== reply.author_id}
                     onUpvote={() => handleUpvote("reply", reply.id)}
-                    canEdit={!!userId && (userId === reply.author_id || isAdmin)}
-                    onSaveEdit={(body, images) => handleEditReply(reply.id, body, images)}
-                    canDelete={isAdmin || userId === reply.author_id}
+                    canEdit={!!userId && (userId === reply.author_id || isMod)}
+                    onSaveEdit={(body, images, modNote) => handleEditReply(reply.id, body, images, modNote)}
+                    canDelete={isMod || userId === reply.author_id}
                     onDelete={() => handleDeleteReply(reply)}
+                    modNote={reply.mod_note}
+                    isMod={isMod}
                   />
                 )
               })}
@@ -467,10 +517,11 @@ export function TopicPage() {
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  userId, author, peakElo, body, images, createdAt, updatedAt,
+  userId, authorId, author, peakElo, body, images, createdAt, updatedAt,
   upvoteCount, upvoted, canUpvote, onUpvote,
   canEdit, onSaveEdit,
   canDelete, onDelete, isFirst,
+  modNote, isMod,
 }: {
   userId?: string | null
   authorId: string
@@ -485,15 +536,18 @@ function PostCard({
   canUpvote: boolean
   onUpvote: () => void
   canEdit?: boolean
-  onSaveEdit?: (body: string, images: string[]) => void
+  onSaveEdit?: (body: string, images: string[], modNote: string | null) => void
   canDelete?: boolean
   onDelete?: () => void
   isFirst?: boolean
+  modNote?: string | null
+  isMod?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(body)
   const [editImages, setEditImages] = useState<string[]>(images)
   const editImagesRef = React.useRef<string[]>(images)
+  const [editModNote, setEditModNote] = useState(modNote ?? "")
   const [saving, setSaving] = useState(false)
 
   // Sync local edit state if parent refreshes the post
@@ -502,14 +556,15 @@ function PostCard({
       setEditBody(body)
       setEditImages(images)
       editImagesRef.current = images
+      setEditModNote(modNote ?? "")
     }
-  }, [body, images, editing])
+  }, [body, images, modNote, editing])
 
   async function handleSave() {
     console.log("[PostCard.handleSave] called, body:", editBody.trim().slice(0, 20), "images:", editImagesRef.current, "onSaveEdit:", !!onSaveEdit)
     if (!editBody.trim() || !onSaveEdit) return
     setSaving(true)
-    await onSaveEdit(editBody.trim(), editImagesRef.current)
+    await onSaveEdit(editBody.trim(), editImagesRef.current, editModNote.trim() || null)
     setSaving(false)
     setEditing(false)
   }
@@ -518,6 +573,7 @@ function PostCard({
     setEditBody(body)
     setEditImages(images)
     editImagesRef.current = images
+    setEditModNote(modNote ?? "")
     setEditing(false)
   }
 
@@ -536,7 +592,7 @@ function PostCard({
           <PostAvatar username={author.username} avatarUrl={author.avatar_url} size={36} />
         </a>
         <a href={`/u/${author.username}`} style={{ textDecoration: "none" }}>
-          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 700, color: "#d4af7a", letterSpacing: "0.04em", cursor: "pointer" }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 18, fontWeight: 700, color: "#d4af7a", letterSpacing: "0.04em", cursor: "pointer" }}>
             {author.username}
           </span>
         </a>
@@ -550,7 +606,7 @@ function PostCard({
         )}
         <OrderIcon url={author.order_icon_url} alt="Order" size={24} />
         {peakElo !== null && (
-          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: 16, fontWeight: 700, color: eloColor(peakElo), letterSpacing: "0.04em" }} title={eloTitle(peakElo)}>
             {peakElo}
           </span>
         )}
@@ -561,7 +617,7 @@ function PostCard({
             border: "1px solid rgba(212,175,122,0.35)",
             background: "rgba(212,175,122,0.08)",
             color: "#d4af7a", fontFamily: "'Cinzel', serif",
-            fontSize: 10, letterSpacing: "0.18em",
+            fontSize: 12, letterSpacing: "0.18em",
             textTransform: "uppercase" as const, fontWeight: 700, whiteSpace: "nowrap",
           }}>
             <span style={{ width: 6, height: 6, borderRadius: 999, background: "#d4af7a", boxShadow: "0 0 0 2px rgba(212,175,122,0.14)", flexShrink: 0 }} />
@@ -569,11 +625,11 @@ function PostCard({
           </span>
         )}
         <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-          <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555" }}>
+          <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 16, color: "#555" }}>
             {timeAgo(createdAt)}
           </span>
           {updatedAt && updatedAt !== createdAt && (
-            <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 12, color: "#3a3830", fontStyle: "italic" }}>
+            <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#3a3830", fontStyle: "italic" }}>
               edited {timeAgo(updatedAt)}
             </span>
           )}
@@ -596,6 +652,29 @@ function PostCard({
               onChange={(urls) => { editImagesRef.current = urls; setEditImages(urls) }}
             />
           )}
+          {isMod && userId !== authorId && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{
+                fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.18em", textTransform: "uppercase",
+                color: "#5de8f7", marginBottom: 5, opacity: 0.7,
+              }}>
+                Mod Note (optional)
+              </div>
+              <input
+                type="text"
+                value={editModNote}
+                onChange={(e) => setEditModNote(e.target.value)}
+                placeholder="e.g. Moved to Site Help"
+                style={{
+                  width: "100%", background: "#0d0d14",
+                  border: "1px solid rgba(93,232,247,0.25)", borderRadius: 4,
+                  color: "#e8e4d8", fontFamily: "'EB Garamond', serif",
+                  fontSize: 16, padding: "8px 12px", outline: "none", boxSizing: "border-box",
+                }}
+              />
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <button
               onClick={handleSave}
@@ -610,8 +689,8 @@ function PostCard({
       ) : (
         <>
           <div style={{
-            fontFamily: "'EB Garamond', serif", fontSize: 18, lineHeight: 1.75,
-            color: "#ccc8bc", whiteSpace: "pre-wrap", wordBreak: "break-word",
+            fontFamily: "'EB Garamond', serif", fontSize: 22, lineHeight: 1.75,
+            color: "#9c9581", whiteSpace: "pre-wrap", wordBreak: "break-word",
             marginBottom: images.length > 0 ? 10 : 16,
           }}>
             {linkify(body)}
@@ -625,7 +704,7 @@ function PostCard({
         <div style={{ marginTop: 14, marginBottom: 6 }}>
           <div style={{ height: 1, background: "rgba(184,150,106,0.12)", marginBottom: 10 }} />
           <div style={{
-            fontFamily: "'EB Garamond', serif", fontSize: 15,
+            fontFamily: "'EB Garamond', serif", fontSize: 18,
             fontStyle: "italic", color: "rgba(212,175,122,0.55)",
             letterSpacing: "0.01em",
           }}>
@@ -639,7 +718,7 @@ function PostCard({
         <UpvoteButton count={upvoteCount} upvoted={upvoted} disabled={!canUpvote} onClick={onUpvote} />
         {canEdit && !editing && (
           <button onClick={() => setEditing(true)} style={{
-            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+            fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700,
             letterSpacing: "0.08em", textTransform: "uppercase" as const,
             background: "transparent", border: "1px solid rgba(184,150,106,0.25)",
             color: "#b8966a", borderRadius: 3, padding: "4px 10px", cursor: "pointer",
@@ -649,13 +728,29 @@ function PostCard({
         )}
         {canDelete && onDelete && !editing && (
           <button onClick={onDelete} style={{
-            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+            fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700,
             letterSpacing: "0.08em", textTransform: "uppercase" as const,
             background: "transparent", border: "1px solid rgba(238,72,76,0.25)",
             color: "#ee484c", borderRadius: 3, padding: "4px 10px", cursor: "pointer",
           }}>
             Delete
           </button>
+        )}
+        {!editing && modNote && (
+          <span style={{ marginLeft: "auto" }}>
+            <span style={{
+              fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700,
+              letterSpacing: "0.18em", textTransform: "uppercase", color: "#5de8f7", opacity: 0.7,
+            }}>
+              Mod Note:{" "}
+            </span>
+            <span style={{
+              fontFamily: "'EB Garamond', serif", fontSize: 16,
+              fontStyle: "italic", color: "#5de8f7", opacity: 0.6,
+            }}>
+              {modNote}
+            </span>
+          </span>
         )}
       </div>
     </div>
@@ -676,9 +771,9 @@ function UpvoteButton({ count, upvoted, disabled, onClick }: { count: number; up
       }}
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill={upvoted ? "#5de8f7" : "#888"}>
-        <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM441 335C450.4 344.4 450.4 359.6 441 368.9C431.6 378.2 416.4 378.3 407.1 368.9L320.1 281.9L233.1 368.9C223.7 378.3 208.5 378.3 199.2 368.9C189.9 359.5 189.8 344.3 199.2 335L303 231C312.4 221.6 327.6 221.6 336.9 231L441 335z"/>
+        <path d="M305 151.1L320 171.8L335 151.1C360 116.5 400.2 96 442.9 96C516.4 96 576 155.6 576 229.1L576 231.7C576 343.9 436.1 474.2 363.1 529.9C350.7 539.3 335.5 544 320 544C304.5 544 289.2 539.4 276.9 529.9C203.9 474.2 64 343.9 64 231.7L64 229.1C64 155.6 123.6 96 197.1 96C239.8 96 280 116.5 305 151.1z"/>
       </svg>
-      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 700, color: upvoted ? "#5de8f7" : "#888" }}>
+      <span style={{ fontFamily: "'Cinzel', serif", fontSize: 16, fontWeight: 700, color: upvoted ? "#5de8f7" : "#888" }}>
         {count}
       </span>
     </button>

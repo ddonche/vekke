@@ -95,8 +95,6 @@ export function ForumPage() {
         category:forum_categories!category_id(id, name, slug, color)
       `)
       .eq("is_deleted", false)
-      .order("last_reply_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
       .limit(60)
 
     // 3. Category topic counts (separate lightweight query)
@@ -162,6 +160,10 @@ export function ForumPage() {
         latest_is_reply: !!latestReply,
       }
     })
+
+    entries.sort((a, b) =>
+      new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime()
+    )
 
     setFeed(entries)
     setLoading(false)
@@ -282,65 +284,61 @@ export function ForumPage() {
                     <div style={{ width: 4, alignSelf: "stretch", background: entry.category_color, opacity: 0.7, flexShrink: 0 }} />
 
                     {/* Main content */}
-                    <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 11px" }}>
+                    <div style={{ flex: 1, minWidth: 0, padding: "16px 18px 14px" }}>
                       {/* Title */}
                       <div style={{
-                        fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 700,
-                        color: "#e8e4d8", letterSpacing: "0.03em",
+                        fontFamily: "'EB Garamond', serif", fontSize: 22, fontWeight: 500,
+                        color: "#9c9581", letterSpacing: "0.03em",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        marginBottom: 7,
+                        marginBottom: 9,
                       }}>
                         {entry.topic_title}
                       </div>
                       {/* Meta row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         {/* OP author */}
                         <MiniAvatar username={entry.author_username ?? "?"} avatarUrl={entry.author_avatar} />
-                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: "#b8966a", fontWeight: 600 }}>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 16, color: "#b8966a", fontWeight: 600 }}>
                           {entry.author_username ?? "Unknown"}
                         </span>
-                        <span style={{ color: "#3a3830", fontSize: 13 }}>·</span>
+                        <span style={{ color: "#3a3830", fontSize: 16 }}>·</span>
                         {/* Category pill */}
                         <CategoryPill name={entry.category_name} color={entry.category_color} />
-                        <span style={{ color: "#3a3830", fontSize: 13 }}>·</span>
                         {/* Latest reply info */}
                         {entry.latest_is_reply ? (
-                          <>
-                            <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#555", fontStyle: "italic" }}>
-                              last reply by
+                          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 16, color: "#4a4540" }}>
+                              last reply {timeAgo(entry.last_activity_at)}
                             </span>
                             <MiniAvatar username={entry.latest_username ?? "?"} avatarUrl={entry.latest_avatar} />
-                            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 12, color: "#7a7060", fontWeight: 600 }}>
-                              {entry.latest_username ?? "Unknown"}
-                            </span>
-                            <span style={{ color: "#3a3830", fontSize: 13 }}>·</span>
-                          </>
-                        ) : null}
-                        <span style={{ fontFamily: "'EB Garamond', serif", fontSize: 14, color: "#4a4540" }}>
-                          {timeAgo(entry.last_activity_at)}
-                        </span>
+                          </div>
+                        ) : (
+                          <span style={{ marginLeft: "auto", fontFamily: "'EB Garamond', serif", fontSize: 16, color: "#4a4540", flexShrink: 0 }}>
+                            {timeAgo(entry.last_activity_at)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     {/* Stats */}
                     <div style={{
                       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                      gap: 6, padding: "12px 16px", flexShrink: 0,
+                      gap: 8, padding: "14px 20px", flexShrink: 0,
                       borderLeft: "1px solid rgba(255,255,255,0.05)",
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="13" height="13" fill="#555">
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" fill="#555">
                           <path d="M576 304C576 436.5 461.4 544 320 544C282.9 544 247.7 536.6 215.9 523.3L97.5 574.1C88.1 578.1 77.3 575.8 70.4 568.3C63.5 560.8 62 549.8 66.8 540.8L115.6 448.6C83.2 408.3 64 358.3 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304z"/>
                         </svg>
-                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: entry.reply_count > 0 ? "#888" : "#3a3830", fontWeight: 600 }}>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 17, color: entry.reply_count > 0 ? "#888" : "#3a3830", fontWeight: 600 }}>
                           {entry.reply_count}
                         </span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="13" height="13" fill="#555">
-                          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM441 335C450.4 344.4 450.4 359.6 441 368.9C431.6 378.2 416.4 378.3 407.1 368.9L320.1 281.9L233.1 368.9C223.7 378.3 208.5 378.3 199.2 368.9C189.9 359.5 189.8 344.3 199.2 335L303 231C312.4 221.6 327.6 221.6 336.9 231L441 335z"/>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" fill="#555">
+                          <path d="M305 151.1L320 171.8L335 151.1C360 116.5 400.2 96 442.9 96C516.4 96 576 155.6 576 229.1L576 231.7C576 343.9 436.1 474.2 363.1 529.9C350.7 539.3 335.5 544 320 544C304.5 544 289.2 539.4 276.9 529.9C203.9 474.2 64 343.9 64 231.7L64 229.1C64 155.6 123.6 96 197.1 96C239.8 96 280 116.5 305 151.1z"/>
                         </svg>
-                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 13, color: entry.upvote_count > 0 ? "#888" : "#3a3830", fontWeight: 600 }}>
+                        <span style={{ fontFamily: "'Cinzel', serif", fontSize: 17, color: entry.upvote_count > 0 ? "#888" : "#3a3830", fontWeight: 600 }}>
                           {entry.upvote_count}
                         </span>
                       </div>
@@ -362,7 +360,7 @@ export function ForumPage() {
               <div style={{
                 padding: "11px 14px 10px",
                 borderBottom: "1px solid rgba(184,150,106,0.1)",
-                fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700,
+                fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 700,
                 letterSpacing: "0.26em", textTransform: "uppercase", color: "#6b6558",
               }}>
                 Categories
@@ -375,7 +373,7 @@ export function ForumPage() {
                     {/* Section label (only if more than one section) */}
                     {sectionKeys.length > 1 && (
                       <div style={{
-                        fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 700,
+                        fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
                         letterSpacing: "0.22em", textTransform: "uppercase",
                         color: "#3a3830", padding: "8px 6px 4px",
                         marginTop: si > 0 ? 4 : 0,
@@ -392,10 +390,10 @@ export function ForumPage() {
                           onClick={() => navigate(`/forum/${cat.slug}`)}
                         >
                           {/* Color dot */}
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: cat.color, flexShrink: 0, opacity: 0.8 }} />
+                          <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color, flexShrink: 0, opacity: 0.8 }} />
                           {/* Name */}
                           <span style={{
-                            fontFamily: "'EB Garamond', serif", fontSize: 15,
+                            fontFamily: "'EB Garamond', serif", fontSize: 17,
                             color: "#b0aa9e", flex: 1, textAlign: "left",
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}>
@@ -403,7 +401,7 @@ export function ForumPage() {
                           </span>
                           {/* Count */}
                           <span style={{
-                            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+                            fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700,
                             color: count > 0 ? "#4a4540" : "#2a2820",
                           }}>
                             {count}
@@ -428,14 +426,14 @@ export function ForumPage() {
 function CategoryPill({ name, color }: { name: string; color: string }) {
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "2px 7px", borderRadius: 999,
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "3px 10px", borderRadius: 999,
       border: `1px solid ${color}30`,
       background: `${color}12`,
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0, opacity: 0.85 }} />
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0, opacity: 0.85 }} />
       <span style={{
-        fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 700,
+        fontFamily: "'Cinzel', serif", fontSize: 13, fontWeight: 700,
         letterSpacing: "0.1em", textTransform: "uppercase", color,
         opacity: 0.85, whiteSpace: "nowrap",
       }}>
@@ -448,10 +446,10 @@ function CategoryPill({ name, color }: { name: string; color: string }) {
 function MiniAvatar({ username, avatarUrl }: { username: string; avatarUrl?: string | null }) {
   return (
     <div style={{
-      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+      width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
       background: "#13131a", border: "1px solid rgba(184,150,106,0.2)",
       display: "grid", placeItems: "center",
-      fontSize: 9, fontWeight: 800, color: "#e8e4d8", overflow: "hidden",
+      fontSize: 11, fontWeight: 800, color: "#e8e4d8", overflow: "hidden",
     }}>
       {avatarUrl
         ? <img src={avatarUrl} alt={username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />

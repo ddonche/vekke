@@ -52,6 +52,7 @@ interface Topic {
   author_id: string
   author: TopicAuthor
   author_stats: TopicStats | null
+  last_replier_avatar: string | null
 }
 
 export function CategoryPage() {
@@ -76,8 +77,13 @@ export function CategoryPage() {
   }
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [movingTopicId, setMovingTopicId] = useState<string | null>(null)
+  const [allCategories, setAllCategories] = useState<Category[]>([])
+  const [role, setRole] = useState<string | null>(null)
 
-  const isAdmin = userId === ADMIN_USER_ID
+  const isMod = role === 'admin' || role === 'mod'
+
+  
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -86,10 +92,13 @@ export function CategoryPage() {
       setUserId(uid)
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, avatar_url")
+        .select("username, avatar_url, role")
         .eq("id", uid)
         .single()
-      if (profile) setMe(profile as any)
+      if (profile) {
+        setMe(profile as any)
+        setRole((profile as any).role ?? null)
+      }
     })
   }, [])
 
@@ -112,8 +121,6 @@ export function CategoryPage() {
       `)
       .eq("category_id", cat.id)
       .order("is_pinned", { ascending: false })
-      .order("last_reply_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
 
     if (!topicData) { setLoading(false); return }
 
@@ -139,10 +146,42 @@ export function CategoryPage() {
       else if (row.format === "daily")    entry.elo_daily   = row.elo ?? 0
     }
 
-    setTopics((topicData as any[]).map((t: any) => ({
+    const mapped = (topicData as any[]).map((t: any) => ({
       ...t,
       author_stats: statsMap.get(t.author_id) ?? null,
-    })) as unknown as Topic[])
+      last_replier_avatar: null,
+    })) as unknown as Topic[]
+
+    // Fetch latest reply author avatar per topic
+    const topicIds = mapped.map(t => t.id)
+    if (topicIds.length > 0) {
+      const { data: replyData } = await supabase
+        .from("forum_replies")
+        .select("topic_id, created_at, author:profiles!author_id(avatar_url)")
+        .in("topic_id", topicIds)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(200)
+
+      const latestAvatarMap = new Map<string, string | null>()
+      for (const r of (replyData ?? []) as any[]) {
+        if (!latestAvatarMap.has(r.topic_id)) {
+          latestAvatarMap.set(r.topic_id, r.author?.avatar_url ?? null)
+        }
+      }
+      for (const t of mapped) {
+        t.last_replier_avatar = latestAvatarMap.get(t.id) ?? null
+      }
+    }
+
+    mapped.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+      const aTime = new Date(a.last_reply_at ?? a.created_at).getTime()
+      const bTime = new Date(b.last_reply_at ?? b.created_at).getTime()
+      return bTime - aTime
+    })
+
+    setTopics(mapped)
     setLoading(false)
   }, [categorySlug])
 
@@ -163,6 +202,20 @@ export function CategoryPage() {
     setNewTitle(""); setNewBody(""); updateNewImages([]); setShowForm(false)
     setSubmitting(false)
     loadTopics()
+  }
+
+  async function handleMove(topic: Topic, newCategoryId: number) {
+    await supabase.from("forum_topics").update({ category_id: newCategoryId }).eq("id", topic.id)
+    setMovingTopicId(null)
+    loadTopics()
+  }
+
+  async function openMove(topic: Topic) {
+    if (allCategories.length === 0) {
+      const { data } = await supabase.from("forum_categories").select("*").order("display_order", { ascending: true })
+      setAllCategories((data as Category[]) ?? [])
+    }
+    setMovingTopicId(topic.id)
   }
 
   async function handlePin(topic: Topic) {
@@ -313,9 +366,9 @@ export function CategoryPage() {
                     <button
                       onClick={() => navigate(`/forum/${categorySlug}/${topic.id}`)}
                       style={{
-                        display: "flex", flexDirection: "column", gap: 6,
+                        display: "flex", flexDirection: "column", gap: 8,
                         width: "100%", textAlign: "left", background: "transparent",
-                        border: "none", padding: "11px 14px", cursor: "pointer", color: "inherit",
+                        border: "none", padding: "14px 16px", cursor: "pointer", color: "inherit",
                       }}
                     >
                       {/* ── Row 1: title + pin/lock + stats ── */}
@@ -323,12 +376,12 @@ export function CategoryPage() {
 
                         {/* Pin / lock icons — inline, only when set */}
                         {topic.is_pinned && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="#5de8f7" flexShrink="0" title="Pinned">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#5de8f7" style={{ flexShrink: 0 }} title="Pinned">
                             <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
                           </svg>
                         )}
                         {topic.is_locked && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" title="Locked" style={{ flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }} title="Locked">
                             <rect x="3" y="11" width="18" height="11" rx="2" fill="#b8966a" />
                             <path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="#b8966a" strokeWidth="2" />
                           </svg>
@@ -336,8 +389,8 @@ export function CategoryPage() {
 
                         {/* Title — takes all remaining space, truncates */}
                         <span style={{
-                          fontFamily: "'Cinzel', serif", fontSize: 14, fontWeight: 600,
-                          color: "#e8e4d8", letterSpacing: "0.03em",
+                          fontFamily: "'EB Garamond', serif", fontSize: 22, fontWeight: 500,
+                          color: "#9c9581", letterSpacing: "0.03em",
                           flex: 1, minWidth: 0,
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                         }}>
@@ -356,12 +409,12 @@ export function CategoryPage() {
                         display: "flex", alignItems: "center", gap: 6,
                         overflow: "hidden", flexWrap: "nowrap",
                       }}>
-                        <PostAvatar username={topic.author.username} avatarUrl={topic.author.avatar_url} size={18} />
+                        <PostAvatar username={topic.author.username} avatarUrl={topic.author.avatar_url} size={28} />
                         <span style={{
-                          fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 600,
+                          fontFamily: "'Cinzel', serif", fontSize: 16, fontWeight: 600,
                           color: "#b8966a", letterSpacing: "0.03em",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          maxWidth: 120, flexShrink: 1,
+                          maxWidth: 160, flexShrink: 1,
                         }}>
                           {topic.author.username}
                         </span>
@@ -369,7 +422,7 @@ export function CategoryPage() {
                         {topic.author.country_code && (
                           <img
                             src={`https://flagicons.lipis.dev/flags/4x3/${topic.author.country_code.toLowerCase()}.svg`}
-                            width={14} height={10} alt={topic.author.country_code}
+                            width={18} height={14} alt={topic.author.country_code}
                             style={{ borderRadius: 2, flexShrink: 0 }}
                             onError={(e) => { e.currentTarget.style.display = "none" }}
                           />
@@ -377,7 +430,7 @@ export function CategoryPage() {
 
                         {peakElo !== null && (
                           <span style={{
-                            fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+                            fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 700,
                             color: eloColor(peakElo), flexShrink: 0,
                           }} title={eloTitle(peakElo)}>
                             {peakElo}
@@ -386,36 +439,61 @@ export function CategoryPage() {
 
                         {topic.author.account_tier === "pro" && (
                           <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            padding: "1px 6px", borderRadius: 999,
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            padding: "2px 8px", borderRadius: 999,
                             border: "1px solid rgba(212,175,122,0.3)",
                             background: "rgba(212,175,122,0.07)",
                             color: "#d4af7a", fontFamily: "'Cinzel', serif",
-                            fontSize: 9, letterSpacing: "0.16em",
+                            fontSize: 12, letterSpacing: "0.16em",
                             textTransform: "uppercase" as const, fontWeight: 700,
                             whiteSpace: "nowrap", flexShrink: 0,
                           }}>
-                            <span style={{ width: 5, height: 5, borderRadius: 999, background: "#d4af7a", flexShrink: 0 }} />
+                            <span style={{ width: 6, height: 6, borderRadius: 999, background: "#d4af7a", flexShrink: 0 }} />
                             Pro
                           </span>
                         )}
 
-                        <span style={{ color: "#2e2c28", fontSize: 12, flexShrink: 0 }}>·</span>
-                        <span style={{
-                          fontFamily: "'EB Garamond', serif", fontSize: 13,
-                          color: "#4a4540", whiteSpace: "nowrap", flexShrink: 0,
-                        }}>
-                          {timeAgo(activityTime)}
-                        </span>
+                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                          <span style={{
+                            fontFamily: "'EB Garamond', serif", fontSize: 16,
+                            color: "#4a4540", whiteSpace: "nowrap",
+                          }}>
+                            {topic.last_reply_at ? "last reply " : ""}{timeAgo(activityTime)}
+                          </span>
+                          {topic.last_reply_at && (
+                            <PostAvatar username="?" avatarUrl={topic.last_replier_avatar} size={24} />
+                          )}
+                        </div>
                       </div>
                     </button>
 
                     {/* Mod controls */}
-                    {isAdmin && (
-                      <div style={{ display: "flex", gap: 8, padding: "6px 14px 10px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    {isMod && (
+                      <div style={{ display: "flex", gap: 8, padding: "6px 14px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", flexWrap: "wrap", alignItems: "center" }}>
                         <ModBtn onClick={() => handlePin(topic)} label={topic.is_pinned ? "Unpin" : "Pin"} color="#5de8f7" />
                         <ModBtn onClick={() => handleLock(topic)} label={topic.is_locked ? "Unlock" : "Lock"} color="#b8966a" />
                         <ModBtn onClick={() => handleDelete(topic)} label="Delete" color="#ee484c" />
+                        {movingTopicId === topic.id ? (
+                          <select
+                            autoFocus
+                            defaultValue=""
+                            onChange={(e) => { if (e.target.value) handleMove(topic, Number(e.target.value)) }}
+                            onBlur={() => setMovingTopicId(null)}
+                            style={{
+                              fontFamily: "'Cinzel', serif", fontSize: 11, fontWeight: 700,
+                              letterSpacing: "0.08em", background: "#13131a",
+                              border: "1px solid rgba(93,232,247,0.35)", color: "#5de8f7",
+                              borderRadius: 3, padding: "4px 8px", cursor: "pointer", outline: "none",
+                            }}
+                          >
+                            <option value="" disabled>Move to…</option>
+                            {allCategories.filter(c => c.id !== category?.id).map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <ModBtn onClick={() => openMove(topic)} label="Move" color="#5de8f7" />
+                        )}
                       </div>
                     )}
                   </div>
@@ -435,16 +513,16 @@ function MiniStat({ icon, value }: { icon: "reply" | "upvote"; value: number }) 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       {icon === "reply" ? (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="#555">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="17" height="17" fill="#555">
           <path d="M576 304C576 436.5 461.4 544 320 544C282.9 544 247.7 536.6 215.9 523.3L97.5 574.1C88.1 578.1 77.3 575.8 70.4 568.3C63.5 560.8 62 549.8 66.8 540.8L115.6 448.6C83.2 408.3 64 358.3 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304z"/>
         </svg>
       ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="#555">
-          <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM441 335C450.4 344.4 450.4 359.6 441 368.9C431.6 378.2 416.4 378.3 407.1 368.9L320.1 281.9L233.1 368.9C223.7 378.3 208.5 378.3 199.2 368.9C189.9 359.5 189.8 344.3 199.2 335L303 231C312.4 221.6 327.6 221.6 336.9 231L441 335z"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="17" height="17" fill="#555">
+          <path d="M305 151.1L320 171.8L335 151.1C360 116.5 400.2 96 442.9 96C516.4 96 576 155.6 576 229.1L576 231.7C576 343.9 436.1 474.2 363.1 529.9C350.7 539.3 335.5 544 320 544C304.5 544 289.2 539.4 276.9 529.9C203.9 474.2 64 343.9 64 231.7L64 229.1C64 155.6 123.6 96 197.1 96C239.8 96 280 116.5 305 151.1z"/>
         </svg>
       )}
       <span style={{
-        fontFamily: "'Cinzel', serif", fontSize: 12,
+        fontFamily: "'Cinzel', serif", fontSize: 16,
         color: value > 0 ? "#666" : "#333", fontWeight: 600,
       }}>
         {value}
