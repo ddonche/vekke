@@ -110,7 +110,8 @@ export function useVekkeController(opts: {
   onMoveComplete?: (
     state: GameState,
     clocks: { W: number; B: number },
-    vgn?: string
+    vgn?: string,
+    enrichedLogs?: { text: string; step: number }[]
   ) => void
   initialState?: GameState
   /**
@@ -274,7 +275,7 @@ export function useVekkeController(opts: {
     vgnEndedKeyRef.current = null
 
     const rec = new VgnRecorder({
-      gameId: vgnGameIdRef.current,
+      gameId: vgnGameIdRef.current ?? "",
       ruleset: "vekke",
       version: 1,
       whiteId: String(externalGameData.wake_id ?? "W"),
@@ -1051,7 +1052,7 @@ export function useVekkeController(opts: {
         if (g.gameOver) return
 
         update((s) => {
-          s.gameOver = { winner: other(s.player), reason: "Resignation" }
+          s.gameOver = { winner: other(s.player), reason: "resignation" }
         })
       },
 

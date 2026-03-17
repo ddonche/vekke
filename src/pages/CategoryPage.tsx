@@ -42,6 +42,7 @@ interface TopicStats {
 
 interface Topic {
   id: string
+  slug: string
   title: string
   is_pinned: boolean
   is_locked: boolean
@@ -115,7 +116,7 @@ export function CategoryPage() {
     const { data: topicData } = await supabase
       .from("forum_topics")
       .select(`
-        id, title, is_pinned, is_locked, reply_count, upvote_count,
+        id, slug, title, is_pinned, is_locked, reply_count, upvote_count,
         last_reply_at, created_at, author_id,
         author:profiles!author_id(username, avatar_url, country_code, account_tier)
       `)
@@ -191,15 +192,54 @@ export function CategoryPage() {
     if (!newTitle.trim() || !newBody.trim() || !userId || !category) return
     setSubmitting(true)
     setFormError(null)
-    const slug = newTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-      + "-" + Date.now().toString(36)
+
+    const baseSlug = newTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "topic"
+
+    let slug = baseSlug
+    let suffix = 2
+
+    for (;;) {
+      const { data: existing, error: slugCheckError } = await supabase
+        .from("forum_topics")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle()
+
+      if (slugCheckError) {
+        setFormError("Failed to check topic slug. Please try again.")
+        setSubmitting(false)
+        return
+      }
+
+      if (!existing) break
+
+      slug = `${baseSlug}-${suffix}`
+      suffix += 1
+    }
+
     const { error } = await supabase.from("forum_topics").insert({
-      category_id: category.id, author_id: userId,
-      title: newTitle.trim(), slug, body: newBody.trim(),
+      category_id: category.id,
+      author_id: userId,
+      title: newTitle.trim(),
+      slug,
+      body: newBody.trim(),
       images: newImagesRef.current,
     })
-    if (error) { setFormError("Failed to post. Please try again."); setSubmitting(false); return }
-    setNewTitle(""); setNewBody(""); updateNewImages([]); setShowForm(false)
+
+    if (error) {
+      setFormError("Failed to post. Please try again.")
+      setSubmitting(false)
+      return
+    }
+
+    setNewTitle("")
+    setNewBody("")
+    updateNewImages([])
+    setShowForm(false)
     setSubmitting(false)
     loadTopics()
   }
@@ -364,7 +404,7 @@ export function CategoryPage() {
                     }}
                   >
                     <button
-                      onClick={() => navigate(`/forum/${categorySlug}/${topic.id}`)}
+                      onClick={() => navigate(`/forum/${categorySlug}/${topic.slug}`)}
                       style={{
                         display: "flex", flexDirection: "column", gap: 8,
                         width: "100%", textAlign: "left", background: "transparent",

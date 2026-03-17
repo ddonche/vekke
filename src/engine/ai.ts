@@ -427,7 +427,7 @@ function shouldRansom(state: GameState, me: Player, style: AiStyle): boolean {
   return false
 }
 
-function isCaptureMove(state: GameState, me: Player, tokenId: string, routeId: string): boolean {
+function _isCaptureMove(state: GameState, me: Player, tokenId: string, routeId: string): boolean {
   const them = other(me)
   const theirOnBefore = state.tokens.filter((t) => t.in === "BOARD" && t.owner === them).length
   const myCapBefore = state.captives[me]
@@ -533,7 +533,7 @@ function countUsableTokens(state: GameState, p: Player): number {
 }
 
 // Detect if a player will collapse next turn: dead routes > reserves (forced tax drains them out)
-function collapseRisk(state: GameState, p: Player): boolean {
+function _collapseRisk(state: GameState, p: Player): boolean {
   const dead = countDeadRoutesEstimate(state, p)
   const res = state.reserves[p]
   return dead > 0 && res <= dead
@@ -654,7 +654,7 @@ function evalState(state: GameState, me: Player, style: AiStyle): number {
   return score
 }
 
-function simulateAndScore<T>(state: GameState, me: Player, style: AiStyle, mut: (s: GameState) => void): number {
+function simulateAndScore(state: GameState, me: Player, style: AiStyle, mut: (s: GameState) => void): number {
   const c: GameState = structuredClone(state)
   mut(c)
   return evalState(c, me, style)
@@ -1019,7 +1019,7 @@ function enumerateLegalActionMoves(state: GameState, p: Player): ActionMove[] {
   return out
 }
 
-function forcingMoves(state: GameState, me: Player, style: AiStyle): ActionMove[] {
+function forcingMoves(state: GameState, me: Player, _style?: AiStyle): ActionMove[] {
   const moves = enumerateLegalActionMoves(state, me)
   const out: ActionMove[] = []
 
@@ -1054,7 +1054,7 @@ function forcingMoves(state: GameState, me: Player, style: AiStyle): ActionMove[
 }
 
 // Run a deterministic policy until the active player changes (full turn finishes), or game ends.
-function playoutFullTurn(state: GameState, p: Player, level: AiLevel) {
+function _playoutFullTurn(state: GameState, p: Player, level: AiLevel) {
   const hardCap = 256
   let n = 0
   while (!state.gameOver && state.player === p && n < hardCap) {
@@ -1294,7 +1294,7 @@ function searchBudgetMs(level: AiLevel): number {
     : SEARCH_BUDGET_MS_NORMAL[level]
 }
 
-function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player, meStyle: AiStyle, oppLevel: AiLevel, deadline?: number): number {
+function opponentBestResponseMinimizingMe2ply(state: GameState, me: Player, meStyle: AiStyle, _oppLevel: AiLevel, deadline?: number): number {
   if (state.gameOver) return evalState(state, me, meStyle)
   if (deadline && Date.now() > deadline) return evalState(state, me, meStyle)
 
@@ -1359,7 +1359,7 @@ function bestMasterActionMove(state: GameState, me: Player, style: AiStyle): Act
   return best
 }
 
-function meBestResponseMaximizing(state: GameState, me: Player, meStyle: AiStyle, myLevel: AiLevel, deadline?: number): number {
+function meBestResponseMaximizing(state: GameState, me: Player, meStyle: AiStyle, _myLevel: AiLevel, deadline?: number): number {
   if (state.gameOver) return evalState(state, me, meStyle)
   if (state.player !== me) return evalState(state, me, meStyle)
   if (deadline && Date.now() > deadline) return evalState(state, me, meStyle)
@@ -1812,7 +1812,7 @@ function shouldSpeak(level: AiLevel, ev: AiChatEvent): boolean {
 
 type ChatTable = Record<AiChatEvent, string[]>
 
-function pickFromTable(level: AiLevel, table: ChatTable, ev: AiChatEvent, ctx?: AiChatContext): string | null {
+function pickFromTable(level: AiLevel, table: ChatTable, ev: AiChatEvent, _ctx?: AiChatContext): string | null {
   if (!shouldSpeak(level, ev)) return null
   const lines = table[ev]
   if (!lines || lines.length === 0) return null

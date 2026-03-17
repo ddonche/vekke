@@ -85,3 +85,8 @@ entrypoint = "./functions/send-push/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send_email/index.ts"
+
+[functions.create_forum_reply]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create_forum_reply/index.ts"

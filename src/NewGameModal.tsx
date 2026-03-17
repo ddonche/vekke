@@ -1,5 +1,5 @@
 // src/components/NewGameModal.tsx
-import type { TimeControlId } from "../engine/ui_controller"
+import type { TimeControlId } from "./engine/ui_controller"
 
 type Props = {
   isOpen: boolean
@@ -94,7 +94,7 @@ export function NewGameModal({
   timeControlId, aiDifficulty, boardStyle,
   loginWarn, newGameMsg,
   onSetTimeControlId, onSetAiDifficulty, onSetBoardStyle,
-  onStartGame, onSignIn, onTutorial,
+  onStartGame, onSignIn: _onSignIn, onTutorial,
   isMuted, onToggleMute,
 }: Props) {
   if (!isOpen) return null

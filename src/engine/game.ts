@@ -1,4 +1,4 @@
-import type { GameState, Player, Token } from "./state"
+import type { GameState, Player, Token, GameOver } from "./state"
 import { toSq, type Coord } from "./coords"
 import { traceByRoute, stepFlank, type Route } from "./move"
 import { type Direction } from "./directions"
@@ -252,7 +252,7 @@ export function advanceFromAction(state: GameState) {
 
   checkWinner(state)
   if (state.gameOver) {
-    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    state.log.unshift(`== GAME OVER: ${(state.gameOver as GameOver).winner} wins ==`)
     return
   }
 
@@ -288,7 +288,7 @@ export function advanceFromAction(state: GameState) {
   }
 }
 
-function hasAnyLegalMove(state: GameState, p: Player): boolean {
+function _hasAnyLegalMove(state: GameState, p: Player): boolean {
   // Check if player p would have any legal continuation on their next turn.
   // Evaluated as-if it were the start of p's turn (no routes used yet).
   //
@@ -597,7 +597,7 @@ export function applyRouteMove(state: GameState, tokenId: string, routeId: strin
   // Win?
   checkWinner(state)
   if (state.gameOver) {
-    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    state.log.unshift(`== GAME OVER: ${(state.gameOver as GameOver).winner} wins ==`)
     return
   }
 
@@ -741,7 +741,7 @@ export function placeReinforcement(state: GameState, coord: Coord) {
 
   checkWinner(state)
   if (state.gameOver) {
-    state.log.unshift(`== GAME OVER: ${state.gameOver.winner} wins ==`)
+    state.log.unshift(`== GAME OVER: ${(state.gameOver as GameOver).winner} wins ==`)
     return
   }
 

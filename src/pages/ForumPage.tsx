@@ -95,7 +95,6 @@ export function ForumPage() {
         category:forum_categories!category_id(id, name, slug, color)
       `)
       .eq("is_deleted", false)
-      .limit(60)
 
     // 3. Category topic counts (separate lightweight query)
     const { data: allTopicIds } = await supabase
@@ -165,7 +164,7 @@ export function ForumPage() {
       new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime()
     )
 
-    setFeed(entries)
+    setFeed(entries.slice(0, 60))
     setLoading(false)
   }
 

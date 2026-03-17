@@ -1,5 +1,5 @@
 // src/components/GameOverModal.tsx
-import type { GameState } from "../engine/state"
+import type { GameState } from "./engine/state"
 
 type Player = { username: string }
 
@@ -12,6 +12,7 @@ type Props = {
   opponentType: "ai" | "pvp"
   onPlayComputer: () => void
   onRematch: () => void
+  newlyUnlockedAchievements?: any[]
 }
 
 const S = {
@@ -102,7 +103,7 @@ function winnerDescription(g: GameState, whitePlayer: Player, bluePlayer: Player
   return { text: `${winnerName} wins by Elimination`, color: winnerColor }
 }
 
-export function GameOverModal({ isOpen, onClose, g, whitePlayer, bluePlayer, opponentType, onPlayComputer, onRematch }: Props) {
+export function GameOverModal({ isOpen, onClose, g, whitePlayer, bluePlayer, opponentType: _opponentType, onPlayComputer, onRematch }: Props) {
   if (!isOpen || !g.gameOver) return null
 
   const { text: resultText, color: resultColor } = winnerDescription(g, whitePlayer, bluePlayer)

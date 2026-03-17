@@ -6,6 +6,7 @@ import { Header } from "../components/Header"
 import { ForumImageUploader, ImageGrid } from "../components/ForumImageUploader"
 
 const ADMIN_USER_ID = "eda57bd5-fdde-4fd5-b662-4f21352861bf"
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function injectFonts() {
   if (typeof document === "undefined") return
@@ -36,6 +37,7 @@ interface PostStats {
 
 interface Topic {
   id: string
+  slug: string
   category_id: number
   author_id: string
   title: string
@@ -67,7 +69,7 @@ interface Reply {
 
 export function TopicPage() {
   injectFonts()
-  const { categorySlug, topicId } = useParams<{ categorySlug: string; topicId: string }>()
+  const { categorySlug, topicRef } = useParams<{ categorySlug: string; topicRef: string }>()
   const navigate = useNavigate()
 
   const [userId, setUserId] = useState<string | null>(null)
@@ -85,7 +87,7 @@ export function TopicPage() {
   const [showMoveSelect, setShowMoveSelect] = useState(false)
   const [allCategories, setAllCategories] = useState<{ id: number; name: string; slug: string }[]>([])
 
-  const isMod = role === 'admin' || role === 'mod'
+  const isMod = role === "admin" || role === "mod"
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -104,34 +106,85 @@ export function TopicPage() {
     })
   }, [])
 
-  const loadData = useCallback(async () => {
-    if (!topicId) return
-
-    // Step 1: topic + replies with profiles only (no player_stats FK path)
-    const [{ data: topicData }, { data: replyData }] = await Promise.all([
-      supabase
-        .from("forum_topics")
-        .select(`
-          id, category_id, author_id, title, body, images, is_pinned, is_locked,
-          reply_count, upvote_count, created_at, updated_at, mod_note,
-          author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
-        `)
-        .eq("id", topicId)
-        .single(),
+  async function syncTopicReplyMeta(topicId: string) {
+    const [{ count, error: countError }, { data: latestReply, error: latestError }] = await Promise.all([
       supabase
         .from("forum_replies")
-        .select(`
-          id, author_id, body, images, upvote_count, created_at, updated_at, mod_note,
-          author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
-        `)
+        .select("id", { count: "exact", head: true })
+        .eq("topic_id", topicId)
+        .eq("is_deleted", false),
+      supabase
+        .from("forum_replies")
+        .select("created_at")
         .eq("topic_id", topicId)
         .eq("is_deleted", false)
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ])
 
-    // Step 2: fetch player_stats_agg for all unique authors (row-per-format — pivot needed)
+    if (countError) throw countError
+    if (latestError) throw latestError
+
+    const replyCount = count ?? 0
+    const lastReplyAt = latestReply?.created_at ?? null
+
+    const { error: updateError } = await supabase
+      .from("forum_topics")
+      .update({
+        reply_count: replyCount,
+        last_reply_at: lastReplyAt,
+      })
+      .eq("id", topicId)
+
+    if (updateError) throw updateError
+  }
+
+  const loadData = useCallback(async () => {
+    if (!topicRef) return
+    setLoading(true)
+
+    const topicLookup = UUID_RE.test(topicRef)
+      ? supabase
+          .from("forum_topics")
+          .select(`
+            id, slug, category_id, author_id, title, body, images, is_pinned, is_locked,
+            reply_count, upvote_count, created_at, updated_at, mod_note,
+            author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
+          `)
+          .eq("id", topicRef)
+          .single()
+      : supabase
+          .from("forum_topics")
+          .select(`
+            id, slug, category_id, author_id, title, body, images, is_pinned, is_locked,
+            reply_count, upvote_count, created_at, updated_at, mod_note,
+            author:profiles!forum_topics_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
+          `)
+          .eq("slug", topicRef)
+          .single()
+
+    const { data: topicData } = await topicLookup
+
+    if (!topicData) {
+      setTopic(null)
+      setReplies([])
+      setLoading(false)
+      return
+    }
+
+    const { data: replyData } = await supabase
+      .from("forum_replies")
+      .select(`
+        id, author_id, body, images, upvote_count, created_at, updated_at, mod_note,
+        author:profiles!forum_replies_author_id_fkey(username, avatar_url, country_code, account_tier, forum_signature)
+      `)
+      .eq("topic_id", (topicData as any).id)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: true })
+
     const authorIds = [...new Set([
-      topicData ? (topicData as any).author_id : null,
+      (topicData as any).author_id,
       ...((replyData ?? []) as any[]).map((r: any) => r.author_id),
     ].filter(Boolean))]
 
@@ -149,12 +202,11 @@ export function TopicPage() {
       }
       const entry = statsMap.get(row.user_id)!
       if (row.format === "standard") entry.elo_standard = row.elo ?? 0
-      else if (row.format === "rapid")    entry.elo_rapid   = row.elo ?? 0
-      else if (row.format === "blitz")    entry.elo_blitz   = row.elo ?? 0
-      else if (row.format === "daily")    entry.elo_daily   = row.elo ?? 0
+      else if (row.format === "rapid") entry.elo_rapid = row.elo ?? 0
+      else if (row.format === "blitz") entry.elo_blitz = row.elo ?? 0
+      else if (row.format === "daily") entry.elo_daily = row.elo ?? 0
     }
 
-    // Step 3: fetch order icons for all authors
     const { data: membershipData } = await supabase
       .from("order_memberships")
       .select("user_id, order_id, joined_at, left_at")
@@ -181,20 +233,29 @@ export function TopicPage() {
       }
     }
 
-    function resolveOrderIcon(userId: string): string | null {
-      const orderId = latestMembershipByUser.get(userId)
+    function resolveOrderIcon(uid: string): string | null {
+      const orderId = latestMembershipByUser.get(uid)
       return orderId ? (orderIconMap.get(orderId) ?? null) : null
     }
 
-    if (topicData) {
-      const td = topicData as any
-      setTopic({
-        ...td,
-        author: { ...td.author, order_icon_url: resolveOrderIcon(td.author_id) },
-        author_stats: statsMap.get(td.author_id) ?? null,
-      } as unknown as Topic)
-      supabase.from("forum_categories").select("color").eq("id", td.category_id).single()
-        .then(({ data: cat }) => { if (cat?.color) setCategoryColor(cat.color) })
+    const td = topicData as any
+
+    setTopic({
+      ...td,
+      author: { ...td.author, order_icon_url: resolveOrderIcon(td.author_id) },
+      author_stats: statsMap.get(td.author_id) ?? null,
+    } as unknown as Topic)
+
+    const { data: cat } = await supabase
+      .from("forum_categories")
+      .select("slug, color")
+      .eq("id", td.category_id)
+      .single()
+
+    if (cat?.color) setCategoryColor(cat.color)
+
+    if (cat?.slug && (categorySlug !== cat.slug || topicRef !== td.slug)) {
+      navigate(`/forum/${cat.slug}/${td.slug}`, { replace: true })
     }
 
     if (replyData) {
@@ -203,16 +264,17 @@ export function TopicPage() {
         author: { ...r.author, order_icon_url: resolveOrderIcon(r.author_id) },
         author_stats: statsMap.get(r.author_id) ?? null,
       })) as unknown as Reply[])
+    } else {
+      setReplies([])
     }
 
     setLoading(false)
-  }, [topicId])
+  }, [topicRef, categorySlug, navigate])
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Load user's existing upvotes
   useEffect(() => {
-    if (!userId || !topicId) return
+    if (!userId || !topic?.id) return
     supabase
       .from("forum_upvotes")
       .select("target_id")
@@ -220,7 +282,7 @@ export function TopicPage() {
       .then(({ data }) => {
         if (data) setUpvotedIds(new Set(data.map((r: any) => r.target_id)))
       })
-  }, [userId, topicId])
+  }, [userId, topic?.id])
 
   async function handleUpvote(targetType: "topic" | "reply", targetId: string) {
     if (!userId) return
@@ -243,15 +305,43 @@ export function TopicPage() {
   }
 
   async function handleSubmitReply() {
-    if (!replyBody.trim() || !userId || !topicId) return
-    setSubmitting(true); setReplyError(null)
-    const { error } = await supabase.from("forum_replies").insert({
-      topic_id: topicId, author_id: userId,
-      body: replyBody.trim(), images: replyImages,
-    })
-    if (error) { console.error("Insert error:", error); setReplyError("Failed to post: " + error.message); setSubmitting(false); return }
-    await supabase.from("forum_topics").update({ last_reply_at: new Date().toISOString(), reply_count: (topic?.reply_count ?? 0) + 1 }).eq("id", topicId)
-    setReplyBody(""); setReplyImages([]); setSubmitting(false); loadData()
+    if (!replyBody.trim() || !userId || !topic?.id) return
+    setSubmitting(true)
+    setReplyError(null)
+
+    const replyText = replyBody.trim()
+    const replyImageUrls = [...replyImages]
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create_forum_reply", {
+        body: {
+          topicId: topic.id,
+          body: replyText,
+          images: replyImageUrls,
+        },
+      })
+
+      if (error) {
+        console.error("create_forum_reply invoke error:", error)
+        setReplyError("Failed to post: " + error.message)
+        return
+      }
+
+      if ((data as any)?.error) {
+        console.error("create_forum_reply returned error:", data)
+        setReplyError("Failed to post: " + ((data as any).error ?? "Unknown error"))
+        return
+      }
+
+      setReplyBody("")
+      setReplyImages([])
+      await loadData()
+    } catch (err: any) {
+      console.error("create_forum_reply unexpected error:", err)
+      setReplyError("Failed to post: " + (err?.message ?? "Unknown error"))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function openMove() {
@@ -267,10 +357,11 @@ export function TopicPage() {
     const newCat = allCategories.find(c => c.id === newCategoryId)
     await supabase.from("forum_topics").update({ category_id: newCategoryId }).eq("id", topic.id)
     setShowMoveSelect(false)
-    if (newCat) navigate(`/forum/${newCat.slug}/${topic.id}`)
+    if (newCat) navigate(`/forum/${newCat.slug}/${topic.slug}`)
   }
 
   async function handlePin() {
+    if (!topic) return
     await supabase.from("forum_topics").update({ is_pinned: !topic.is_pinned }).eq("id", topic.id)
     loadData()
   }
@@ -288,10 +379,24 @@ export function TopicPage() {
   }
 
   async function handleDeleteReply(reply: Reply) {
-    if (!window.confirm("Delete this reply?")) return
-    await supabase.from("forum_replies").update({ is_deleted: true }).eq("id", reply.id)
-    await supabase.from("forum_topics").update({ reply_count: Math.max(0, (topic?.reply_count ?? 1) - 1) }).eq("id", topicId)
-    loadData()
+    if (!topic?.id || !window.confirm("Delete this reply?")) return
+
+    const { error: deleteError } = await supabase
+      .from("forum_replies")
+      .delete()
+      .eq("id", reply.id)
+
+    if (deleteError) {
+      console.error("Delete reply error:", deleteError)
+      return
+    }
+
+    try {
+      await syncTopicReplyMeta(topic.id)
+      await loadData()
+    } catch (err) {
+      console.error("Reply meta sync error after delete:", err)
+    }
   }
 
   async function handleEditTopic(newBody: string, newImages: string[], newModNote: string | null) {
@@ -339,7 +444,6 @@ export function TopicPage() {
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ padding: "28px 16px 60px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
 
-          {/* Breadcrumb */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
             <button onClick={() => navigate("/forum")} style={breadcrumbBtnStyle}>Forum</button>
             <span style={{ color: "#555", fontSize: 14 }}>/</span>
@@ -360,7 +464,6 @@ export function TopicPage() {
             <p style={{ fontFamily: "'EB Garamond', serif", fontSize: 18, color: "#b0aa9e" }}>Topic not found.</p>
           ) : (
             <>
-              {/* Title + badges */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
                   <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 26, fontWeight: 700, color: "#9c9581", letterSpacing: "0.06em", margin: 0, flex: 1 }}>
@@ -402,7 +505,6 @@ export function TopicPage() {
                 <div style={{ height: 1, background: `${categoryColor}40`, marginTop: 14 }} />
               </div>
 
-              {/* Original post */}
               <PostCard
                 userId={userId}
                 authorId={topic.author_id}
@@ -423,7 +525,6 @@ export function TopicPage() {
                 isFirst
               />
 
-              {/* Replies */}
               {replies.map((reply) => {
                 const peakElo = reply.author_stats
                   ? Math.max(reply.author_stats.elo_blitz, reply.author_stats.elo_rapid, reply.author_stats.elo_standard, reply.author_stats.elo_daily)
@@ -453,7 +554,6 @@ export function TopicPage() {
                 )
               })}
 
-              {/* Reply form */}
               {!!userId && !topic.is_locked && (
                 <div style={{
                   marginTop: 20, background: "rgba(255,255,255,0.02)",
@@ -514,8 +614,6 @@ export function TopicPage() {
   )
 }
 
-// ─── PostCard ─────────────────────────────────────────────────────────────────
-
 function PostCard({
   userId, authorId, author, peakElo, body, images, createdAt, updatedAt,
   upvoteCount, upvoted, canUpvote, onUpvote,
@@ -550,7 +648,6 @@ function PostCard({
   const [editModNote, setEditModNote] = useState(modNote ?? "")
   const [saving, setSaving] = useState(false)
 
-  // Sync local edit state if parent refreshes the post
   React.useEffect(() => {
     if (!editing) {
       setEditBody(body)
@@ -583,7 +680,6 @@ function PostCard({
       border: `1px solid ${isFirst ? "rgba(184,150,106,0.2)" : "rgba(184,150,106,0.1)"}`,
       borderRadius: 6, padding: "16px 18px", marginBottom: 2,
     }}>
-      {/* Author header */}
       <div style={{
         display: "flex", alignItems: "center", gap: 6, marginBottom: 14,
         paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)", flexWrap: "wrap",
@@ -599,7 +695,9 @@ function PostCard({
         {author.country_code && (
           <img
             src={`https://flagicons.lipis.dev/flags/4x3/${author.country_code.toLowerCase()}.svg`}
-            width={18} height={14} alt={author.country_code}
+            width={18}
+            height={14}
+            alt={author.country_code}
             style={{ borderRadius: 2, display: "inline-block" }}
             onError={(e) => { e.currentTarget.style.display = "none" }}
           />
@@ -636,7 +734,6 @@ function PostCard({
         </div>
       </div>
 
-      {/* Body — view or edit mode */}
       {editing ? (
         <div style={{ marginBottom: 14 }}>
           <textarea
@@ -699,7 +796,6 @@ function PostCard({
         </>
       )}
 
-      {/* Pro signature */}
       {!editing && author.account_tier === "pro" && author.forum_signature && (
         <div style={{ marginTop: 14, marginBottom: 6 }}>
           <div style={{ height: 1, background: "rgba(184,150,106,0.12)", marginBottom: 10 }} />
@@ -713,7 +809,6 @@ function PostCard({
         </div>
       )}
 
-      {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <UpvoteButton count={upvoteCount} upvoted={upvoted} disabled={!canUpvote} onClick={onUpvote} />
         {canEdit && !editing && (
@@ -760,7 +855,8 @@ function PostCard({
 function UpvoteButton({ count, upvoted, disabled, onClick }: { count: number; upvoted: boolean; disabled: boolean; onClick: () => void }) {
   return (
     <button
-      onClick={onClick} disabled={disabled}
+      onClick={onClick}
+      disabled={disabled}
       style={{
         display: "flex", alignItems: "center", gap: 7,
         background: upvoted ? "rgba(93,232,247,0.1)" : "transparent",
@@ -845,14 +941,12 @@ function ModBtn({ onClick, label, color }: { onClick: () => void; label: string;
   )
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
 function eloColor(elo: number): string {
   if (elo >= 2000) return "#D4AF37"
   if (elo >= 1750) return "#7c2d12"
   if (elo >= 1500) return "#16a34a"
   if (elo >= 1200) return "#dc2626"
-  if (elo >= 900)  return "#2563eb"
+  if (elo >= 900) return "#2563eb"
   return "#6b6558"
 }
 
@@ -861,7 +955,7 @@ function eloTitle(elo: number): string {
   if (elo >= 1750) return "Senior Master"
   if (elo >= 1500) return "Master"
   if (elo >= 1200) return "Expert"
-  if (elo >= 900)  return "Adept"
+  if (elo >= 900) return "Adept"
   return "Novice"
 }
 
@@ -906,8 +1000,6 @@ function timeAgo(dateStr: string): string {
   if (mo < 12) return `${mo}mo ago`
   return `${Math.floor(mo / 12)}y ago`
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
   width: "100%", background: "#0d0d14",

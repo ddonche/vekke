@@ -75,7 +75,7 @@ function App() {
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/forum"                        element={<ForumPage />} />
       <Route path="/forum/:categorySlug"          element={<CategoryPage />} />
-      <Route path="/forum/:categorySlug/:topicId" element={<TopicPage />} />
+      <Route path="/forum/:categorySlug/:topicRef" element={<TopicPage />} />
     </Routes>
   )
 }

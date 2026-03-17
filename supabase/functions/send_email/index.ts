@@ -193,42 +193,42 @@ Manage email preferences:
         break
       }
 
-      case "forum_reply":
-        subject = `New reply in "${payload.threadTitle}"`
+        case "forum_reply":
+          subject = `New reply in "${payload.threadTitle}"`
 
-        text = `${payload.replierName} replied to a thread you follow on VEKKE.
+          text = `${payload.replierName} replied to your thread on VEKKE.
 
-Thread: ${payload.threadTitle}
+  Thread: ${payload.threadTitle}
 
-Preview:
-"${payload.replySnippet}"
+  Preview:
+  "${payload.replySnippet}"
 
-Open discussion:
-${payload.threadUrl}`
+  Open discussion:
+  ${payload.threadUrl}`
 
-        html = `
-<p><strong>${payload.replierName}</strong> replied to a thread you follow on <strong>VEKKE</strong>.</p>
+          html = `
+  <p><strong>${payload.replierName}</strong> replied to your thread on <strong>VEKKE</strong>.</p>
 
-<p><strong>Thread:</strong> ${payload.threadTitle}</p>
+  <p><strong>Thread:</strong> ${payload.threadTitle}</p>
 
-<p><strong>Preview:</strong></p>
-<blockquote style="margin:12px 0;padding-left:12px;border-left:3px solid #ddd;color:#444;">
-  ${payload.replySnippet}
-</blockquote>
+  <p><strong>Preview:</strong></p>
+  <blockquote style="margin:12px 0;padding-left:12px;border-left:3px solid #ddd;color:#444;">
+    ${payload.replySnippet}
+  </blockquote>
 
-<p>
-  <a href="${payload.threadUrl}" style="
-    display:inline-block;
-    background:#2563eb;
-    color:#ffffff;
-    padding:10px 16px;
-    text-decoration:none;
-    border-radius:6px;
-    font-weight:600;
-  ">Open Discussion</a>
-</p>
-`
-        break
+  <p>
+    <a href="${payload.threadUrl}" style="
+      display:inline-block;
+      background:#2563eb;
+      color:#ffffff;
+      padding:10px 16px;
+      text-decoration:none;
+      border-radius:6px;
+      font-weight:600;
+    ">Open Discussion</a>
+  </p>
+  `
+          break
 
       case "announcement":
         subject = payload.subject ?? "VEKKE Announcement"

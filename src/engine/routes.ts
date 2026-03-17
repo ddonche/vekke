@@ -1,5 +1,5 @@
-import { Direction } from "./directions"
-import { Route } from "./move"
+import type { Direction } from "./directions"
+import type { Route } from "./move"
 
 export const ALL_ROUTES: Route[] = (() => {
   const out: Route[] = []

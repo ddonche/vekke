@@ -1,4 +1,3 @@
-import React from "react"
 import { FlagImg } from "./FlagImg"
 
 export type PlayerChipModel = {
@@ -11,7 +10,7 @@ export type PlayerChipModel = {
   accent?: string | null
 }
 
-export function PlayerChip({ p, align = "left" }: { p: PlayerChipModel; align?: "left" | "right" }) {
+export function PlayerChip({ p, align = "left" }: { p: PlayerChipModel; align?: "left" | "right" | "center" }) {
   const name = p.username || "Player"
   const initials = name.slice(0, 2).toUpperCase()
 

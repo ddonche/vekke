@@ -314,7 +314,7 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email) setEmail(user.email)
 
-      const { data: profile, error: err } = await supabase
+      const { data: profileData, error: err } = await supabase
         .from("profiles")
         .select(
           [
@@ -342,6 +342,8 @@ export function ProfileModal({ userId, onClose, onUpdate }: ProfileModalProps) {
         )
         .eq("id", userId)
         .single()
+
+      const profile = profileData as any
 
       if (err) {
         setError(err.message)
